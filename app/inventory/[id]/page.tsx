@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -19,56 +19,50 @@ type OtherCost = { id: string; category: string; amount: number; date: string | 
 type Offer = { id: string; amount: number; date: string | null; notes: string | null; accepted: boolean }
 
 const STATUS_PIPELINE = ['Intake', 'Purchased', 'In Reconditioning', 'Ready to List', 'Listed', 'Deal Pending', 'Sold']
-const STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
-  Purchased: { bg: '#1a1a1a', color: '#888', border: '#333' },
-  'In Reconditioning': { bg: '#1a2a1a', color: '#22c55e', border: '#2a4a2a' },
-  'Ready to List': { bg: '#2a2a0a', color: '#EAB308', border: '#4a4a0a' },
-  Listed: { bg: '#1a2a2a', color: '#38bdf8', border: '#2a4a4a' },
-  'Deal Pending': { bg: '#2a1a00', color: '#f97316', border: '#4a3a00' },
-  Sold: { bg: '#0a2a0a', color: '#22c55e', border: '#1a4a1a' },
-  Intake: { bg: '#2a1a00', color: '#EAB308', border: '#4a3a00' },
-}
 
-const inputStyle = {
-  background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: 8,
-  padding: '9px 14px', color: '#e5e5e5', fontSize: 13, outline: 'none',
-  width: '100%', boxSizing: 'border-box' as const, fontFamily: 'system-ui, sans-serif',
+const statusStyle = (s: string) => {
+  const map: Record<string, { bg: string; color: string }> = {
+    Purchased: { bg: 'rgba(255,255,255,0.06)', color: 'var(--text2)' },
+    'In Reconditioning': { bg: 'rgba(34,197,94,0.1)', color: 'var(--green)' },
+    'Ready to List': { bg: 'rgba(234,179,8,0.1)', color: 'var(--gold)' },
+    Listed: { bg: 'rgba(56,189,248,0.1)', color: 'var(--blue)' },
+    'Deal Pending': { bg: 'rgba(249,115,22,0.1)', color: 'var(--orange)' },
+    Sold: { bg: 'rgba(34,197,94,0.1)', color: 'var(--green)' },
+    Intake: { bg: 'rgba(234,179,8,0.1)', color: 'var(--gold)' },
+  }
+  return map[s] || map['Purchased']
 }
-const labelStyle = { fontSize: 12, color: '#777', marginBottom: 5, display: 'block' as const }
-const sectionStyle = { background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '16px', marginBottom: 12 }
 
 function Modal({ title, onClose, onSave, children }: { title: string; onClose: () => void; onSave: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 100 }}>
-      <div style={{ background: '#161616', border: '1px solid #2a2a2a', borderRadius: '16px 16px 0 0', padding: 24, width: '100%', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ width: 36, height: 4, background: '#333', borderRadius: 2, margin: '0 auto 20px' }} />
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(8px)' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '20px 20px 0 0', padding: 24, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow)' }}>
+        <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 99, margin: '0 auto 20px' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, color: '#fff', margin: 0 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 22 }}>×</button>
+          <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', margin: 0, letterSpacing: '-0.01em' }}>{title}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 22 }}>×</button>
         </div>
         {children}
         <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-          <button onClick={onClose} style={{ flex: 1, background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#888', borderRadius: 8, padding: '12px', fontSize: 14, cursor: 'pointer' }}>Cancel</button>
-          <button onClick={onSave} style={{ flex: 2, background: '#EAB308', border: 'none', color: '#000', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>Save</button>
+          <button onClick={onClose} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '13px', fontSize: 14, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+          <button onClick={onSave} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '13px', fontSize: 14, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 16px var(--gold-glow)' }}>Save</button>
         </div>
       </div>
     </div>
   )
 }
 
-// Image preview modal
 function ImageModal({ url, onClose }: { url: string; onClose: () => void }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.95)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '100%', maxHeight: '90vh' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: -36, right: 0, background: 'none', border: 'none', color: '#aaa', fontSize: 28, cursor: 'pointer' }}>×</button>
-        <img src={url} alt="Invoice" style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: 8, objectFit: 'contain' }} />
+        <button onClick={onClose} style={{ position: 'absolute', top: -40, right: 0, background: 'none', border: 'none', color: '#aaa', fontSize: 28, cursor: 'pointer' }}>×</button>
+        <img src={url} alt="Invoice" style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: 12, objectFit: 'contain' }} />
       </div>
     </div>
   )
 }
 
-// Upload button component for each row
 function UploadButton({ table, rowId, currentUrl, onUploaded }: { table: string; rowId: string; currentUrl: string | null; onUploaded: (url: string) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
@@ -83,31 +77,19 @@ function UploadButton({ table, rowId, currentUrl, onUploaded }: { table: string;
     const { error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true })
     if (!error) {
       const { data } = supabase.storage.from('invoices').getPublicUrl(path)
-      const url = data.publicUrl
-      await supabase.from(table).update({ invoice_url: url }).eq('id', rowId)
-      onUploaded(url)
+      await supabase.from(table).update({ invoice_url: data.publicUrl }).eq('id', rowId)
+      onUploaded(data.publicUrl)
     }
     setUploading(false)
   }
 
-  const url = currentUrl
-
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      {url && (
-        <button
-          onClick={() => setPreviewUrl(url)}
-          style={{ background: '#1a2a1a', border: '1px solid #2a4a2a', color: '#22c55e', borderRadius: 5, padding: '3px 8px', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}
-        >
-          📄 View
-        </button>
+      {currentUrl && (
+        <button onClick={() => setPreviewUrl(currentUrl)} style={{ background: 'var(--green-dim)', border: '1px solid var(--green)', color: 'var(--green)', borderRadius: 99, padding: '3px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>📄 View</button>
       )}
-      <button
-        onClick={() => fileRef.current?.click()}
-        disabled={uploading}
-        style={{ background: uploading ? '#1a1a1a' : '#1a1a2a', border: '1px solid #2a2a4a', color: uploading ? '#555' : '#7c8cf8', borderRadius: 5, padding: '3px 8px', fontSize: 11, cursor: uploading ? 'default' : 'pointer', whiteSpace: 'nowrap' }}
-      >
-        {uploading ? '...' : url ? '🔄' : '📎 Upload'}
+      <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ background: uploading ? 'var(--hover)' : 'var(--blue-dim)', border: '1px solid var(--blue)', color: uploading ? 'var(--text3)' : 'var(--blue)', borderRadius: 99, padding: '3px 10px', fontSize: 11, cursor: uploading ? 'default' : 'pointer', fontWeight: 600 }}>
+        {uploading ? '...' : currentUrl ? '🔄 Replace' : '📎 Upload'}
       </button>
       <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={handleFile} />
       {previewUrl && <ImageModal url={previewUrl} onClose={() => setPreviewUrl(null)} />}
@@ -166,11 +148,7 @@ export default function TruckDetailPage() {
       setNotesForm({ notes: t.notes || '' })
       setSaleForm({ sold_price: t.sold_price?.toString() || '', date_sold: t.date_sold || '', customer: t.customer || '', payment_status: t.payment_status || 'N/A' })
     }
-    setParts(p || [])
-    setLabors(l || [])
-    setInvoices(i || [])
-    setOtherCosts(o || [])
-    setOffers(of || [])
+    setParts(p || []); setLabors(l || []); setInvoices(i || []); setOtherCosts(o || []); setOffers(of || [])
     setLoading(false)
   }
 
@@ -212,47 +190,36 @@ export default function TruckDetailPage() {
 
   async function addPart() {
     await supabase.from('parts').insert([{ truck_id: id, part: newPart.part, category: newPart.category, qty: parseFloat(newPart.qty) || 1, unit_cost: parseFloat(newPart.unit_cost) || 0, date: newPart.date || null }])
-    setShowPartModal(false)
-    setNewPart({ part: '', category: '', qty: '1', unit_cost: '', date: '' })
-    fetchAll()
+    setShowPartModal(false); setNewPart({ part: '', category: '', qty: '1', unit_cost: '', date: '' }); fetchAll()
   }
 
   async function addLabor() {
     await supabase.from('labor').insert([{ truck_id: id, tech: newLabor.tech, hours: parseFloat(newLabor.hours) || 0, rate: parseFloat(newLabor.rate) || 0, date: newLabor.date || null }])
-    setShowLaborModal(false)
-    setNewLabor({ tech: '', hours: '', rate: '', date: '' })
-    fetchAll()
+    setShowLaborModal(false); setNewLabor({ tech: '', hours: '', rate: '', date: '' }); fetchAll()
   }
 
   async function addInvoice() {
     await supabase.from('vendor_invoices').insert([{ truck_id: id, vendor: newInvoice.vendor, description: newInvoice.description, amount: parseFloat(newInvoice.amount) || 0, status: newInvoice.status, date: newInvoice.date || null }])
-    setShowInvoiceModal(false)
-    setNewInvoice({ vendor: '', description: '', amount: '', status: 'Unpaid', date: '' })
-    fetchAll()
+    setShowInvoiceModal(false); setNewInvoice({ vendor: '', description: '', amount: '', status: 'Unpaid', date: '' }); fetchAll()
   }
 
   async function addCost() {
     await supabase.from('other_costs').insert([{ truck_id: id, category: newCost.category, amount: parseFloat(newCost.amount) || 0, date: newCost.date || null, notes: newCost.notes || null }])
-    setShowCostModal(false)
-    setNewCost({ category: '', amount: '', date: '', notes: '' })
-    fetchAll()
+    setShowCostModal(false); setNewCost({ category: '', amount: '', date: '', notes: '' }); fetchAll()
   }
 
   async function addOffer() {
     await supabase.from('offers').insert([{ truck_id: id, amount: parseFloat(newOffer.amount) || 0, date: newOffer.date || null, notes: newOffer.notes || null, accepted: newOffer.accepted }])
-    setShowOfferModal(false)
-    setNewOffer({ amount: '', date: '', notes: '', accepted: false })
-    fetchAll()
+    setShowOfferModal(false); setNewOffer({ amount: '', date: '', notes: '', accepted: false }); fetchAll()
   }
 
   async function deleteRow(table: string, rowId: string) {
     if (!confirm('Delete this entry?')) return
-    await supabase.from(table).delete().eq('id', rowId)
-    fetchAll()
+    await supabase.from(table).delete().eq('id', rowId); fetchAll()
   }
 
-  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0a0a0a', color: '#555' }}>Loading...</div>
-  if (!truck) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0a0a0a', color: '#ef4444' }}>Truck not found</div>
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)', color: 'var(--text3)' }}>Loading...</div>
+  if (!truck) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)', color: 'var(--red)' }}>Truck not found</div>
 
   const partsTotal = parts.reduce((s, p) => s + p.qty * p.unit_cost, 0)
   const laborTotal = labors.reduce((s, l) => s + l.hours * l.rate, 0)
@@ -265,47 +232,47 @@ export default function TruckDetailPage() {
   const agingLabel = daysInInventory == null ? '' : daysInInventory <= 15 ? '0–15' : daysInInventory <= 30 ? '16–30' : daysInInventory <= 60 ? '31–60' : '60+'
   const currentStepIndex = STATUS_PIPELINE.indexOf(truck.status)
 
+  const IS = { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 10, padding: '10px 14px', color: 'var(--text)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' as const, fontFamily: 'system-ui,sans-serif' }
+  const LS = { fontSize: 12, color: 'var(--text2)', marginBottom: 5, display: 'block' as const, fontWeight: 500 }
+
   return (
     <>
       <style>{`
-        .stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
-        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-        .listing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-        .sale-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-        .form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .form-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-        .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; background: #111; border: 1px solid #1e1e1e; border-radius: 8px; padding: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .tab-bar::-webkit-scrollbar { display: none; }
-        .cost-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #111; border-top: 1px solid #EAB308; padding: 10px 16px; display: flex; gap: 20px; z-index: 40; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .cost-bar::-webkit-scrollbar { display: none; }
-        .cost-row { border-bottom: 1px solid #1a1a1a; padding: 10px 0; }
-        .cost-row-main { display: flex; justify-content: space-between; align-items: flex-start; }
-        .cost-row-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
-        @media (max-width: 640px) {
-          .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .stat-last { grid-column: span 2; }
-          .detail-grid { grid-template-columns: 1fr !important; }
-          .form-2col { grid-template-columns: 1fr !important; }
-          .form-3col { grid-template-columns: 1fr 1fr !important; }
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+        .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+        .tab-bar{display:flex;gap:4px;margin-bottom:16px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:12px;padding:4px;overflow-x:auto}
+        .tab-bar::-webkit-scrollbar{display:none}
+        .cost-bar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;display:flex;gap:20px;z-index:40;overflow-x:auto;backdrop-filter:blur(20px);box-shadow:0 -4px 24px rgba(0,0,0,0.2)}
+        .cost-bar::-webkit-scrollbar{display:none}
+        .cost-row{border-bottom:1px solid var(--border2);padding:10px 0}
+        .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .form-3col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+        @media(max-width:640px){
+          .stat-grid{grid-template-columns:repeat(2,1fr)!important}
+          .stat-last{grid-column:span 2}
+          .detail-grid{grid-template-columns:1fr!important}
+          .form-2col{grid-template-columns:1fr!important}
+          .form-3col{grid-template-columns:1fr 1fr!important}
         }
       `}</style>
 
-      <main style={{ padding: '16px', overflowY: 'auto', background: '#0a0a0a', minHeight: '100vh', color: '#e5e5e5', fontFamily: 'system-ui, sans-serif' }}>
+      <main style={{ padding: '16px', background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)', fontFamily: 'system-ui,sans-serif' }}>
 
         {/* Header */}
-        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '14px 16px', marginBottom: 14 }}>
+        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 16, padding: '16px', marginBottom: 14, boxShadow: 'var(--shadow-card)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-              <button onClick={() => router.push('/inventory')} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 18, padding: 0, flexShrink: 0 }}>←</button>
+              <button onClick={() => router.push('/inventory')} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 14, padding: '6px 10px', borderRadius: 8, flexShrink: 0, transition: 'all 0.15s' }}>←</button>
               <div style={{ minWidth: 0 }}>
-                <h1 style={{ fontSize: 17, fontWeight: 700, color: '#fff', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{truck.year} {truck.make} {truck.model}</h1>
-                <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>VIN: {truck.vin}</div>
+                <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.02em' }}>{truck.year} {truck.make} {truck.model}</h1>
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, fontFamily: 'monospace' }}>VIN: {truck.vin}</div>
               </div>
             </div>
-            <button onClick={deleteTruck} style={{ background: '#2a0a0a', border: '1px solid #4a1a1a', color: '#ef4444', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>🗑</button>
+            <button onClick={deleteTruck} style={{ background: 'var(--red-dim)', border: '1px solid var(--red)', color: 'var(--red)', borderRadius: 8, padding: '6px 10px', fontSize: 12, cursor: 'pointer', flexShrink: 0, fontWeight: 600 }}>🗑</button>
           </div>
           <select value={truck.status} onChange={e => updateStatus(e.target.value)}
-            style={{ marginTop: 12, background: '#1a1a1a', border: '1px solid #333', color: '#EAB308', borderRadius: 6, padding: '8px 12px', fontSize: 13, cursor: 'pointer', outline: 'none', width: '100%' }}>
+            style={{ ...IS, marginTop: 12, cursor: 'pointer', fontWeight: 600, color: statusStyle(truck.status).color, background: statusStyle(truck.status).bg }}>
             {STATUS_PIPELINE.filter(s => s !== 'Intake').map(s => <option key={s}>{s}</option>)}
           </select>
         </div>
@@ -313,59 +280,54 @@ export default function TruckDetailPage() {
         {/* Stat cards */}
         <div className="stat-grid">
           {[
-            { label: 'PURCHASE', value: `$${(truck.purchase_price || 0).toLocaleString()}`, color: '#EAB308', last: false },
-            { label: 'RECON', value: `$${reconTotal.toLocaleString()}`, color: '#EAB308', last: false },
-            { label: 'ALL-IN', value: `$${allInCost.toLocaleString()}`, color: '#EAB308', last: false },
-            { label: 'SOLD', value: truck.sold_price != null ? `$${truck.sold_price.toLocaleString()}` : '—', color: truck.sold_price ? '#EAB308' : '#444', last: false },
-            { label: 'PROFIT', value: profit != null ? `${profit < 0 ? '-' : ''}$${Math.abs(profit).toLocaleString()}` : '—', color: profit == null ? '#444' : profit >= 0 ? '#22c55e' : '#ef4444', last: true },
+            { label: 'PURCHASE', value: `$${(truck.purchase_price || 0).toLocaleString()}`, color: 'var(--gold)', last: false },
+            { label: 'RECON', value: `$${reconTotal.toLocaleString()}`, color: 'var(--gold)', last: false },
+            { label: 'ALL-IN', value: `$${allInCost.toLocaleString()}`, color: 'var(--gold)', last: false },
+            { label: 'SOLD', value: truck.sold_price != null ? `$${truck.sold_price.toLocaleString()}` : '—', color: truck.sold_price ? 'var(--gold)' : 'var(--text4)', last: false },
+            { label: 'PROFIT', value: profit != null ? `${profit < 0 ? '-' : ''}$${Math.abs(profit).toLocaleString()}` : '—', color: profit == null ? 'var(--text4)' : profit >= 0 ? 'var(--green)' : 'var(--red)', last: true },
           ].map(s => (
-            <div key={s.label} className={s.last ? 'stat-last' : ''} style={{ background: '#161616', border: '1px solid #222', borderRadius: 8, padding: '10px 12px', borderBottom: `2px solid ${s.color === '#444' ? '#222' : s.color}` }}>
-              <div style={{ fontSize: 9, color: '#555', letterSpacing: '0.08em', marginBottom: 5 }}>{s.label}</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: s.color }}>{s.value}</div>
+            <div key={s.label} className={s.last ? 'stat-last' : ''} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, padding: '12px', borderBottom: `2px solid ${s.color}`, boxShadow: 'var(--shadow-card)' }}>
+              <div style={{ fontSize: 9, color: 'var(--text4)', letterSpacing: '0.1em', marginBottom: 6, fontWeight: 700 }}>{s.label}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: s.color, letterSpacing: '-0.02em' }}>{s.value}</div>
             </div>
           ))}
         </div>
 
         {daysInInventory != null && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, fontSize: 13, color: '#888' }}>
-            <span style={{ fontWeight: 600, color: daysInInventory > 60 ? '#ef4444' : daysInInventory > 30 ? '#EAB308' : '#888' }}>{daysInInventory}d</span>
-            <span>in inventory</span>
-            <span style={{ background: '#1e1e1e', border: '1px solid #2a2a2a', borderRadius: 4, padding: '1px 8px', fontSize: 11, color: '#666' }}>· {agingLabel}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, fontSize: 13 }}>
+            <span style={{ fontWeight: 800, color: daysInInventory > 60 ? 'var(--red)' : daysInInventory > 30 ? 'var(--orange)' : 'var(--text2)', letterSpacing: '-0.01em' }}>{daysInInventory}d</span>
+            <span style={{ color: 'var(--text3)' }}>in inventory</span>
+            <span style={{ background: 'var(--hover)', border: '1px solid var(--border)', borderRadius: 99, padding: '1px 10px', fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>· {agingLabel}</span>
           </div>
         )}
 
         {/* Tabs */}
         <div className="tab-bar">
           {(['overview', 'costs', 'listings', 'docs'] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} style={{
-              padding: '8px 14px', borderRadius: 6, border: activeTab === tab ? '1px solid #EAB308' : '1px solid transparent',
-              background: activeTab === tab ? '#1a1a1a' : 'transparent',
-              color: activeTab === tab ? '#EAB308' : '#666', fontSize: 13, cursor: 'pointer',
-              fontWeight: activeTab === tab ? 500 : 400, whiteSpace: 'nowrap', flex: 1,
-            }}>{tab.charAt(0).toUpperCase() + tab.slice(1)}</button>
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '8px 16px', borderRadius: 9, border: activeTab === tab ? '1px solid var(--gold)' : '1px solid transparent', background: activeTab === tab ? 'var(--gold)' : 'transparent', color: activeTab === tab ? '#000' : 'var(--text3)', fontSize: 13, cursor: 'pointer', fontWeight: activeTab === tab ? 800 : 400, whiteSpace: 'nowrap', flex: 1, transition: 'all 0.15s' }}>{tab.charAt(0).toUpperCase() + tab.slice(1)}</button>
           ))}
         </div>
 
-        {/* OVERVIEW TAB */}
+        {/* OVERVIEW */}
         {activeTab === 'overview' && (
           <div>
-            <div style={sectionStyle}>
-              <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 14 }}>STATUS TIMELINE</div>
+            {/* Timeline */}
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '16px', marginBottom: 12, boxShadow: 'var(--shadow-card)' }}>
+              <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.14em', fontWeight: 700, marginBottom: 14 }}>STATUS TIMELINE</div>
               <div style={{ overflowX: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', minWidth: 460 }}>
                   {STATUS_PIPELINE.map((step, i) => {
-                    const isActive = i === currentStepIndex
-                    const isPast = i < currentStepIndex
+                    const isActive = i === currentStepIndex, isPast = i < currentStepIndex
                     return (
                       <div key={step} style={{ display: 'flex', alignItems: 'center', flex: i < STATUS_PIPELINE.length - 1 ? 1 : 0 }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                          <div style={{ width: 24, height: 24, borderRadius: '50%', background: isActive ? '#EAB308' : isPast ? '#2a2a2a' : '#1a1a1a', border: `2px solid ${isActive ? '#EAB308' : isPast ? '#3a3a3a' : '#2a2a2a'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            {isPast && <span style={{ color: '#555', fontSize: 10 }}>✓</span>}
+                          <div style={{ width: 26, height: 26, borderRadius: '50%', background: isActive ? 'var(--gold)' : isPast ? 'var(--hover)' : 'var(--card-bg)', border: `2px solid ${isActive ? 'var(--gold)' : isPast ? 'var(--border)' : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: isActive ? '0 0 12px var(--gold-glow)' : 'none' }}>
+                            {isPast && <span style={{ color: 'var(--text3)', fontSize: 10 }}>✓</span>}
                             {isActive && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#000', display: 'block' }} />}
                           </div>
-                          <div style={{ fontSize: 9, color: isActive ? '#EAB308' : isPast ? '#555' : '#444', whiteSpace: 'nowrap', fontWeight: isActive ? 600 : 400 }}>{step}</div>
+                          <div style={{ fontSize: 9, color: isActive ? 'var(--gold)' : isPast ? 'var(--text3)' : 'var(--text4)', whiteSpace: 'nowrap', fontWeight: isActive ? 700 : 400 }}>{step}</div>
                         </div>
-                        {i < STATUS_PIPELINE.length - 1 && <div style={{ flex: 1, height: 1, background: isPast ? '#3a3a3a' : '#222', margin: '0 3px', marginBottom: 18 }} />}
+                        {i < STATUS_PIPELINE.length - 1 && <div style={{ flex: 1, height: 1, background: isPast ? 'var(--border)' : 'var(--border2)', margin: '0 3px', marginBottom: 18 }} />}
                       </div>
                     )
                   })}
@@ -374,290 +336,225 @@ export default function TruckDetailPage() {
             </div>
 
             <div className="detail-grid">
-              <div style={sectionStyle}>
-                <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 12 }}>KEY DATES</div>
-                {[
-                  { label: 'Bought', value: truck.bought_on },
-                  { label: 'Listed', value: listingData.listing_date || null },
-                  { label: 'Sold', value: truck.date_sold },
-                ].map(row => (
-                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #1e1e1e' }}>
-                    <span style={{ fontSize: 12, color: '#666' }}>{row.label}</span>
-                    <span style={{ fontSize: 12, color: row.value ? '#fff' : '#444' }}>{row.value || '—'}</span>
+              <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '16px', boxShadow: 'var(--shadow-card)' }}>
+                <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.14em', fontWeight: 700, marginBottom: 12 }}>KEY DATES</div>
+                {[{ label: 'Bought', value: truck.bought_on }, { label: 'Listed', value: listingData.listing_date || null }, { label: 'Sold', value: truck.date_sold }].map(row => (
+                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--border2)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 500 }}>{row.label}</span>
+                    <span style={{ fontSize: 12, color: row.value ? 'var(--text)' : 'var(--text4)', fontWeight: row.value ? 600 : 400 }}>{row.value || '—'}</span>
                   </div>
                 ))}
               </div>
-
-              <div style={sectionStyle}>
+              <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '16px', boxShadow: 'var(--shadow-card)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em' }}>DETAILS</div>
-                  <button onClick={() => setEditingDetails(true)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 12 }}>✏</button>
+                  <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.14em', fontWeight: 700 }}>DETAILS</div>
+                  <button onClick={() => setEditingDetails(true)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 11, padding: '3px 10px', borderRadius: 99, fontWeight: 600 }}>✏ Edit</button>
                 </div>
-                {[
-                  { label: 'Colour', value: truck.colour },
-                  { label: 'KM', value: truck.kilometers?.toLocaleString() },
-                  { label: 'From', value: truck.bought_from },
-                ].map(row => (
-                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #1e1e1e' }}>
-                    <span style={{ fontSize: 12, color: '#666' }}>{row.label}</span>
-                    <span style={{ fontSize: 12, color: row.value ? '#fff' : '#444', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>{row.value || '—'}</span>
+                {[{ label: 'Colour', value: truck.colour }, { label: 'KM', value: truck.kilometers?.toLocaleString() }, { label: 'From', value: truck.bought_from }].map(row => (
+                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--border2)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 500 }}>{row.label}</span>
+                    <span style={{ fontSize: 12, color: row.value ? 'var(--text)' : 'var(--text4)', fontWeight: row.value ? 600 : 400, maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>{row.value || '—'}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div style={sectionStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em' }}>NOTES</div>
-                <button onClick={() => setEditingNotes(true)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 12 }}>✏ Edit</button>
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '16px', boxShadow: 'var(--shadow-card)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.14em', fontWeight: 700 }}>NOTES</div>
+                <button onClick={() => setEditingNotes(true)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 11, padding: '3px 10px', borderRadius: 99, fontWeight: 600 }}>✏ Edit</button>
               </div>
-              <div style={{ fontSize: 13, color: truck.notes ? '#ccc' : '#444', fontStyle: truck.notes ? 'normal' : 'italic', lineHeight: 1.6 }}>{truck.notes || 'No notes added.'}</div>
+              <div style={{ fontSize: 13, color: truck.notes ? 'var(--text)' : 'var(--text4)', fontStyle: truck.notes ? 'normal' : 'italic', lineHeight: 1.7 }}>{truck.notes || 'No notes added.'}</div>
             </div>
           </div>
         )}
 
-        {/* COSTS TAB */}
+        {/* COSTS */}
         {activeTab === 'costs' && (
           <div style={{ paddingBottom: 90 }}>
-
-            {/* Parts */}
-            <div style={sectionStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>Parts</h3>
-                <button onClick={() => setShowPartModal(true)} style={{ background: '#EAB308', border: 'none', color: '#000', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Add</button>
-              </div>
-              {parts.length === 0
-                ? <div style={{ padding: '16px 0', textAlign: 'center', color: '#444', fontSize: 13 }}>No parts added yet.</div>
-                : parts.map(p => (
-                  <div key={p.id} className="cost-row">
-                    <div className="cost-row-main">
-                      <div>
-                        <div style={{ fontSize: 13, color: '#ccc', fontWeight: 500 }}>{p.part}</div>
-                        <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{p.category} · x{p.qty} · {p.date || '—'}</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#EAB308' }}>${(p.qty * p.unit_cost).toLocaleString()}</span>
-                        <button onClick={() => deleteRow('parts', p.id)} style={{ background: 'none', border: 'none', color: '#3a3a3a', cursor: 'pointer' }}>🗑</button>
-                      </div>
+            {[
+              { title: 'Parts', onAdd: () => setShowPartModal(true), items: parts, empty: 'No parts added yet.', render: (p: Part) => (
+                <div key={p.id} className="cost-row">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{p.part}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{p.category} · x{p.qty} · {p.date || '—'}</div>
                     </div>
-                    <div className="cost-row-footer">
-                      <UploadButton
-                        table="parts"
-                        rowId={p.id}
-                        currentUrl={p.invoice_url}
-                        onUploaded={url => setParts(prev => prev.map(x => x.id === p.id ? { ...x, invoice_url: url } : x))}
-                      />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--gold)' }}>${(p.qty * p.unit_cost).toLocaleString()}</span>
+                      <button onClick={() => deleteRow('parts', p.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
                     </div>
                   </div>
-                ))}
-            </div>
-
-            {/* Labor */}
-            <div style={sectionStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>Labor</h3>
-                <button onClick={() => setShowLaborModal(true)} style={{ background: '#EAB308', border: 'none', color: '#000', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Add</button>
-              </div>
-              {labors.length === 0
-                ? <div style={{ padding: '16px 0', textAlign: 'center', color: '#444', fontSize: 13 }}>No labor entries.</div>
-                : labors.map(l => (
-                  <div key={l.id} className="cost-row">
-                    <div className="cost-row-main">
-                      <div>
-                        <div style={{ fontSize: 13, color: '#ccc', fontWeight: 500 }}>{l.tech}</div>
-                        <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{l.hours}h @ ${l.rate}/hr · {l.date || '—'}</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#EAB308' }}>${(l.hours * l.rate).toLocaleString()}</span>
-                        <button onClick={() => deleteRow('labor', l.id)} style={{ background: 'none', border: 'none', color: '#3a3a3a', cursor: 'pointer' }}>🗑</button>
-                      </div>
+                  <div style={{ marginTop: 6 }}><UploadButton table="parts" rowId={p.id} currentUrl={p.invoice_url} onUploaded={url => setParts(prev => prev.map(x => x.id === p.id ? { ...x, invoice_url: url } : x))} /></div>
+                </div>
+              )},
+              { title: 'Labor', onAdd: () => setShowLaborModal(true), items: labors, empty: 'No labor entries.', render: (l: Labor) => (
+                <div key={l.id} className="cost-row">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{l.tech}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{l.hours}h @ ${l.rate}/hr · {l.date || '—'}</div>
                     </div>
-                    <div className="cost-row-footer">
-                      <UploadButton
-                        table="labor"
-                        rowId={l.id}
-                        currentUrl={l.invoice_url}
-                        onUploaded={url => setLabors(prev => prev.map(x => x.id === l.id ? { ...x, invoice_url: url } : x))}
-                      />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--gold)' }}>${(l.hours * l.rate).toLocaleString()}</span>
+                      <button onClick={() => deleteRow('labor', l.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
                     </div>
                   </div>
-                ))}
-            </div>
+                  <div style={{ marginTop: 6 }}><UploadButton table="labor" rowId={l.id} currentUrl={l.invoice_url} onUploaded={url => setLabors(prev => prev.map(x => x.id === l.id ? { ...x, invoice_url: url } : x))} /></div>
+                </div>
+              )},
+            ].map(section => (
+              <div key={section.title} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '16px', marginBottom: 12, boxShadow: 'var(--shadow-card)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{section.title}</h3>
+                  <button onClick={section.onAdd} style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 99, padding: '5px 14px', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>+ Add</button>
+                </div>
+                {section.items.length === 0 ? <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text4)', fontSize: 13 }}>{section.empty}</div> : section.items.map((item: any) => section.render(item))}
+              </div>
+            ))}
 
             {/* Vendor Invoices */}
-            <div style={sectionStyle}>
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '16px', marginBottom: 12, boxShadow: 'var(--shadow-card)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>Vendor Invoices</h3>
-                <button onClick={() => setShowInvoiceModal(true)} style={{ background: '#EAB308', border: 'none', color: '#000', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Add</button>
+                <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Vendor Invoices</h3>
+                <button onClick={() => setShowInvoiceModal(true)} style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 99, padding: '5px 14px', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>+ Add</button>
               </div>
-              {invoices.length === 0
-                ? <div style={{ padding: '16px 0', textAlign: 'center', color: '#444', fontSize: 13 }}>No invoices.</div>
+              {invoices.length === 0 ? <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text4)', fontSize: 13 }}>No invoices.</div>
                 : invoices.map(inv => (
                   <div key={inv.id} className="cost-row">
-                    <div className="cost-row-main">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
-                        <div style={{ fontSize: 13, color: '#ccc', fontWeight: 500 }}>{inv.vendor}</div>
-                        <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{inv.description} · {inv.date || '—'}</div>
-                        <span style={{ background: inv.status === 'Paid' ? '#0a2a0a' : '#2a0a0a', color: inv.status === 'Paid' ? '#22c55e' : '#ef4444', border: `1px solid ${inv.status === 'Paid' ? '#1a4a1a' : '#4a1a1a'}`, borderRadius: 4, padding: '1px 6px', fontSize: 10, marginTop: 4, display: 'inline-block' }}>{inv.status}</span>
+                        <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{inv.vendor}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{inv.description} · {inv.date || '—'}</div>
+                        <span style={{ background: inv.status === 'Paid' ? 'var(--green-dim)' : 'var(--red-dim)', color: inv.status === 'Paid' ? 'var(--green)' : 'var(--red)', borderRadius: 99, padding: '1px 8px', fontSize: 10, marginTop: 4, display: 'inline-block', fontWeight: 600 }}>{inv.status}</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#EAB308' }}>${inv.amount.toLocaleString()}</span>
-                        <button onClick={() => deleteRow('vendor_invoices', inv.id)} style={{ background: 'none', border: 'none', color: '#3a3a3a', cursor: 'pointer' }}>🗑</button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--gold)' }}>${inv.amount.toLocaleString()}</span>
+                        <button onClick={() => deleteRow('vendor_invoices', inv.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
                       </div>
                     </div>
-                    <div className="cost-row-footer">
-                      <UploadButton
-                        table="vendor_invoices"
-                        rowId={inv.id}
-                        currentUrl={inv.invoice_url}
-                        onUploaded={url => setInvoices(prev => prev.map(x => x.id === inv.id ? { ...x, invoice_url: url } : x))}
-                      />
-                    </div>
+                    <div style={{ marginTop: 6 }}><UploadButton table="vendor_invoices" rowId={inv.id} currentUrl={inv.invoice_url} onUploaded={url => setInvoices(prev => prev.map(x => x.id === inv.id ? { ...x, invoice_url: url } : x))} /></div>
                   </div>
                 ))}
             </div>
 
             {/* Other Costs */}
-            <div style={sectionStyle}>
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '16px', marginBottom: 12, boxShadow: 'var(--shadow-card)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>Other Costs</h3>
-                <button onClick={() => setShowCostModal(true)} style={{ background: '#EAB308', border: 'none', color: '#000', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Add</button>
+                <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Other Costs</h3>
+                <button onClick={() => setShowCostModal(true)} style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 99, padding: '5px 14px', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>+ Add</button>
               </div>
-              {otherCosts.length === 0
-                ? <div style={{ padding: '16px 0', textAlign: 'center', color: '#444', fontSize: 13 }}>No other costs.</div>
+              {otherCosts.length === 0 ? <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text4)', fontSize: 13 }}>No other costs.</div>
                 : otherCosts.map(c => (
                   <div key={c.id} className="cost-row">
-                    <div className="cost-row-main">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
-                        <div style={{ fontSize: 13, color: '#ccc', fontWeight: 500 }}>{c.category}</div>
-                        <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{c.date || '—'}{c.notes ? ` · ${c.notes}` : ''}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{c.category}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{c.date || '—'}{c.notes ? ` · ${c.notes}` : ''}</div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: '#EAB308' }}>${c.amount.toLocaleString()}</span>
-                        <button onClick={() => deleteRow('other_costs', c.id)} style={{ background: 'none', border: 'none', color: '#3a3a3a', cursor: 'pointer' }}>🗑</button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--gold)' }}>${c.amount.toLocaleString()}</span>
+                        <button onClick={() => deleteRow('other_costs', c.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
                       </div>
                     </div>
-                    <div className="cost-row-footer">
-                      <UploadButton
-                        table="other_costs"
-                        rowId={c.id}
-                        currentUrl={c.invoice_url}
-                        onUploaded={url => setOtherCosts(prev => prev.map(x => x.id === c.id ? { ...x, invoice_url: url } : x))}
-                      />
-                    </div>
+                    <div style={{ marginTop: 6 }}><UploadButton table="other_costs" rowId={c.id} currentUrl={c.invoice_url} onUploaded={url => setOtherCosts(prev => prev.map(x => x.id === c.id ? { ...x, invoice_url: url } : x))} /></div>
                   </div>
                 ))}
             </div>
 
-            {/* Sticky cost bar */}
+            {/* Cost bar */}
             <div className="cost-bar">
-              {[
-                { label: 'PARTS', value: partsTotal },
-                { label: 'LABOR', value: laborTotal },
-                { label: 'VENDOR', value: invoiceTotal },
-                { label: 'OTHER', value: otherTotal },
-                { label: 'RECON', value: reconTotal },
-                { label: 'ALL-IN', value: allInCost },
-              ].map(s => (
-                <div key={s.label} style={{ flexShrink: 0 }}>
-                  <div style={{ fontSize: 9, color: '#555', letterSpacing: '0.08em' }}>{s.label}</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: s.label === 'ALL-IN' ? '#EAB308' : '#fff' }}>${s.value.toLocaleString()}</div>
+              {[{ l: 'PARTS', v: partsTotal }, { l: 'LABOR', v: laborTotal }, { l: 'VENDOR', v: invoiceTotal }, { l: 'OTHER', v: otherTotal }, { l: 'RECON', v: reconTotal }, { l: 'ALL-IN', v: allInCost }].map(s => (
+                <div key={s.l} style={{ flexShrink: 0 }}>
+                  <div style={{ fontSize: 9, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700 }}>{s.l}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: s.l === 'ALL-IN' ? 'var(--gold)' : 'var(--text)', letterSpacing: '-0.01em' }}>${s.v.toLocaleString()}</div>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* LISTINGS TAB */}
+        {/* LISTINGS */}
         {activeTab === 'listings' && (
           <div>
-            <div style={sectionStyle}>
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '16px', marginBottom: 12, boxShadow: 'var(--shadow-card)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>Listing Info</h3>
-                <button onClick={() => setEditingListing(true)} style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#888', borderRadius: 6, padding: '5px 12px', fontSize: 12, cursor: 'pointer' }}>✏ Edit</button>
+                <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Listing Info</h3>
+                <button onClick={() => setEditingListing(true)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 99, padding: '4px 12px', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>✏ Edit</button>
               </div>
-              <div className="listing-grid">
-                {[
-                  { label: 'PLATFORM', value: listingData.listing_platform || 'Facebook Marketplace' },
-                  { label: 'DATE LISTED', value: listingData.listing_date },
-                  { label: 'ASKING PRICE', value: listingData.asking_price ? `$${parseFloat(listingData.asking_price).toLocaleString()}` : null },
-                  { label: 'LINK', value: listingData.listing_link },
-                ].map(item => (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                {[{ label: 'PLATFORM', value: listingData.listing_platform || 'Facebook Marketplace' }, { label: 'DATE LISTED', value: listingData.listing_date }, { label: 'ASKING PRICE', value: listingData.asking_price ? `$${parseFloat(listingData.asking_price).toLocaleString()}` : null }, { label: 'LINK', value: listingData.listing_link }].map(item => (
                   <div key={item.label}>
-                    <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.08em', marginBottom: 4 }}>{item.label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: item.value ? '#fff' : '#444', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.value || '—'}</div>
+                    <div style={{ fontSize: 9.5, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 4 }}>{item.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: item.value ? 'var(--text)' : 'var(--text4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.value || '—'}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div style={sectionStyle}>
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '16px', marginBottom: 12, boxShadow: 'var(--shadow-card)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>Offers</h3>
-                <button onClick={() => setShowOfferModal(true)} style={{ background: '#EAB308', border: 'none', color: '#000', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Log Offer</button>
+                <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Offers</h3>
+                <button onClick={() => setShowOfferModal(true)} style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 99, padding: '5px 14px', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>+ Log Offer</button>
               </div>
-              {offers.length === 0
-                ? <div style={{ padding: '16px 0', textAlign: 'center', color: '#444', fontSize: 13 }}>No offers yet.</div>
+              {offers.length === 0 ? <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--text4)', fontSize: 13 }}>No offers yet.</div>
                 : offers.map(o => (
-                  <div key={o.id} style={{ borderBottom: '1px solid #1a1a1a', padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div key={o.id} style={{ borderBottom: '1px solid var(--border2)', padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#EAB308' }}>${o.amount.toLocaleString()}</div>
-                      <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{o.date || '—'}{o.notes ? ` · ${o.notes}` : ''}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--gold)', letterSpacing: '-0.01em' }}>${o.amount.toLocaleString()}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{o.date || '—'}{o.notes ? ` · ${o.notes}` : ''}</div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ background: o.accepted ? '#0a2a0a' : '#1a1a1a', color: o.accepted ? '#22c55e' : '#555', border: `1px solid ${o.accepted ? '#1a4a1a' : '#2a2a2a'}`, borderRadius: 4, padding: '2px 8px', fontSize: 11 }}>{o.accepted ? 'Accepted' : 'Pending'}</span>
-                      <button onClick={() => deleteRow('offers', o.id)} style={{ background: 'none', border: 'none', color: '#3a3a3a', cursor: 'pointer' }}>🗑</button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ background: o.accepted ? 'var(--green-dim)' : 'var(--hover)', color: o.accepted ? 'var(--green)' : 'var(--text3)', borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 600 }}>{o.accepted ? 'Accepted' : 'Pending'}</span>
+                      <button onClick={() => deleteRow('offers', o.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
                     </div>
                   </div>
                 ))}
             </div>
 
-            <div style={sectionStyle}>
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '16px', boxShadow: 'var(--shadow-card)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: '#fff', margin: 0 }}>Sale Details</h3>
-                <button onClick={() => setEditingSale(true)} style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#888', borderRadius: 6, padding: '5px 12px', fontSize: 12, cursor: 'pointer' }}>✏ Edit</button>
+                <h3 style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Sale Details</h3>
+                <button onClick={() => setEditingSale(true)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 99, padding: '4px 12px', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>✏ Edit</button>
               </div>
-              <div className="sale-grid" style={{ marginBottom: 16 }}>
-                {[
-                  { label: 'SOLD PRICE', value: truck.sold_price ? `$${truck.sold_price.toLocaleString()}` : null },
-                  { label: 'SOLD DATE', value: truck.date_sold },
-                  { label: 'CUSTOMER', value: truck.customer },
-                  { label: 'PAYMENT', value: truck.payment_status },
-                ].map(item => (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
+                {[{ label: 'SOLD PRICE', value: truck.sold_price ? `$${truck.sold_price.toLocaleString()}` : null }, { label: 'SOLD DATE', value: truck.date_sold }, { label: 'CUSTOMER', value: truck.customer }, { label: 'PAYMENT', value: truck.payment_status }].map(item => (
                   <div key={item.label}>
-                    <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.08em', marginBottom: 4 }}>{item.label}</div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: item.value ? '#fff' : '#444' }}>{item.value || '—'}</div>
+                    <div style={{ fontSize: 9.5, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 4 }}>{item.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: item.value ? 'var(--text)' : 'var(--text4)' }}>{item.value || '—'}</div>
                   </div>
                 ))}
               </div>
               <div>
-                <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.08em', marginBottom: 4 }}>STATUS</div>
-                <span style={{ background: STATUS_COLORS[truck.status]?.bg || '#1a1a1a', color: STATUS_COLORS[truck.status]?.color || '#888', border: `1px solid ${STATUS_COLORS[truck.status]?.border || '#333'}`, borderRadius: 4, padding: '3px 10px', fontSize: 12 }}>{truck.status || 'N/A'}</span>
+                <div style={{ fontSize: 9.5, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 6 }}>STATUS</div>
+                <span style={{ background: statusStyle(truck.status).bg, color: statusStyle(truck.status).color, borderRadius: 99, padding: '4px 14px', fontSize: 12, fontWeight: 700 }}>{truck.status}</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* DOCS TAB */}
+        {/* DOCS */}
         {activeTab === 'docs' && (
           <div>
             <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-              <select style={{ ...inputStyle, flex: 1, cursor: 'pointer' }}>
+              <select style={{ ...IS, flex: 1, cursor: 'pointer' }}>
                 {['Photos', 'Purchase Docs', 'Inspection & Safety', 'Repair Invoices', 'Sales Docs', 'Other'].map(o => <option key={o}>{o}</option>)}
               </select>
-              <button style={{ background: '#EAB308', border: 'none', color: '#000', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>⬆ Upload</button>
+              <button style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 10, padding: '9px 16px', fontSize: 13, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>⬆ Upload</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
               {['Purchase Docs', 'Inspection & Safety', 'Repair Invoices', 'Sales Docs', 'Photos', 'Other'].map(folder => (
-                <div key={folder} style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '14px', cursor: 'pointer' }}>
+                <div key={folder} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, padding: '14px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--gold)')}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--card-border)')}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 16, color: '#EAB308' }}>📁</span>
+                    <span style={{ fontSize: 18, color: 'var(--gold)' }}>📁</span>
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>{folder}</div>
-                      <div style={{ fontSize: 10, color: '#555' }}>0 files</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{folder}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text4)' }}>0 files</div>
                     </div>
                   </div>
-                  <div style={{ fontSize: 11, color: '#444', fontStyle: 'italic' }}>No docs yet.</div>
+                  <div style={{ fontSize: 11, color: 'var(--text4)', fontStyle: 'italic' }}>No docs yet.</div>
                 </div>
               ))}
             </div>
@@ -668,110 +565,97 @@ export default function TruckDetailPage() {
         {editingDetails && (
           <Modal title="Edit Details" onClose={() => setEditingDetails(false)} onSave={saveDetails}>
             {[['Colour', 'colour', 'White'], ['KM', 'kilometers', '450000'], ['Bought From', 'bought_from', 'e.g. Ryder']].map(([label, key, ph]) => (
-              <div key={key} style={{ marginBottom: 14 }}>
-                <label style={labelStyle}>{label}</label>
-                <input style={inputStyle} placeholder={ph} value={(detailsForm as any)[key] || ''} onChange={e => setDetailsForm(p => ({ ...p, [key]: e.target.value }))} />
-              </div>
+              <div key={key} style={{ marginBottom: 14 }}><label style={LS}>{label}</label><input style={IS} placeholder={ph} value={(detailsForm as any)[key] || ''} onChange={e => setDetailsForm(p => ({ ...p, [key]: e.target.value }))} /></div>
             ))}
           </Modal>
         )}
-
         {editingNotes && (
           <Modal title="Edit Notes" onClose={() => setEditingNotes(false)} onSave={saveNotes}>
-            <textarea style={{ ...inputStyle, height: 140, resize: 'vertical' }} placeholder="Add notes..." value={notesForm.notes} onChange={e => setNotesForm({ notes: e.target.value })} />
+            <textarea style={{ ...IS, height: 140, resize: 'vertical' }} placeholder="Add notes..." value={notesForm.notes} onChange={e => setNotesForm({ notes: e.target.value })} />
           </Modal>
         )}
-
         {editingSale && (
           <Modal title="Edit Sale Details" onClose={() => setEditingSale(false)} onSave={saveSale}>
             <div className="form-2col" style={{ marginBottom: 14 }}>
-              <div><label style={labelStyle}>Sold Price ($)</label><input style={inputStyle} type="number" placeholder="80000" value={saleForm.sold_price} onChange={e => setSaleForm(p => ({ ...p, sold_price: e.target.value }))} /></div>
-              <div><label style={labelStyle}>Date Sold</label><input style={inputStyle} type="date" value={saleForm.date_sold} onChange={e => setSaleForm(p => ({ ...p, date_sold: e.target.value }))} /></div>
+              <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" placeholder="80000" value={saleForm.sold_price} onChange={e => setSaleForm(p => ({ ...p, sold_price: e.target.value }))} /></div>
+              <div><label style={LS}>Date Sold</label><input style={IS} type="date" value={saleForm.date_sold} onChange={e => setSaleForm(p => ({ ...p, date_sold: e.target.value }))} /></div>
             </div>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Customer</label><input style={inputStyle} placeholder="Customer name" value={saleForm.customer} onChange={e => setSaleForm(p => ({ ...p, customer: e.target.value }))} /></div>
-            <div><label style={labelStyle}>Payment Status</label>
-              <select style={{ ...inputStyle, cursor: 'pointer' }} value={saleForm.payment_status} onChange={e => setSaleForm(p => ({ ...p, payment_status: e.target.value }))}>
+            <div style={{ marginBottom: 14 }}><label style={LS}>Customer</label><input style={IS} placeholder="Customer name" value={saleForm.customer} onChange={e => setSaleForm(p => ({ ...p, customer: e.target.value }))} /></div>
+            <div><label style={LS}>Payment Status</label>
+              <select style={{ ...IS, cursor: 'pointer' }} value={saleForm.payment_status} onChange={e => setSaleForm(p => ({ ...p, payment_status: e.target.value }))}>
                 {['N/A', 'Paid', 'Unpaid'].map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
           </Modal>
         )}
-
         {editingListing && (
           <Modal title="Edit Listing Info" onClose={() => setEditingListing(false)} onSave={() => { setListingData(listingForm); setEditingListing(false) }}>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Platform</label>
-              <select style={{ ...inputStyle, cursor: 'pointer' }} value={listingForm.listing_platform} onChange={e => setListingForm(p => ({ ...p, listing_platform: e.target.value }))}>
+            <div style={{ marginBottom: 14 }}><label style={LS}>Platform</label>
+              <select style={{ ...IS, cursor: 'pointer' }} value={listingForm.listing_platform} onChange={e => setListingForm(p => ({ ...p, listing_platform: e.target.value }))}>
                 {['Facebook Marketplace', 'Kijiji', 'TruckPaper', 'Commercial Truck Trader', 'Other'].map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Listing Link</label><input style={inputStyle} placeholder="https://..." value={listingForm.listing_link} onChange={e => setListingForm(p => ({ ...p, listing_link: e.target.value }))} /></div>
+            <div style={{ marginBottom: 14 }}><label style={LS}>Listing Link</label><input style={IS} placeholder="https://..." value={listingForm.listing_link} onChange={e => setListingForm(p => ({ ...p, listing_link: e.target.value }))} /></div>
             <div className="form-2col">
-              <div><label style={labelStyle}>Date Listed</label><input style={inputStyle} type="date" value={listingForm.listing_date} onChange={e => setListingForm(p => ({ ...p, listing_date: e.target.value }))} /></div>
-              <div><label style={labelStyle}>Asking Price ($)</label><input style={inputStyle} type="number" placeholder="75000" value={listingForm.asking_price} onChange={e => setListingForm(p => ({ ...p, asking_price: e.target.value }))} /></div>
+              <div><label style={LS}>Date Listed</label><input style={IS} type="date" value={listingForm.listing_date} onChange={e => setListingForm(p => ({ ...p, listing_date: e.target.value }))} /></div>
+              <div><label style={LS}>Asking Price ($)</label><input style={IS} type="number" placeholder="75000" value={listingForm.asking_price} onChange={e => setListingForm(p => ({ ...p, asking_price: e.target.value }))} /></div>
             </div>
           </Modal>
         )}
-
         {showPartModal && (
           <Modal title="Add Part" onClose={() => setShowPartModal(false)} onSave={addPart}>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Part Name</label><input style={inputStyle} placeholder="e.g. Air Filter" value={newPart.part} onChange={e => setNewPart(p => ({ ...p, part: e.target.value }))} /></div>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Category</label><input style={inputStyle} placeholder="e.g. Engine" value={newPart.category} onChange={e => setNewPart(p => ({ ...p, category: e.target.value }))} /></div>
+            <div style={{ marginBottom: 14 }}><label style={LS}>Part Name</label><input style={IS} placeholder="e.g. Air Filter" value={newPart.part} onChange={e => setNewPart(p => ({ ...p, part: e.target.value }))} /></div>
+            <div style={{ marginBottom: 14 }}><label style={LS}>Category</label><input style={IS} placeholder="e.g. Engine" value={newPart.category} onChange={e => setNewPart(p => ({ ...p, category: e.target.value }))} /></div>
             <div className="form-3col">
-              <div><label style={labelStyle}>Qty</label><input style={inputStyle} type="number" value={newPart.qty} onChange={e => setNewPart(p => ({ ...p, qty: e.target.value }))} /></div>
-              <div><label style={labelStyle}>Unit Cost ($)</label><input style={inputStyle} type="number" placeholder="0" value={newPart.unit_cost} onChange={e => setNewPart(p => ({ ...p, unit_cost: e.target.value }))} /></div>
-              <div><label style={labelStyle}>Date</label><input style={inputStyle} type="date" value={newPart.date} onChange={e => setNewPart(p => ({ ...p, date: e.target.value }))} /></div>
+              <div><label style={LS}>Qty</label><input style={IS} type="number" value={newPart.qty} onChange={e => setNewPart(p => ({ ...p, qty: e.target.value }))} /></div>
+              <div><label style={LS}>Unit Cost ($)</label><input style={IS} type="number" placeholder="0" value={newPart.unit_cost} onChange={e => setNewPart(p => ({ ...p, unit_cost: e.target.value }))} /></div>
+              <div><label style={LS}>Date</label><input style={IS} type="date" value={newPart.date} onChange={e => setNewPart(p => ({ ...p, date: e.target.value }))} /></div>
             </div>
           </Modal>
         )}
-
         {showLaborModal && (
           <Modal title="Add Labor" onClose={() => setShowLaborModal(false)} onSave={addLabor}>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Technician</label><input style={inputStyle} placeholder="e.g. Mike" value={newLabor.tech} onChange={e => setNewLabor(p => ({ ...p, tech: e.target.value }))} /></div>
+            <div style={{ marginBottom: 14 }}><label style={LS}>Technician</label><input style={IS} placeholder="e.g. Mike" value={newLabor.tech} onChange={e => setNewLabor(p => ({ ...p, tech: e.target.value }))} /></div>
             <div className="form-3col">
-              <div><label style={labelStyle}>Hours</label><input style={inputStyle} type="number" placeholder="0" value={newLabor.hours} onChange={e => setNewLabor(p => ({ ...p, hours: e.target.value }))} /></div>
-              <div><label style={labelStyle}>Rate ($/hr)</label><input style={inputStyle} type="number" placeholder="90" value={newLabor.rate} onChange={e => setNewLabor(p => ({ ...p, rate: e.target.value }))} /></div>
-              <div><label style={labelStyle}>Date</label><input style={inputStyle} type="date" value={newLabor.date} onChange={e => setNewLabor(p => ({ ...p, date: e.target.value }))} /></div>
+              <div><label style={LS}>Hours</label><input style={IS} type="number" placeholder="0" value={newLabor.hours} onChange={e => setNewLabor(p => ({ ...p, hours: e.target.value }))} /></div>
+              <div><label style={LS}>Rate ($/hr)</label><input style={IS} type="number" placeholder="90" value={newLabor.rate} onChange={e => setNewLabor(p => ({ ...p, rate: e.target.value }))} /></div>
+              <div><label style={LS}>Date</label><input style={IS} type="date" value={newLabor.date} onChange={e => setNewLabor(p => ({ ...p, date: e.target.value }))} /></div>
             </div>
           </Modal>
         )}
-
         {showInvoiceModal && (
           <Modal title="Add Vendor Invoice" onClose={() => setShowInvoiceModal(false)} onSave={addInvoice}>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Vendor</label><input style={inputStyle} placeholder="e.g. Petro-Canada" value={newInvoice.vendor} onChange={e => setNewInvoice(p => ({ ...p, vendor: e.target.value }))} /></div>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Description</label><input style={inputStyle} placeholder="e.g. Oil change" value={newInvoice.description} onChange={e => setNewInvoice(p => ({ ...p, description: e.target.value }))} /></div>
+            <div style={{ marginBottom: 14 }}><label style={LS}>Vendor</label><input style={IS} placeholder="e.g. Petro-Canada" value={newInvoice.vendor} onChange={e => setNewInvoice(p => ({ ...p, vendor: e.target.value }))} /></div>
+            <div style={{ marginBottom: 14 }}><label style={LS}>Description</label><input style={IS} placeholder="e.g. Oil change" value={newInvoice.description} onChange={e => setNewInvoice(p => ({ ...p, description: e.target.value }))} /></div>
             <div className="form-3col">
-              <div><label style={labelStyle}>Amount ($)</label><input style={inputStyle} type="number" placeholder="0" value={newInvoice.amount} onChange={e => setNewInvoice(p => ({ ...p, amount: e.target.value }))} /></div>
-              <div><label style={labelStyle}>Status</label>
-                <select style={{ ...inputStyle, cursor: 'pointer' }} value={newInvoice.status} onChange={e => setNewInvoice(p => ({ ...p, status: e.target.value }))}><option>Unpaid</option><option>Paid</option></select>
-              </div>
-              <div><label style={labelStyle}>Date</label><input style={inputStyle} type="date" value={newInvoice.date} onChange={e => setNewInvoice(p => ({ ...p, date: e.target.value }))} /></div>
+              <div><label style={LS}>Amount ($)</label><input style={IS} type="number" placeholder="0" value={newInvoice.amount} onChange={e => setNewInvoice(p => ({ ...p, amount: e.target.value }))} /></div>
+              <div><label style={LS}>Status</label><select style={{ ...IS, cursor: 'pointer' }} value={newInvoice.status} onChange={e => setNewInvoice(p => ({ ...p, status: e.target.value }))}><option>Unpaid</option><option>Paid</option></select></div>
+              <div><label style={LS}>Date</label><input style={IS} type="date" value={newInvoice.date} onChange={e => setNewInvoice(p => ({ ...p, date: e.target.value }))} /></div>
             </div>
           </Modal>
         )}
-
         {showCostModal && (
           <Modal title="Add Other Cost" onClose={() => setShowCostModal(false)} onSave={addCost}>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Category</label><input style={inputStyle} placeholder="e.g. Transport, Towing" value={newCost.category} onChange={e => setNewCost(p => ({ ...p, category: e.target.value }))} /></div>
+            <div style={{ marginBottom: 14 }}><label style={LS}>Category</label><input style={IS} placeholder="e.g. Transport, Towing" value={newCost.category} onChange={e => setNewCost(p => ({ ...p, category: e.target.value }))} /></div>
             <div className="form-2col" style={{ marginBottom: 14 }}>
-              <div><label style={labelStyle}>Amount ($)</label><input style={inputStyle} type="number" placeholder="0" value={newCost.amount} onChange={e => setNewCost(p => ({ ...p, amount: e.target.value }))} /></div>
-              <div><label style={labelStyle}>Date</label><input style={inputStyle} type="date" value={newCost.date} onChange={e => setNewCost(p => ({ ...p, date: e.target.value }))} /></div>
+              <div><label style={LS}>Amount ($)</label><input style={IS} type="number" placeholder="0" value={newCost.amount} onChange={e => setNewCost(p => ({ ...p, amount: e.target.value }))} /></div>
+              <div><label style={LS}>Date</label><input style={IS} type="date" value={newCost.date} onChange={e => setNewCost(p => ({ ...p, date: e.target.value }))} /></div>
             </div>
-            <div><label style={labelStyle}>Notes</label><input style={inputStyle} placeholder="Optional notes" value={newCost.notes} onChange={e => setNewCost(p => ({ ...p, notes: e.target.value }))} /></div>
+            <div><label style={LS}>Notes</label><input style={IS} placeholder="Optional notes" value={newCost.notes} onChange={e => setNewCost(p => ({ ...p, notes: e.target.value }))} /></div>
           </Modal>
         )}
-
         {showOfferModal && (
           <Modal title="Log Offer" onClose={() => setShowOfferModal(false)} onSave={addOffer}>
             <div className="form-2col" style={{ marginBottom: 14 }}>
-              <div><label style={labelStyle}>Amount ($)</label><input style={inputStyle} type="number" placeholder="0" value={newOffer.amount} onChange={e => setNewOffer(p => ({ ...p, amount: e.target.value }))} /></div>
-              <div><label style={labelStyle}>Date</label><input style={inputStyle} type="date" value={newOffer.date} onChange={e => setNewOffer(p => ({ ...p, date: e.target.value }))} /></div>
+              <div><label style={LS}>Amount ($)</label><input style={IS} type="number" placeholder="0" value={newOffer.amount} onChange={e => setNewOffer(p => ({ ...p, amount: e.target.value }))} /></div>
+              <div><label style={LS}>Date</label><input style={IS} type="date" value={newOffer.date} onChange={e => setNewOffer(p => ({ ...p, date: e.target.value }))} /></div>
             </div>
-            <div style={{ marginBottom: 14 }}><label style={labelStyle}>Notes</label><input style={inputStyle} placeholder="Optional notes" value={newOffer.notes} onChange={e => setNewOffer(p => ({ ...p, notes: e.target.value }))} /></div>
+            <div style={{ marginBottom: 14 }}><label style={LS}>Notes</label><input style={IS} placeholder="Optional notes" value={newOffer.notes} onChange={e => setNewOffer(p => ({ ...p, notes: e.target.value }))} /></div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => setNewOffer(p => ({ ...p, accepted: !p.accepted }))}>
-              <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${newOffer.accepted ? '#EAB308' : '#333'}`, background: newOffer.accepted ? '#EAB308' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {newOffer.accepted && <span style={{ color: '#000', fontSize: 12, fontWeight: 700 }}>✓</span>}
+              <div style={{ width: 22, height: 22, borderRadius: 6, border: `2px solid ${newOffer.accepted ? 'var(--gold)' : 'var(--border)'}`, background: newOffer.accepted ? 'var(--gold)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
+                {newOffer.accepted && <span style={{ color: '#000', fontSize: 12, fontWeight: 800 }}>✓</span>}
               </div>
-              <span style={{ fontSize: 14, color: '#888' }}>Accepted offer</span>
+              <span style={{ fontSize: 14, color: 'var(--text2)', fontWeight: 500 }}>Accepted offer</span>
             </div>
           </Modal>
         )}

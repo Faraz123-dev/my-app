@@ -21,149 +21,153 @@ export default function TruckIntakePage() {
   const [make, setMake] = useState('')
   const [model, setModel] = useState('')
   const [kilometers, setKilometers] = useState('')
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
+  const [checked, setChecked] = useState<Record<string, boolean>>({})
   const [notes, setNotes] = useState('')
-  const [estRecondition, setEstRecondition] = useState('')
+  const [estRecon, setEstRecon] = useState('')
   const [offerPrice, setOfferPrice] = useState('')
   const [decision, setDecision] = useState('Follow Up')
   const [simPurchase, setSimPurchase] = useState('')
   const [simRecon, setSimRecon] = useState('')
   const [simFees, setSimFees] = useState('0')
-  const [simSellPrice, setSimSellPrice] = useState('')
-  const [simTargetProfit, setSimTargetProfit] = useState('')
+  const [simSell, setSimSell] = useState('')
+  const [simTarget, setSimTarget] = useState('')
   const [targetMode, setTargetMode] = useState<'$' | '%'>('$')
   const [showSim, setShowSim] = useState(false)
 
-  const allInCost = (parseFloat(simPurchase) || 0) + (parseFloat(simRecon) || 0) + (parseFloat(simFees) || 0)
-  const projectedProfit = simSellPrice ? (parseFloat(simSellPrice) || 0) - allInCost : null
-  const targetVal = parseFloat(simTargetProfit) || 0
-  const minSell = targetMode === '$' ? allInCost + targetVal : allInCost * (1 + targetVal / 100)
+  const allIn = (parseFloat(simPurchase) || 0) + (parseFloat(simRecon) || 0) + (parseFloat(simFees) || 0)
+  const projectedProfit = simSell ? (parseFloat(simSell) || 0) - allIn : null
+  const targetVal = parseFloat(simTarget) || 0
+  const minSell = targetMode === '$' ? allIn + targetVal : allIn * (1 + targetVal / 100)
   const profitStatus = projectedProfit === null ? 'UNKNOWN' : projectedProfit > 0 ? 'PROFITABLE' : projectedProfit === 0 ? 'BREAK EVEN' : 'LOSS'
-  const profitColor = projectedProfit === null ? '#666' : projectedProfit > 0 ? '#22c55e' : projectedProfit === 0 ? '#EAB308' : '#ef4444'
-  const toggleCheck = (id: string) => setCheckedItems(prev => ({ ...prev, [id]: !prev[id] }))
+  const profitColor = projectedProfit === null ? 'var(--text3)' : projectedProfit > 0 ? 'var(--green)' : projectedProfit === 0 ? 'var(--gold)' : 'var(--red)'
 
-  const inputStyle = {
-    width: '100%', background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: 8,
-    padding: '10px 14px', color: '#e5e5e5', fontSize: 13, outline: 'none',
-    boxSizing: 'border-box' as const, fontFamily: 'system-ui, sans-serif',
-  }
-  const labelStyle = { fontSize: 12, color: '#888', marginBottom: 6, display: 'block' as const }
-  const sectionStyle = { background: '#161616', border: '1px solid #252525', borderRadius: 10, padding: '16px', marginBottom: 14 }
+  const IS = { width: '100%', background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 10, padding: '10px 14px', color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'system-ui,sans-serif', transition: 'border-color 0.15s' }
+  const LS = { fontSize: 12, color: 'var(--text2)', marginBottom: 6, display: 'block' as const, fontWeight: 500 }
 
   return (
     <>
       <style>{`
-        .intake-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .intake-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-        @media (max-width: 640px) {
-          .intake-grid { grid-template-columns: 1fr !important; }
-          .intake-grid-3 { grid-template-columns: 1fr 1fr !important; }
+        .intake-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .intake-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+        @media(max-width:640px){
+          .intake-2{grid-template-columns:1fr!important}
+          .intake-3{grid-template-columns:1fr 1fr!important}
         }
       `}</style>
-      <main style={{ padding: '16px', overflowY: 'auto', background: '#0a0a0a', minHeight: '100vh', color: '#e5e5e5', fontFamily: 'system-ui, sans-serif' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, color: '#fff', marginBottom: 4 }}>Truck Intake</h1>
-        <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>Inspect and evaluate a truck for purchase.</p>
+      <main style={{ padding: '24px 20px', background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)', fontFamily: 'system-ui,sans-serif' }}>
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 6, opacity: 0.7 }}>ACQUISITION</div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>Truck Intake</h1>
+          <p style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>Inspect and evaluate a truck for purchase.</p>
+          <div style={{ marginTop: 16, height: 1, background: 'linear-gradient(90deg,var(--gold),transparent)' }} />
+        </div>
 
-        {/* Seller Info */}
-        <div style={sectionStyle}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 14 }}>Seller Information</div>
-          <div className="intake-grid">
-            <div><label style={labelStyle}>Seller Name *</label><input style={inputStyle} placeholder="e.g. ABC Auctions" value={sellerName} onChange={e => setSellerName(e.target.value)} /></div>
-            <div><label style={labelStyle}>Seller Contact</label><input style={inputStyle} placeholder="Phone or email" value={sellerContact} onChange={e => setSellerContact(e.target.value)} /></div>
+        {/* Seller */}
+        <div className="gcard" style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>Seller Information</div>
+          <div className="intake-2">
+            <div><label style={LS}>Seller Name *</label><input style={IS} placeholder="e.g. ABC Auctions" value={sellerName} onChange={e => setSellerName(e.target.value)} /></div>
+            <div><label style={LS}>Contact</label><input style={IS} placeholder="Phone or email" value={sellerContact} onChange={e => setSellerContact(e.target.value)} /></div>
           </div>
         </div>
 
-        {/* Vehicle Details */}
-        <div style={sectionStyle}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 14 }}>Vehicle Details</div>
-          <div style={{ marginBottom: 12 }}><label style={labelStyle}>VIN</label><input style={inputStyle} placeholder="17-character VIN" value={vin} onChange={e => setVin(e.target.value)} maxLength={17} /></div>
-          <div className="intake-grid-3" style={{ marginBottom: 12 }}>
-            <div><label style={labelStyle}>Year</label><input style={inputStyle} placeholder="2020" value={year} onChange={e => setYear(e.target.value)} /></div>
-            <div><label style={labelStyle}>Make</label><input style={inputStyle} placeholder="Freightliner" value={make} onChange={e => setMake(e.target.value)} /></div>
-            <div><label style={labelStyle}>Model</label><input style={inputStyle} placeholder="Cascadia" value={model} onChange={e => setModel(e.target.value)} /></div>
+        {/* Vehicle */}
+        <div className="gcard" style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>Vehicle Details</div>
+          <div style={{ marginBottom: 12 }}><label style={LS}>VIN</label><input style={IS} placeholder="17-character VIN" value={vin} onChange={e => setVin(e.target.value)} maxLength={17} /></div>
+          <div className="intake-3" style={{ marginBottom: 12 }}>
+            <div><label style={LS}>Year</label><input style={IS} placeholder="2020" value={year} onChange={e => setYear(e.target.value)} /></div>
+            <div><label style={LS}>Make</label><input style={IS} placeholder="Freightliner" value={make} onChange={e => setMake(e.target.value)} /></div>
+            <div><label style={LS}>Model</label><input style={IS} placeholder="Cascadia" value={model} onChange={e => setModel(e.target.value)} /></div>
           </div>
-          <div><label style={labelStyle}>Kilometers</label><input style={inputStyle} placeholder="450000" value={kilometers} onChange={e => setKilometers(e.target.value)} type="number" /></div>
+          <div><label style={LS}>Kilometers</label><input style={IS} placeholder="450000" value={kilometers} onChange={e => setKilometers(e.target.value)} type="number" /></div>
         </div>
 
         {/* Inspection */}
-        <div style={sectionStyle}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 14 }}>Inspection Checklist</div>
+        <div className="gcard" style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>Inspection Checklist</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {inspectionItems.map(item => (
-              <div key={item.id} onClick={() => toggleCheck(item.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '6px 0' }}>
-                <div style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${checkedItems[item.id] ? '#EAB308' : '#333'}`, background: checkedItems[item.id] ? '#EAB308' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {checkedItems[item.id] && <span style={{ color: '#000', fontSize: 11, fontWeight: 700 }}>✓</span>}
+              <div key={item.id} onClick={() => setChecked(p => ({ ...p, [item.id]: !p[item.id] }))} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '6px 0' }}>
+                <div style={{ width: 20, height: 20, borderRadius: '50%', border: `2px solid ${checked[item.id] ? 'var(--gold)' : 'var(--border)'}`, background: checked[item.id] ? 'var(--gold)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
+                  {checked[item.id] && <span style={{ color: '#000', fontSize: 11, fontWeight: 800 }}>✓</span>}
                 </div>
-                <span style={{ fontSize: 13, color: checkedItems[item.id] ? '#ccc' : '#888' }}>{item.label}</span>
+                <span style={{ fontSize: 13, color: checked[item.id] ? 'var(--text)' : 'var(--text2)' }}>{item.label}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Assessment */}
-        <div style={sectionStyle}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#ccc', marginBottom: 14 }}>Assessment</div>
-          <div style={{ marginBottom: 12 }}><label style={labelStyle}>Notes</label><textarea style={{ ...inputStyle, height: 80, resize: 'vertical' }} placeholder="General observations..." value={notes} onChange={e => setNotes(e.target.value)} /></div>
-          <div className="intake-grid" style={{ marginBottom: 12 }}>
-            <div><label style={labelStyle}>Est. Recondition ($)</label><input style={inputStyle} placeholder="5000" value={estRecondition} onChange={e => setEstRecondition(e.target.value)} type="number" /></div>
-            <div><label style={labelStyle}>Offer Price ($)</label><input style={inputStyle} placeholder="28000" value={offerPrice} onChange={e => setOfferPrice(e.target.value)} type="number" /></div>
+        <div className="gcard" style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>Assessment</div>
+          <div style={{ marginBottom: 12 }}><label style={LS}>Notes</label><textarea style={{ ...IS, height: 80, resize: 'vertical' }} placeholder="General observations..." value={notes} onChange={e => setNotes(e.target.value)} /></div>
+          <div className="intake-2" style={{ marginBottom: 12 }}>
+            <div><label style={LS}>Est. Recondition ($)</label><input style={IS} placeholder="5000" value={estRecon} onChange={e => setEstRecon(e.target.value)} type="number" /></div>
+            <div><label style={LS}>Offer Price ($)</label><input style={IS} placeholder="28000" value={offerPrice} onChange={e => setOfferPrice(e.target.value)} type="number" /></div>
           </div>
-          <div><label style={labelStyle}>Decision</label>
-            <select style={{ ...inputStyle, cursor: 'pointer' }} value={decision} onChange={e => setDecision(e.target.value)}>
+          <div><label style={LS}>Decision</label>
+            <select style={{ ...IS, cursor: 'pointer' }} value={decision} onChange={e => setDecision(e.target.value)}>
               <option>Follow Up</option><option>Buy</option><option>Pass</option><option>Negotiate</option>
             </select>
           </div>
         </div>
 
-        {/* Profit Simulator - collapsible on mobile */}
-        <div style={{ background: '#161616', border: '1px solid #252525', borderRadius: 10, marginBottom: 16 }}>
-          <button onClick={() => setShowSim(s => !s)} style={{ width: '100%', background: 'none', border: 'none', color: '#ccc', cursor: 'pointer', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, fontWeight: 500 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ color: '#EAB308' }}>📈</span> Pre-Purchase Profit Simulator</div>
-            <span style={{ color: '#555' }}>{showSim ? '▲' : '▼'}</span>
+        {/* Profit Simulator */}
+        <div className="gcard" style={{ marginBottom: 20 }}>
+          <button onClick={() => setShowSim(s => !s)} style={{ width: '100%', background: 'none', border: 'none', color: 'var(--text)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, padding: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontSize: 16 }}>📈</span> Pre-Purchase Profit Simulator</div>
+            <span style={{ color: 'var(--text3)', fontSize: 12 }}>{showSim ? '▲' : '▼'}</span>
           </button>
           {showSim && (
-            <div style={{ padding: '0 16px 16px' }}>
-              <div style={{ marginBottom: 12 }}><label style={labelStyle}>Purchase Price ($)</label><input style={inputStyle} placeholder="35,000" value={simPurchase} onChange={e => setSimPurchase(e.target.value)} type="number" /></div>
-              <div style={{ marginBottom: 12 }}><label style={labelStyle}>Est. Recondition Cost ($)</label><input style={inputStyle} placeholder="5,000" value={simRecon} onChange={e => setSimRecon(e.target.value)} type="number" /></div>
-              <div style={{ marginBottom: 12 }}><label style={labelStyle}>Other Fees ($)</label><input style={inputStyle} placeholder="0" value={simFees} onChange={e => setSimFees(e.target.value)} type="number" /></div>
-              <div style={{ marginBottom: 12 }}><label style={labelStyle}>Expected Sell Price ($)</label><input style={inputStyle} placeholder="Optional" value={simSellPrice} onChange={e => setSimSellPrice(e.target.value)} type="number" /></div>
+            <div style={{ marginTop: 20 }}>
+              <div className="intake-2" style={{ marginBottom: 12 }}>
+                <div><label style={LS}>Purchase Price ($)</label><input style={IS} placeholder="35,000" value={simPurchase} onChange={e => setSimPurchase(e.target.value)} type="number" /></div>
+                <div><label style={LS}>Est. Recondition ($)</label><input style={IS} placeholder="5,000" value={simRecon} onChange={e => setSimRecon(e.target.value)} type="number" /></div>
+              </div>
+              <div className="intake-2" style={{ marginBottom: 12 }}>
+                <div><label style={LS}>Other Fees ($)</label><input style={IS} placeholder="0" value={simFees} onChange={e => setSimFees(e.target.value)} type="number" /></div>
+                <div><label style={LS}>Expected Sell Price ($)</label><input style={IS} placeholder="Optional" value={simSell} onChange={e => setSimSell(e.target.value)} type="number" /></div>
+              </div>
               <div style={{ marginBottom: 16 }}>
-                <label style={labelStyle}>Target Profit</label>
+                <label style={LS}>Target Profit</label>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input style={{ ...inputStyle, flex: 1 }} placeholder="e.g. 8,000" value={simTargetProfit} onChange={e => setSimTargetProfit(e.target.value)} type="number" />
-                  <div style={{ display: 'flex', background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
-                    {(['$', '%'] as const).map(mode => (
-                      <button key={mode} onClick={() => setTargetMode(mode)} style={{ padding: '6px 12px', fontSize: 12, cursor: 'pointer', border: 'none', background: targetMode === mode ? '#EAB308' : 'transparent', color: targetMode === mode ? '#000' : '#888', fontWeight: targetMode === mode ? 600 : 400 }}>{mode}</button>
+                  <input style={{ ...IS, flex: 1 }} placeholder="e.g. 8,000" value={simTarget} onChange={e => setSimTarget(e.target.value)} type="number" />
+                  <div style={{ display: 'flex', background: 'var(--hover)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+                    {(['$', '%'] as const).map(m => (
+                      <button key={m} onClick={() => setTargetMode(m)} style={{ padding: '8px 14px', fontSize: 12, cursor: 'pointer', border: 'none', background: targetMode === m ? 'var(--gold)' : 'transparent', color: targetMode === m ? '#000' : 'var(--text3)', fontWeight: targetMode === m ? 800 : 400 }}>{m}</button>
                     ))}
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
                 {[
-                  { label: 'ALL-IN COST', value: `$${allInCost.toLocaleString()}`, color: '#fff' },
-                  { label: 'BREAK-EVEN', value: `$${allInCost.toLocaleString()}`, color: '#fff' },
-                  { label: 'MIN SELL', value: `$${Math.round(minSell).toLocaleString()}`, color: '#EAB308' },
-                  { label: 'PROJECTED PROFIT', value: projectedProfit !== null ? `${projectedProfit >= 0 ? '' : '-'}$${Math.abs(projectedProfit).toLocaleString()}` : '—', color: projectedProfit !== null ? (projectedProfit >= 0 ? '#22c55e' : '#ef4444') : '#666' },
-                ].map(stat => (
-                  <div key={stat.label} style={{ background: '#0f0f0f', border: '1px solid #222', borderRadius: 8, padding: '12px' }}>
-                    <div style={{ fontSize: 9, color: '#555', letterSpacing: '0.08em', marginBottom: 4 }}>{stat.label}</div>
-                    <div style={{ fontSize: 18, fontWeight: 600, color: stat.color }}>{stat.value}</div>
+                  { l: 'ALL-IN COST', v: `$${allIn.toLocaleString()}`, c: 'var(--text)' },
+                  { l: 'BREAK-EVEN', v: `$${allIn.toLocaleString()}`, c: 'var(--text)' },
+                  { l: 'MIN SELL', v: `$${Math.round(minSell).toLocaleString()}`, c: 'var(--gold)' },
+                  { l: 'PROJECTED PROFIT', v: projectedProfit !== null ? `${projectedProfit >= 0 ? '' : '-'}$${Math.abs(projectedProfit).toLocaleString()}` : '—', c: profitColor },
+                ].map(s => (
+                  <div key={s.l} style={{ background: 'var(--hover)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px' }}>
+                    <div style={{ fontSize: 9, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 6 }}>{s.l}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: s.c }}>{s.v}</div>
                   </div>
                 ))}
               </div>
-              <div style={{ textAlign: 'center', padding: '8px', borderRadius: 6, background: '#0f0f0f', border: '1px solid #2a2a2a', marginBottom: 12 }}>
-                <span style={{ fontSize: 12, color: profitColor, fontWeight: 600 }}>{profitStatus === 'UNKNOWN' ? '⊙' : profitStatus === 'PROFITABLE' ? '↑' : profitStatus === 'LOSS' ? '↓' : '='} {profitStatus}</span>
+              <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--hover)', border: `1px solid ${profitColor}`, borderRadius: 99, padding: '7px 18px' }}>
+                  <span style={{ fontSize: 13, color: profitColor }}>{profitStatus === 'UNKNOWN' ? '⊙' : profitStatus === 'PROFITABLE' ? '↑' : profitStatus === 'LOSS' ? '↓' : '='}</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: profitColor }}>{profitStatus}</span>
+                </div>
               </div>
-              <button onClick={() => { setSimPurchase(''); setSimRecon(''); setSimFees('0'); setSimSellPrice(''); setSimTargetProfit('') }}
-                style={{ background: 'transparent', border: '1px solid #2a2a2a', color: '#888', borderRadius: 6, padding: '8px 16px', fontSize: 12, cursor: 'pointer' }}>↺ Reset</button>
+              <button onClick={() => { setSimPurchase(''); setSimRecon(''); setSimFees('0'); setSimSell(''); setSimTarget('') }}
+                style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>↺ Reset</button>
             </div>
           )}
         </div>
 
-        {/* Action buttons */}
         <div style={{ display: 'flex', gap: 12 }}>
-          <button style={{ flex: 1, background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#ccc', borderRadius: 8, padding: '13px', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Save Intake Only</button>
-          <button style={{ flex: 2, background: '#EAB308', border: 'none', color: '#000', borderRadius: 8, padding: '13px', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>Create Truck File & Buy</button>
+          <button style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '14px', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>Save Intake Only</button>
+          <button style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '14px', fontSize: 13, cursor: 'pointer', fontWeight: 800, boxShadow: '0 4px 16px var(--gold-glow)' }}>Create Truck File & Buy</button>
         </div>
       </main>
     </>

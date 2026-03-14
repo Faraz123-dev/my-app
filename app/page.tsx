@@ -11,30 +11,28 @@ type Truck = {
   payment_status: string | null; kilometers: number | null
 }
 
-function getMonthKey(dateStr: string | null): string | null {
-  if (!dateStr) return null
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return null
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+function getMonthKey(d: string | null) {
+  if (!d) return null
+  const dt = new Date(d)
+  if (isNaN(dt.getTime())) return null
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`
 }
-
-function formatMonthLabel(key: string): string {
-  const [year, month] = key.split('-')
-  return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+function fmtMonth(key: string) {
+  const [y, m] = key.split('-')
+  return new Date(+y, +m - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }
 
 export default function DashboardPage() {
   const [trucks, setTrucks] = useState<Truck[]>([])
   const [loading, setLoading] = useState(true)
-  const [chartRange, setChartRange] = useState<6 | 12 | 24>(12)
-  const [hoveredBar, setHoveredBar] = useState<number | null>(null)
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; label: string; profit: number } | null>(null)
-  const [hoveredDonut, setHoveredDonut] = useState<string | null>(null)
+  const [range, setRange] = useState<6 | 12 | 24>(12)
+  const [hovBar, setHovBar] = useState<number | null>(null)
+  const [tip, setTip] = useState<{ x: number; y: number; label: string; profit: number; count: number } | null>(null)
+  const [hovDonut, setHovDonut] = useState<string | null>(null)
   const chartRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => { fetchTrucks() }, [])
-
-  async function fetchTrucks() {
+  useEffect(() => { loadData() }, [])
+  async function loadData() {
     setLoading(true)
     const { data } = await supabase.from('Inventory Data').select('id,status,bought_on,vin,make,model,year,purchase_price,recondition_cost,date_sold,sold_price,customer,payment_status,kilometers')
     setTrucks(data || [])
@@ -44,177 +42,215 @@ export default function DashboardPage() {
   const inStock = trucks.filter(t => t.status !== 'Sold').length
   const soldTotal = trucks.filter(t => t.status === 'Sold').length
   const cashTiedUp = trucks.filter(t => t.status !== 'Sold').reduce((s, t) => s + (t.purchase_price || 0) + (t.recondition_cost || 0), 0)
-  const pendingPayments = trucks.filter(t => t.payment_status === 'Unpaid')
-  const pendingAmount = pendingPayments.reduce((s, t) => s + (t.sold_price || 0), 0)
+  const pending = trucks.filter(t => t.payment_status === 'Unpaid')
+  const pendingAmt = pending.reduce((s, t) => s + (t.sold_price || 0), 0)
   const now = new Date()
-  const thisMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const thisMonthProfit = trucks.filter(t => t.status === 'Sold' && getMonthKey(t.date_sold) === thisMonthKey)
+  const thisKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const monthProfit = trucks.filter(t => t.status === 'Sold' && getMonthKey(t.date_sold) === thisKey)
     .reduce((s, t) => s + (t.sold_price || 0) - ((t.purchase_price || 0) + (t.recondition_cost || 0)), 0)
 
-  const profitByMonth: Record<string, { profit: number; count: number; revenue: number }> = {}
+  const byMonth: Record<string, { profit: number; count: number; revenue: number }> = {}
   trucks.filter(t => t.status === 'Sold' && t.date_sold).forEach(t => {
-    const key = getMonthKey(t.date_sold)
-    if (!key) return
-    const profit = (t.sold_price || 0) - ((t.purchase_price || 0) + (t.recondition_cost || 0))
-    if (!profitByMonth[key]) profitByMonth[key] = { profit: 0, count: 0, revenue: 0 }
-    profitByMonth[key].profit += profit
-    profitByMonth[key].count += 1
-    profitByMonth[key].revenue += (t.sold_price || 0)
+    const k = getMonthKey(t.date_sold)!
+    if (!k) return
+    if (!byMonth[k]) byMonth[k] = { profit: 0, count: 0, revenue: 0 }
+    byMonth[k].profit += (t.sold_price || 0) - ((t.purchase_price || 0) + (t.recondition_cost || 0))
+    byMonth[k].count++
+    byMonth[k].revenue += (t.sold_price || 0)
   })
-
-  const sortedMonths = Object.keys(profitByMonth).sort().slice(-chartRange)
-  const maxAbsProfit = Math.max(...sortedMonths.map(k => Math.abs(profitByMonth[k].profit)), 1)
-  const totalProfit = sortedMonths.reduce((s, k) => s + profitByMonth[k].profit, 0)
-  const totalRevenue = sortedMonths.reduce((s, k) => s + profitByMonth[k].revenue, 0)
+  const months = Object.keys(byMonth).sort().slice(-range)
+  const maxP = Math.max(...months.map(k => Math.abs(byMonth[k].profit)), 1)
+  const totProfit = months.reduce((s, k) => s + byMonth[k].profit, 0)
+  const totRevenue = months.reduce((s, k) => s + byMonth[k].revenue, 0)
 
   const agingBuckets = { '0-15d': 0, '16-30d': 0, '31-60d': 0, '60+d': 0 }
-  const agingTrucks: (Truck & { days: number })[] = []
+  const agingList: (Truck & { days: number })[] = []
   trucks.filter(t => t.status !== 'Sold' && t.bought_on).forEach(t => {
-    const days = Math.floor((Date.now() - new Date(t.bought_on!).getTime()) / 86400000)
-    if (days <= 15) agingBuckets['0-15d']++
-    else if (days <= 30) agingBuckets['16-30d']++
-    else if (days <= 60) agingBuckets['31-60d']++
+    const d = Math.floor((Date.now() - new Date(t.bought_on!).getTime()) / 86400000)
+    if (d <= 15) agingBuckets['0-15d']++
+    else if (d <= 30) agingBuckets['16-30d']++
+    else if (d <= 60) agingBuckets['31-60d']++
     else agingBuckets['60+d']++
-    if (days >= 30) agingTrucks.push({ ...t, days })
+    if (d >= 30) agingList.push({ ...t, days: d })
   })
-  agingTrucks.sort((a, b) => b.days - a.days)
-
-  const donutSegments = [
-    { label: '0–15d', count: agingBuckets['0-15d'], color: '#22c55e' },
-    { label: '16–30d', count: agingBuckets['16-30d'], color: '#EAB308' },
-    { label: '31–60d', count: agingBuckets['31-60d'], color: '#f97316' },
-    { label: '60+d', count: agingBuckets['60+d'], color: '#ef4444' },
-  ]
+  agingList.sort((a, b) => b.days - a.days)
   const totalAging = Object.values(agingBuckets).reduce((a, b) => a + b, 0)
-  const radius = 52
-  let cumulativePct = 0
-  const arcs = donutSegments.map(seg => {
+
+  const donut = [
+    { label: '0–15d', count: agingBuckets['0-15d'], color: 'var(--green)' },
+    { label: '16–30d', count: agingBuckets['16-30d'], color: 'var(--gold)' },
+    { label: '31–60d', count: agingBuckets['31-60d'], color: 'var(--orange)' },
+    { label: '60+d', count: agingBuckets['60+d'], color: 'var(--red)' },
+  ]
+  const R = 54; let cum = 0
+  const arcs = donut.map(seg => {
     const pct = totalAging > 0 ? seg.count / totalAging : 0
-    const startPct = cumulativePct; cumulativePct += pct
-    const startAngle = startPct * 360 - 90; const endAngle = cumulativePct * 360 - 90
-    const x1 = 70 + radius * Math.cos((startAngle * Math.PI) / 180)
-    const y1 = 70 + radius * Math.sin((startAngle * Math.PI) / 180)
-    const x2 = 70 + radius * Math.cos((endAngle * Math.PI) / 180)
-    const y2 = 70 + radius * Math.sin((endAngle * Math.PI) / 180)
-    const largeArc = pct > 0.5 ? 1 : 0
-    const path = pct > 0 ? `M 70 70 L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z` : ''
-    return { ...seg, path, pct }
+    const s = cum; cum += pct
+    const a1 = s * 360 - 90, a2 = cum * 360 - 90
+    const rad = (d: number) => d * Math.PI / 180
+    const x1 = 70 + R * Math.cos(rad(a1)), y1 = 70 + R * Math.sin(rad(a1))
+    const x2 = 70 + R * Math.cos(rad(a2)), y2 = 70 + R * Math.sin(rad(a2))
+    return { ...seg, path: pct > 0 ? `M70 70 L${x1} ${y1} A${R} ${R} 0 ${pct > 0.5 ? 1 : 0} 1 ${x2} ${y2}Z` : '', pct }
   })
 
   return (
     <>
       <style>{`
-        .dash-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
-        .dash-chart-row { display: grid; grid-template-columns: 1fr 300px; gap: 16px; margin-bottom: 20px; }
-        .dash-bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        @media (max-width: 768px) {
-          .dash-stats { grid-template-columns: 1fr 1fr !important; }
-          .dash-chart-row { grid-template-columns: 1fr !important; }
-          .dash-bottom-row { grid-template-columns: 1fr !important; }
+        @keyframes spin { to { transform: rotate(360deg) } }
+        .dash-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+        .dash-mid { display: grid; grid-template-columns: 1fr 290px; gap: 16px; margin-bottom: 20px; }
+        .dash-bot { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .stat-card { border-radius: 16px; padding: 20px; position: relative; overflow: hidden; cursor: default; transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); }
+        .range-btn { padding: 5px 11px; font-size: 11px; cursor: pointer; border: none; border-radius: 6px; font-weight: 600; transition: all 0.15s; }
+        @media(max-width:768px){
+          .dash-grid{grid-template-columns:1fr 1fr!important}
+          .dash-mid{grid-template-columns:1fr!important}
+          .dash-bot{grid-template-columns:1fr!important}
         }
       `}</style>
-      <main style={{ padding: '16px', overflowY: 'auto', background: '#0a0a0a', minHeight: '100vh', color: '#e5e5e5', fontFamily: 'system-ui, sans-serif' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, color: '#fff', marginBottom: 16 }}>Dashboard</h1>
+      <main style={{ padding: '24px 20px', background: 'var(--bg)', minHeight: '100vh', fontFamily: 'system-ui,sans-serif', color: 'var(--text)' }}>
+
+        <div style={{ marginBottom: 26 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 6, opacity: 0.7 }}>OVERVIEW</div>
+              <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em', lineHeight: 1 }}>Dashboard</h1>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 500 }}>
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </div>
+          </div>
+          <div style={{ marginTop: 16, height: 1, background: 'linear-gradient(90deg, var(--gold), transparent)' }} />
+        </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#555' }}>Loading...</div>
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
+            <div style={{ width: 38, height: 38, border: '2px solid transparent', borderTopColor: 'var(--gold)', borderRightColor: 'var(--gold-dim)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+          </div>
         ) : (
           <>
-            {/* Stat Cards */}
-            <div className="dash-stats">
+            {/* Stat cards */}
+            <div className="dash-grid">
               {[
-                { label: 'IN STOCK', value: inStock, sub: `${soldTotal} sold total`, icon: '🚛' },
-                { label: 'CASH TIED UP', value: `$${cashTiedUp.toLocaleString()}`, sub: 'Unsold all-in cost', icon: '💵' },
-                { label: 'PENDING PAYMENTS', value: `${pendingPayments.length} · $${pendingAmount.toLocaleString()}`, sub: 'Sold but unpaid', icon: '⏰' },
-                { label: 'THIS MONTH PROFIT', value: `${thisMonthProfit < 0 ? '-' : ''}$${Math.abs(thisMonthProfit).toLocaleString()}`, sub: '', icon: '📈', accent: true },
-              ].map((card: any) => (
-                <div key={card.label} style={{ background: '#161616', border: '1px solid #252525', borderRadius: 10, padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 9, color: '#555', letterSpacing: '0.08em' }}>{card.label}</span>
-                    <span style={{ fontSize: 14 }}>{card.icon}</span>
+                { label: 'ACTIVE INVENTORY', val: inStock, sub: `${soldTotal} total sold`, icon: '🚛', c: 'var(--gold)', glow: 'var(--gold-dim)' },
+                { label: 'CAPITAL DEPLOYED', val: `$${cashTiedUp.toLocaleString()}`, sub: 'Unsold all-in cost', icon: '💰', c: 'var(--blue)', glow: 'var(--blue-dim)' },
+                { label: 'PENDING PAYMENTS', val: pending.length, sub: `$${pendingAmt.toLocaleString()} owed`, icon: '⏳', c: 'var(--orange)', glow: 'var(--orange-dim)' },
+                { label: 'MONTH PROFIT', val: `${monthProfit < 0 ? '-' : ''}$${Math.abs(monthProfit).toLocaleString()}`, sub: new Date().toLocaleDateString('en-US', { month: 'long' }), icon: '📈', c: monthProfit >= 0 ? 'var(--green)' : 'var(--red)', glow: monthProfit >= 0 ? 'var(--green-dim)' : 'var(--red-dim)' },
+              ].map(c => (
+                <div key={c.label} className="stat-card" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', boxShadow: 'var(--shadow-card)' }}>
+                  <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: c.glow, filter: 'blur(20px)', pointerEvents: 'none' }} />
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                      <span style={{ fontSize: 9.5, color: 'var(--text3)', letterSpacing: '0.14em', fontWeight: 700 }}>{c.label}</span>
+                      <div style={{ width: 32, height: 32, borderRadius: 10, background: c.glow, border: `1px solid ${c.c}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>{c.icon}</div>
+                    </div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: c.c, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>{c.val}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>{c.sub}</div>
                   </div>
-                  <div style={{ fontSize: 18, fontWeight: 600, color: card.accent ? (thisMonthProfit >= 0 ? '#EAB308' : '#ef4444') : '#fff', marginBottom: 3 }}>{card.value}</div>
-                  {card.sub && <div style={{ fontSize: 11, color: '#555' }}>{card.sub}</div>}
                 </div>
               ))}
             </div>
 
             {/* Chart + Donut */}
-            <div className="dash-chart-row">
-              <div style={{ background: '#161616', border: '1px solid #252525', borderRadius: 10, padding: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <div className="dash-mid">
+              <div className="gcard">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
                   <div>
-                    <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.1em', marginBottom: 6 }}>PROFIT BY MONTH</div>
-                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                      <div><div style={{ fontSize: 9, color: '#444' }}>PROFIT</div><div style={{ fontSize: 14, fontWeight: 600, color: totalProfit >= 0 ? '#EAB308' : '#ef4444' }}>{totalProfit < 0 ? '-' : ''}${Math.abs(totalProfit).toLocaleString()}</div></div>
-                      <div><div style={{ fontSize: 9, color: '#444' }}>REVENUE</div><div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>${totalRevenue.toLocaleString()}</div></div>
-                      <div><div style={{ fontSize: 9, color: '#444' }}>SOLD</div><div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{sortedMonths.reduce((s, k) => s + profitByMonth[k].count, 0)}</div></div>
+                    <div className="section-title">PROFIT BY MONTH</div>
+                    <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
+                      {[
+                        { l: 'NET PROFIT', v: `${totProfit < 0 ? '-' : ''}$${Math.abs(totProfit).toLocaleString()}`, c: totProfit >= 0 ? 'var(--gold)' : 'var(--red)' },
+                        { l: 'REVENUE', v: `$${totRevenue.toLocaleString()}`, c: 'var(--text)' },
+                        { l: 'SOLD', v: months.reduce((s, k) => s + byMonth[k].count, 0), c: 'var(--text)' },
+                      ].map(s => (
+                        <div key={s.l}>
+                          <div style={{ fontSize: 9, color: 'var(--text4)', marginBottom: 4, letterSpacing: '0.1em', fontWeight: 600 }}>{s.l}</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: s.c, letterSpacing: '-0.02em' }}>{s.v}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: 6, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', background: 'var(--hover)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                     {([6, 12, 24] as const).map(r => (
-                      <button key={r} onClick={() => setChartRange(r)} style={{ padding: '4px 8px', fontSize: 11, cursor: 'pointer', border: 'none', background: chartRange === r ? '#EAB308' : 'transparent', color: chartRange === r ? '#000' : '#666', fontWeight: chartRange === r ? 600 : 400 }}>{r}mo</button>
+                      <button key={r} onClick={() => setRange(r)} className="range-btn"
+                        style={{ background: range === r ? 'var(--gold)' : 'transparent', color: range === r ? '#000' : 'var(--text3)' }}>
+                        {r}mo
+                      </button>
                     ))}
                   </div>
                 </div>
-                {sortedMonths.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: 40, color: '#444', fontSize: 13 }}>No sold trucks yet</div>
+                {months.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 40, color: 'var(--text4)', fontSize: 13 }}>No sold trucks yet</div>
                 ) : (
                   <div ref={chartRef} style={{ position: 'relative' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', height: 140, gap: 3, paddingLeft: 36, paddingBottom: 22, position: 'relative', overflowX: 'auto' }}>
-                      {[1, 0.5, 0].map((pct, i) => {
-                        const val = maxAbsProfit * 1.1 * pct
-                        return <div key={i} style={{ position: 'absolute', left: 0, top: `${(1 - pct) * 100}%`, fontSize: 8, color: '#3a3a3a', transform: 'translateY(-50%)', whiteSpace: 'nowrap' }}>${val >= 1000 ? `${Math.round(val / 1000)}k` : Math.round(val)}</div>
-                      })}
-                      {sortedMonths.map((key, i) => {
-                        const data = profitByMonth[key]
-                        const pct = (data.profit / (maxAbsProfit * 1.1)) * 100
-                        const isNeg = data.profit < 0
-                        const barHeight = Math.min(Math.abs(pct), 100)
-                        const isHovered = hoveredBar === i
+                    <div style={{ display: 'flex', alignItems: 'flex-end', height: 160, gap: 3, paddingLeft: 42, paddingBottom: 26, position: 'relative', overflowX: 'auto' }}>
+                      {[1, 0.5, 0].map((p, i) => {
+                        const v = maxP * 1.1 * p
                         return (
-                          <div key={key} style={{ flex: 1, minWidth: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', position: 'relative', cursor: 'pointer' }}
-                            onMouseEnter={e => { setHoveredBar(i); const r = e.currentTarget.getBoundingClientRect(); const p = chartRef.current?.getBoundingClientRect(); if (p) setTooltip({ x: r.left - p.left + r.width / 2, y: r.top - p.top - 10, label: formatMonthLabel(key), profit: data.profit }) }}
-                            onMouseLeave={() => { setHoveredBar(null); setTooltip(null) }}>
-                            <div style={{ width: '80%', height: `${barHeight}%`, background: isHovered ? (isNeg ? '#ff6b6b' : '#fbbf24') : (isNeg ? '#ef4444' : '#EAB308'), borderRadius: isNeg ? '0 0 3px 3px' : '3px 3px 0 0', minHeight: 2 }} />
-                            <div style={{ position: 'absolute', bottom: -18, fontSize: 8, color: isHovered ? '#aaa' : '#444', whiteSpace: 'nowrap' }}>{formatMonthLabel(key)}</div>
+                          <div key={i}>
+                            <div style={{ position: 'absolute', left: 0, top: `${(1 - p) * 100}%`, fontSize: 8, color: 'var(--text4)', transform: 'translateY(-50%)', whiteSpace: 'nowrap' }}>${v >= 1000 ? `${Math.round(v / 1000)}k` : Math.round(v)}</div>
+                            <div style={{ position: 'absolute', left: 42, right: 0, top: `${(1 - p) * 100}%`, height: 1, background: 'var(--border2)', pointerEvents: 'none' }} />
+                          </div>
+                        )
+                      })}
+                      {months.map((key, i) => {
+                        const d = byMonth[key]
+                        const h = Math.min(Math.abs((d.profit / (maxP * 1.1)) * 100), 100)
+                        const neg = d.profit < 0
+                        const hov = hovBar === i
+                        return (
+                          <div key={key} style={{ flex: 1, minWidth: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', position: 'relative', cursor: 'pointer' }}
+                            onMouseEnter={e => { setHovBar(i); const r = e.currentTarget.getBoundingClientRect(), p = chartRef.current?.getBoundingClientRect(); if (p) setTip({ x: r.left - p.left + r.width / 2, y: r.top - p.top - 12, label: fmtMonth(key), profit: d.profit, count: d.count }) }}
+                            onMouseLeave={() => { setHovBar(null); setTip(null) }}>
+                            <div style={{ width: hov ? '88%' : '68%', height: `${h}%`, borderRadius: neg ? '0 0 5px 5px' : '5px 5px 0 0', minHeight: 3, transition: 'all 0.18s', background: neg ? (hov ? 'var(--red)' : 'var(--red-dim)') : (hov ? 'var(--gold)' : 'var(--gold-dim)'), boxShadow: hov ? (neg ? '0 0 16px var(--red-dim)' : '0 0 16px var(--gold-dim)') : 'none' }} />
+                            <div style={{ position: 'absolute', bottom: -20, fontSize: 7.5, color: hov ? 'var(--text2)' : 'var(--text4)', whiteSpace: 'nowrap' }}>{fmtMonth(key)}</div>
                           </div>
                         )
                       })}
                     </div>
-                    {tooltip && (
-                      <div style={{ position: 'absolute', left: tooltip.x, top: tooltip.y, transform: 'translate(-50%,-100%)', background: '#1e1e1e', border: '1px solid #333', borderRadius: 6, padding: '8px 12px', pointerEvents: 'none', zIndex: 10, whiteSpace: 'nowrap' }}>
-                        <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{tooltip.label}</div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: tooltip.profit >= 0 ? '#EAB308' : '#ef4444' }}>{tooltip.profit < 0 ? '-' : ''}${Math.abs(tooltip.profit).toLocaleString()}</div>
-                        {hoveredBar !== null && sortedMonths[hoveredBar] && <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{profitByMonth[sortedMonths[hoveredBar]].count} sold</div>}
+                    {tip && (
+                      <div style={{ position: 'absolute', left: tip.x, top: tip.y, transform: 'translate(-50%,-100%)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 16px', pointerEvents: 'none', zIndex: 10, whiteSpace: 'nowrap', boxShadow: 'var(--shadow)' }}>
+                        <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 5, letterSpacing: '0.08em', fontWeight: 600 }}>{tip.label}</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: tip.profit >= 0 ? 'var(--gold)' : 'var(--red)', letterSpacing: '-0.02em' }}>{tip.profit < 0 ? '-' : ''}${Math.abs(tip.profit).toLocaleString()}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{tip.count} truck{tip.count !== 1 ? 's' : ''} sold</div>
                       </div>
                     )}
                   </div>
                 )}
               </div>
 
-              <div style={{ background: '#161616', border: '1px solid #252525', borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.1em', marginBottom: 12 }}>INVENTORY AGING</div>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
-                  <svg width="140" height="140" viewBox="0 0 140 140">
-                    <circle cx="70" cy="70" r={radius} fill="#0f0f0f" />
-                    {totalAging === 0 ? <circle cx="70" cy="70" r={radius} fill="none" stroke="#2a2a2a" strokeWidth="20" /> : arcs.map((arc, i) => arc.pct > 0 && <path key={i} d={arc.path} fill={arc.color} opacity={hoveredDonut === null || hoveredDonut === arc.label ? 1 : 0.3} onMouseEnter={() => setHoveredDonut(arc.label)} onMouseLeave={() => setHoveredDonut(null)} />)}
-                    <circle cx="70" cy="70" r="36" fill="#161616" />
-                    <text x="70" y="66" textAnchor="middle" fill="#fff" fontSize="20" fontWeight="600">{inStock}</text>
-                    <text x="70" y="80" textAnchor="middle" fill="#555" fontSize="9">IN STOCK</text>
+              {/* Donut */}
+              <div className="gcard">
+                <div className="section-title">INVENTORY AGING</div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                  <svg width="150" height="150" viewBox="0 0 140 140">
+                    <circle cx="70" cy="70" r={R} fill="var(--surface2)" />
+                    {totalAging === 0
+                      ? <circle cx="70" cy="70" r={R} fill="none" stroke="var(--border)" strokeWidth="16" />
+                      : arcs.map((a, i) => a.pct > 0 && (
+                        <path key={i} d={a.path} fill={a.color}
+                          opacity={hovDonut === null || hovDonut === a.label ? 1 : 0.2}
+                          style={{ transition: 'opacity 0.2s', cursor: 'pointer' }}
+                          onMouseEnter={() => setHovDonut(a.label)}
+                          onMouseLeave={() => setHovDonut(null)} />
+                      ))}
+                    <circle cx="70" cy="70" r="34" fill="var(--bg)" />
+                    <text x="70" y="63" textAnchor="middle" fill="var(--text)" fontSize="22" fontWeight="800" fontFamily="system-ui">{inStock}</text>
+                    <text x="70" y="77" textAnchor="middle" fill="var(--text3)" fontSize="7.5" letterSpacing="1.5" fontWeight="600">IN STOCK</text>
                   </svg>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {donutSegments.map(s => (
-                    <div key={s.label} onMouseEnter={() => setHoveredDonut(s.label)} onMouseLeave={() => setHoveredDonut(null)}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', borderRadius: 6, cursor: 'pointer', background: hoveredDonut === s.label ? '#1e1e1e' : 'transparent' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
-                        <span style={{ fontSize: 12, color: hoveredDonut === s.label ? '#ccc' : '#777' }}>{s.label}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {donut.map(s => (
+                    <div key={s.label} onMouseEnter={() => setHovDonut(s.label)} onMouseLeave={() => setHovDonut(null)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s', background: hovDonut === s.label ? 'var(--hover)' : 'transparent', border: `1px solid ${hovDonut === s.label ? 'var(--border)' : 'transparent'}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
+                        <span style={{ fontSize: 12, color: hovDonut === s.label ? 'var(--text)' : 'var(--text2)', fontWeight: 500 }}>{s.label}</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: s.count > 0 ? '#fff' : '#444' }}>{s.count}</span>
-                        {totalAging > 0 && s.count > 0 && <span style={{ fontSize: 10, color: '#555' }}>{Math.round(s.count / totalAging * 100)}%</span>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: s.count > 0 ? 'var(--text)' : 'var(--text4)' }}>{s.count}</span>
+                        {totalAging > 0 && s.count > 0 && <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600 }}>{Math.round(s.count / totalAging * 100)}%</span>}
                       </div>
                     </div>
                   ))}
@@ -222,50 +258,48 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Bottom tables */}
-            <div className="dash-bottom-row">
-              <div style={{ background: '#161616', border: '1px solid #252525', borderRadius: 10, padding: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                  <span style={{ color: '#EAB308' }}>⚠</span>
-                  <span style={{ fontSize: 11, color: '#666', letterSpacing: '0.08em' }}>AGING 30+ DAYS</span>
-                  {agingTrucks.length > 0 && <span style={{ marginLeft: 'auto', background: '#2a1a00', color: '#f97316', border: '1px solid #4a3a00', borderRadius: 10, padding: '1px 8px', fontSize: 10 }}>{agingTrucks.length}</span>}
-                </div>
-                {agingTrucks.length === 0 ? <div style={{ textAlign: 'center', padding: 24, color: '#444', fontSize: 13 }}>✓ No aging inventory</div> : (
-                  agingTrucks.slice(0, 5).map(truck => (
-                    <div key={truck.id} style={{ borderBottom: '1px solid #1a1a1a', padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* Bottom */}
+            <div className="dash-bot">
+              {[
+                { title: 'AGING 30+ DAYS', icon: '⚠️', count: agingList.length, items: agingList.slice(0, 5), render: (t: any) => (
+                  <div key={t.id} style={{ borderBottom: '1px solid var(--border2)', padding: '12px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 3, height: 32, borderRadius: 99, background: t.days > 60 ? 'var(--red)' : 'var(--orange)', flexShrink: 0 }} />
                       <div>
-                        <div style={{ fontSize: 13, color: '#ccc' }}>{truck.year} {truck.make} {truck.model}</div>
-                        <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{truck.status}</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: truck.days > 60 ? '#ef4444' : '#EAB308' }}>{truck.days}d</div>
-                        <div style={{ fontSize: 11, color: '#666' }}>${((truck.purchase_price || 0) + (truck.recondition_cost || 0)).toLocaleString()}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{t.year} {t.make} {t.model}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{t.status}</div>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-
-              <div style={{ background: '#161616', border: '1px solid #252525', borderRadius: 10, padding: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                  <span style={{ color: '#f97316' }}>⏰</span>
-                  <span style={{ fontSize: 11, color: '#666', letterSpacing: '0.08em' }}>PENDING PAYMENTS</span>
-                  {pendingPayments.length > 0 && <span style={{ marginLeft: 'auto', background: '#2a1500', color: '#f97316', border: '1px solid #4a2500', borderRadius: 10, padding: '1px 8px', fontSize: 10 }}>{pendingPayments.length}</span>}
-                </div>
-                {pendingPayments.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: 24, color: '#444', fontSize: 13 }}>📥 All caught up</div>
-                ) : (
-                  pendingPayments.slice(0, 5).map(truck => (
-                    <div key={truck.id} style={{ borderBottom: '1px solid #1a1a1a', padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: 13, color: '#ccc' }}>{truck.make} {truck.model}</div>
-                        <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{truck.customer || '—'}</div>
-                      </div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#f97316' }}>${(truck.sold_price || 0).toLocaleString()}</div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: t.days > 60 ? 'var(--red)' : 'var(--orange)' }}>{t.days}d</div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)' }}>${((t.purchase_price || 0) + (t.recondition_cost || 0)).toLocaleString()}</div>
                     </div>
-                  ))
-                )}
-              </div>
+                  </div>
+                )},
+                { title: 'PENDING PAYMENTS', icon: '⏳', count: pending.length, items: pending.slice(0, 5), render: (t: any) => (
+                  <div key={t.id} style={{ borderBottom: '1px solid var(--border2)', padding: '12px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 3, height: 32, borderRadius: 99, background: 'var(--gold)', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{t.make} {t.model}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{t.customer || '—'}</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--gold)' }}>${(t.sold_price || 0).toLocaleString()}</div>
+                  </div>
+                )},
+              ].map(section => (
+                <div key={section.title} className="gcard">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                    <span style={{ fontSize: 14 }}>{section.icon}</span>
+                    <span className="section-title" style={{ marginBottom: 0 }}>{section.title}</span>
+                    {section.count > 0 && <span style={{ marginLeft: 'auto', background: 'var(--orange-dim)', color: 'var(--orange)', border: '1px solid var(--orange)', borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>{section.count}</span>}
+                  </div>
+                  {section.items.length === 0
+                    ? <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--text4)', fontSize: 13 }}>All caught up ✓</div>
+                    : section.items.map((item: any) => section.render(item))}
+                </div>
+              ))}
             </div>
           </>
         )}
