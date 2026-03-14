@@ -132,7 +132,7 @@ export default function ReportsPage() {
                 { label: 'TRUCKS SOLD', value: String(totalSold), color: 'var(--gold)' },
                 { label: 'BEST MONTH', value: bestMonth?.month || '—', color: 'var(--gold)', last: true },
               ].map((s: any) => (
-                <div key={s.label} className={s.last ? 'last-stat' : ''} className2="gcard" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '14px 16px', borderBottom: '2px solid var(--gold)', boxShadow: 'var(--shadow-card)' }}>
+                <div key={s.label} className={`${s.last ? 'last-stat' : ''}`} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '14px 16px', borderBottom: '2px solid var(--gold)', boxShadow: 'var(--shadow-card)' }}>
                   <div style={{ fontSize: 9.5, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 8 }}>{s.label}</div>
                   <div style={{ fontSize: 22, fontWeight: 800, color: s.color, letterSpacing: '-0.02em' }}>{s.value}</div>
                 </div>
