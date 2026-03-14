@@ -132,7 +132,7 @@ export default function TruckDetailPage() {
   }
 
   async function saveSale() {
-    const update = {
+    const update: Partial<Truck> = {
       sold_price: parseFloat(saleForm.sold_price) || null,
       date_sold: saleForm.date_sold || null,
       customer: saleForm.customer || null,
