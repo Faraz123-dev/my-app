@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type Truck = {
@@ -9,7 +9,7 @@ type Truck = {
   colour: string | null; kilometers: number | null; bought_from: string | null
   purchase_price: number | null; recondition_cost: number | null
   date_sold: string | null; customer: string | null; sold_price: number | null
-  payment_status: string | null; notes: string | null
+  payment_status: string | null; notes: string | null; photo_url: string | null
 }
 
 const statusColors: Record<string, { bg: string; color: string; border: string }> = {
@@ -22,6 +22,94 @@ const statusColors: Record<string, { bg: string; color: string; border: string }
 }
 
 const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+
+// Photo cell with upload + preview
+function PhotoCell({ truck, onUploaded }: { truck: Truck; onUploaded: (url: string) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [preview, setPreview] = useState<string | null>(null)
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const ext = file.name.split('.').pop()
+    const path = `trucks/${truck.id}-${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true })
+    if (!error) {
+      const { data } = supabase.storage.from('invoices').getPublicUrl(path)
+      await supabase.from('Inventory Data').update({ photo_url: data.publicUrl }).eq('id', truck.id)
+      onUploaded(data.publicUrl)
+    }
+    setUploading(false)
+  }
+
+  if (truck.photo_url) {
+    return (
+      <>
+        <div
+          onClick={e => { e.stopPropagation(); setPreview(truck.photo_url) }}
+          style={{ width: 48, height: 36, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', border: '1px solid var(--border)', flexShrink: 0, position: 'relative' }}
+          title="Click to view"
+        >
+          <img src={truck.photo_url} alt="Truck" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0)', transition: 'background 0.15s' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.3)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,0,0,0)')}>
+            <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', fontSize: 10, color: '#fff', opacity: 0, transition: 'opacity 0.15s', pointerEvents: 'none' }}>🔍</span>
+          </div>
+        </div>
+        {preview && (
+          <div onClick={() => setPreview(null)} style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', flexDirection: 'column' }}>
+            {/* Full bleed image background */}
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${preview})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(28px) brightness(0.3)', transform: 'scale(1.1)' }} />
+            {/* Overlay */}
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)' }} />
+            {/* Top bar */}
+            <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px' }}>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
+                {truck.year} {truck.make} {truck.model}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  onClick={e => { e.stopPropagation(); fileRef.current?.click() }}
+                  style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: 99, padding: '7px 18px', fontSize: 12, cursor: 'pointer', fontWeight: 600, backdropFilter: 'blur(8px)', whiteSpace: 'nowrap' }}>
+                  🔄 Replace
+                </button>
+                <button onClick={() => setPreview(null)} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: '50%', width: 36, height: 36, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>×</button>
+              </div>
+            </div>
+            {/* Main image */}
+            <div onClick={e => e.stopPropagation()} style={{ position: 'relative', zIndex: 1, flex: 1, padding: '0 16px 16px' }}>
+              <img
+                src={preview}
+                alt="Truck"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 16, boxShadow: '0 32px 80px rgba(0,0,0,0.8)', display: 'block' }}
+              />
+            </div>
+          </div>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+      </>
+    )
+  }
+
+  return (
+    <>
+      <button
+        onClick={e => { e.stopPropagation(); fileRef.current?.click() }}
+        disabled={uploading}
+        style={{ width: 48, height: 36, borderRadius: 6, border: '1px dashed var(--border)', background: 'var(--hover)', color: uploading ? 'var(--text4)' : 'var(--text3)', cursor: uploading ? 'default' : 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}
+        title="Upload photo"
+        onMouseEnter={e => { if (!uploading) { e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.color = 'var(--gold)' } }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text3)' }}
+      >
+        {uploading ? '⟳' : '📷'}
+      </button>
+      <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+    </>
+  )
+}
 
 export default function InventoryPage() {
   const [trucks, setTrucks] = useState<Truck[]>([])
@@ -46,7 +134,15 @@ export default function InventoryPage() {
 
   async function addTruck() {
     if (!newTruck.vin) return alert('VIN is required')
-    const { error } = await supabase.from('Inventory Data').insert([{ status: newTruck.status, bought_on: newTruck.bought_on, vin: newTruck.vin, year: parseInt(newTruck.year) || null, make: newTruck.make || null, model: newTruck.model || null, colour: newTruck.colour || null, kilometers: parseInt(newTruck.kilometers) || null, bought_from: newTruck.bought_from || null, purchase_price: parseFloat(newTruck.purchase_price) || 0, recondition_cost: parseFloat(newTruck.recondition_cost) || 0, payment_status: 'N/A', notes: newTruck.notes || null }])
+    const { error } = await supabase.from('Inventory Data').insert([{
+      status: newTruck.status, bought_on: newTruck.bought_on, vin: newTruck.vin,
+      year: parseInt(newTruck.year) || null, make: newTruck.make || null,
+      model: newTruck.model || null, colour: newTruck.colour || null,
+      kilometers: parseInt(newTruck.kilometers) || null, bought_from: newTruck.bought_from || null,
+      purchase_price: parseFloat(newTruck.purchase_price) || 0,
+      recondition_cost: parseFloat(newTruck.recondition_cost) || 0,
+      payment_status: 'N/A', notes: newTruck.notes || null,
+    }])
     if (error) return alert('Error: ' + error.message)
     setShowAddModal(false)
     setNewTruck({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '' })
@@ -61,7 +157,9 @@ export default function InventoryPage() {
 
   const filtered = trucks.filter(t => {
     const q = search.toLowerCase()
-    return (!q || [t.vin, t.make, t.model, t.customer, t.bought_from].some(v => v?.toLowerCase().includes(q))) && (statusFilter === 'All Statuses' || t.status === statusFilter) && (paymentFilter === 'All Payments' || t.payment_status === paymentFilter)
+    return (!q || [t.vin, t.make, t.model, t.customer, t.bought_from].some(v => v?.toLowerCase().includes(q)))
+      && (statusFilter === 'All Statuses' || t.status === statusFilter)
+      && (paymentFilter === 'All Payments' || t.payment_status === paymentFilter)
   })
 
   const inStock = trucks.filter(t => t.status !== 'Sold').length
@@ -69,19 +167,20 @@ export default function InventoryPage() {
   const pend = trucks.filter(t => t.payment_status === 'Unpaid').length
 
   const IS = { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '9px 14px', color: 'var(--text)', fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box' as const, fontFamily: 'system-ui,sans-serif' }
-  const LS = { fontSize: 12, color: 'var(--text2)', marginBottom: 6, display: 'block' as const }
+  const LS = { fontSize: 12, color: 'var(--text2)', marginBottom: 6, display: 'block' as const, fontWeight: 500 }
 
   return (
     <>
       <style>{`
         @keyframes spin { to { transform:rotate(360deg) } }
         .inv-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 16px; cursor: pointer; transition: all 0.18s; box-shadow: var(--shadow-card); }
-        .inv-card:hover { border-color: var(--gold); transform: translateY(-1px); box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+        .inv-card:hover { border-color: var(--gold); transform: translateY(-1px); }
         .inv-filters { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
         @media(max-width:640px){ .inv-filters select { flex:1; } }
       `}</style>
       <main style={{ padding: '24px 20px', background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)', fontFamily: 'system-ui,sans-serif' }}>
 
+        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 6, opacity: 0.7 }}>FLEET</div>
@@ -92,7 +191,7 @@ export default function InventoryPage() {
 
         <div style={{ height: 1, background: 'linear-gradient(90deg, var(--gold), transparent)', marginBottom: 20 }} />
 
-        {/* Stats */}
+        {/* Stats + view toggle */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           {[
             { label: 'Total', value: trucks.length, color: 'var(--text2)' },
@@ -132,22 +231,33 @@ export default function InventoryPage() {
         ) : error ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--red)' }}>Error: {error}</div>
         ) : viewMode === 'cards' ? (
+
+          /* ── CARD VIEW ── */
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {filtered.length === 0 ? <div style={{ textAlign: 'center', padding: 48, color: 'var(--text4)' }}>No trucks found</div>
+            {filtered.length === 0
+              ? <div style={{ textAlign: 'center', padding: 48, color: 'var(--text4)' }}>No trucks found</div>
               : filtered.map(truck => {
                 const allIn = (truck.purchase_price || 0) + (truck.recondition_cost || 0)
                 const profit = truck.sold_price != null ? truck.sold_price - allIn : null
                 const sc = statusColors[truck.status] || statusColors['Purchased']
                 return (
                   <div key={truck.id} className="inv-card" onClick={() => window.location.href = `/inventory/${truck.id}`}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                      <div>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{truck.year} {truck.make} {truck.model}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3, fontFamily: 'monospace' }}>{truck.vin}</div>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
+                      {/* Photo thumbnail in card view */}
+                      <div onClick={e => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                        <PhotoCell truck={truck} onUploaded={url => setTrucks(prev => prev.map(t => t.id === truck.id ? { ...t, photo_url: url } : t))} />
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: 99, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{truck.status}</span>
-                        <button onClick={e => { e.stopPropagation(); deleteTruck(truck.id) }} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{truck.year} {truck.make} {truck.model}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3, fontFamily: 'monospace' }}>{truck.vin}</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                            <span style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: 99, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{truck.status}</span>
+                            <button onClick={e => { e.stopPropagation(); deleteTruck(truck.id) }} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
@@ -174,51 +284,78 @@ export default function InventoryPage() {
                 )
               })}
           </div>
+
         ) : (
+
+          /* ── TABLE VIEW ── */
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Status', 'Bought On', 'VIN', 'Year', 'Make', 'Model', 'KMs', 'Purchase', 'All-In', 'Sold Price', 'Profit', 'Payment', ''].map(h => (
-                      <th key={h} style={{ padding: '11px 13px', textAlign: 'left', color: 'var(--text4)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
+                    {['Photo', 'Status', 'Bought On', 'VIN', 'Year', 'Make', 'Model', 'KMs', 'Purchase', 'All-In', 'Sold Price', 'Profit', 'Payment', ''].map(h => (
+                      <th key={h} style={{ padding: '11px 12px', textAlign: 'left', color: 'var(--text4)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? <tr><td colSpan={13} style={{ padding: 48, textAlign: 'center', color: 'var(--text4)' }}>No trucks found</td></tr>
+                  {filtered.length === 0
+                    ? <tr><td colSpan={14} style={{ padding: 48, textAlign: 'center', color: 'var(--text4)' }}>No trucks found</td></tr>
                     : filtered.map(truck => {
                       const allIn = (truck.purchase_price || 0) + (truck.recondition_cost || 0)
                       const profit = truck.sold_price != null ? truck.sold_price - allIn : null
                       const sc = statusColors[truck.status] || statusColors['Purchased']
                       return (
-                        <tr key={truck.id} onClick={() => window.location.href = `/inventory/${truck.id}`} style={{ borderBottom: '1px solid var(--border2)', cursor: 'pointer', transition: 'background 0.15s' }}
+                        <tr key={truck.id}
+                          onClick={() => window.location.href = `/inventory/${truck.id}`}
+                          style={{ borderBottom: '1px solid var(--border2)', cursor: 'pointer', transition: 'background 0.15s' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                          <td style={{ padding: '10px 13px' }}><span style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: 99, padding: '2px 8px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{truck.status}</span></td>
-                          <td style={{ padding: '10px 13px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{fmt(truck.bought_on)}</td>
-                          <td style={{ padding: '10px 13px', color: 'var(--text3)', fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap' }}>{truck.vin}</td>
-                          <td style={{ padding: '10px 13px', color: 'var(--text)' }}>{truck.year || '—'}</td>
-                          <td style={{ padding: '10px 13px', color: 'var(--text)' }}>{truck.make || '—'}</td>
-                          <td style={{ padding: '10px 13px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{truck.model || '—'}</td>
-                          <td style={{ padding: '10px 13px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{truck.kilometers ? Number(truck.kilometers).toLocaleString() : '—'}</td>
-                          <td style={{ padding: '10px 13px', color: 'var(--text)', whiteSpace: 'nowrap' }}>${(truck.purchase_price || 0).toLocaleString()}</td>
-                          <td style={{ padding: '10px 13px', color: 'var(--text)', whiteSpace: 'nowrap' }}>${allIn.toLocaleString()}</td>
-                          <td style={{ padding: '10px 13px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{truck.sold_price != null ? `$${truck.sold_price.toLocaleString()}` : '—'}</td>
-                          <td style={{ padding: '10px 13px', whiteSpace: 'nowrap', fontWeight: 700, color: profit == null ? 'var(--text4)' : profit >= 0 ? 'var(--green)' : 'var(--red)' }}>{profit == null ? '—' : `${profit < 0 ? '-' : ''}$${Math.abs(profit).toLocaleString()}`}</td>
-                          <td style={{ padding: '10px 13px' }}>{truck.payment_status && truck.payment_status !== 'N/A' ? <span style={{ background: truck.payment_status === 'Paid' ? 'var(--green-dim)' : 'var(--red-dim)', color: truck.payment_status === 'Paid' ? 'var(--green)' : 'var(--red)', borderRadius: 99, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{truck.payment_status}</span> : <span style={{ color: 'var(--text4)', fontSize: 11 }}>N/A</span>}</td>
-                          <td style={{ padding: '10px 13px' }}><button onClick={e => { e.stopPropagation(); deleteTruck(truck.id) }} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button></td>
+
+                          {/* Photo column — first */}
+                          <td style={{ padding: '8px 12px' }} onClick={e => e.stopPropagation()}>
+                            <PhotoCell
+                              truck={truck}
+                              onUploaded={url => setTrucks(prev => prev.map(t => t.id === truck.id ? { ...t, photo_url: url } : t))}
+                            />
+                          </td>
+
+                          <td style={{ padding: '10px 12px' }}>
+                            <span style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: 99, padding: '2px 8px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{truck.status}</span>
+                          </td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{fmt(truck.bought_on)}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text3)', fontFamily: 'monospace', fontSize: 11, whiteSpace: 'nowrap' }}>{truck.vin}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text)' }}>{truck.year || '—'}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text)' }}>{truck.make || '—'}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{truck.model || '—'}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{truck.kilometers ? Number(truck.kilometers).toLocaleString() : '—'}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text)', whiteSpace: 'nowrap' }}>${(truck.purchase_price || 0).toLocaleString()}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text)', whiteSpace: 'nowrap' }}>${allIn.toLocaleString()}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{truck.sold_price != null ? `$${truck.sold_price.toLocaleString()}` : '—'}</td>
+                          <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: 700, color: profit == null ? 'var(--text4)' : profit >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                            {profit == null ? '—' : `${profit < 0 ? '-' : ''}$${Math.abs(profit).toLocaleString()}`}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {truck.payment_status && truck.payment_status !== 'N/A'
+                              ? <span style={{ background: truck.payment_status === 'Paid' ? 'var(--green-dim)' : 'var(--red-dim)', color: truck.payment_status === 'Paid' ? 'var(--green)' : 'var(--red)', borderRadius: 99, padding: '2px 8px', fontSize: 11, fontWeight: 600 }}>{truck.payment_status}</span>
+                              : <span style={{ color: 'var(--text4)', fontSize: 11 }}>N/A</span>}
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            <button onClick={e => { e.stopPropagation(); deleteTruck(truck.id) }} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
+                          </td>
                         </tr>
                       )
                     })}
                 </tbody>
               </table>
             </div>
-            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border2)', fontSize: 12, color: 'var(--text3)' }}>Showing {filtered.length} of {trucks.length} trucks</div>
+            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border2)', fontSize: 12, color: 'var(--text3)' }}>
+              Showing {filtered.length} of {trucks.length} trucks
+            </div>
           </div>
         )}
 
-        {/* Add Modal */}
+        {/* ── ADD TRUCK MODAL ── */}
         {showAddModal && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 50, backdropFilter: 'blur(8px)' }}>
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '20px 20px 0 0', padding: 24, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow)' }}>
