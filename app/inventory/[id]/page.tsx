@@ -137,7 +137,7 @@ export default function TruckDetailPage() {
       date_sold: saleForm.date_sold || null,
       customer: saleForm.customer || null,
       payment_status: saleForm.payment_status,
-      status: saleForm.sold_price ? 'Sold' : truck?.status,
+      status: saleForm.sold_price ? 'Sold' : (truck?.status ?? 'Purchased'),
     }
     await supabase.from('Inventory Data').update(update).eq('id', id)
     setTruck(prev => prev ? { ...prev, ...update } : prev)
