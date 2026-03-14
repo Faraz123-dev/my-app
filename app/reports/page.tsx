@@ -53,7 +53,6 @@ export default function ReportsPage() {
   const chartInstance = useRef<any>(null)
 
   const data = allData.slice(-rangeCounts[range])
-
   const totalRevenue = data.reduce((s, d) => s + d.revenue, 0)
   const totalCost = data.reduce((s, d) => s + d.cost, 0)
   const totalProfit = data.reduce((s, d) => s + d.profit, 0)
@@ -70,15 +69,9 @@ export default function ReportsPage() {
       if (!ctx) return
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const datasets: any[] = []
-      if (chartMode === 'profit' || chartMode === 'both') {
-        datasets.push({ label: 'Profit', data: data.map(d => Math.round(d.profit)), backgroundColor: data.map(d => d.profit >= 0 ? '#EAB308' : '#ef4444'), borderRadius: 3, order: 1 })
-      }
-      if (chartMode === 'revenue' || chartMode === 'both') {
-        datasets.push({ label: 'Revenue', data: data.map(d => Math.round(d.revenue)), backgroundColor: 'rgba(59,130,246,0.55)', borderRadius: 3, order: 2 })
-      }
-      if (chartMode === 'both') {
-        datasets.push({ label: 'Cost', data: data.map(d => Math.round(d.cost)), backgroundColor: 'rgba(107,114,128,0.45)', borderRadius: 3, order: 3 })
-      }
+      if (chartMode === 'profit' || chartMode === 'both') datasets.push({ label: 'Profit', data: data.map(d => Math.round(d.profit)), backgroundColor: data.map(d => d.profit >= 0 ? '#EAB308' : '#ef4444'), borderRadius: 3, order: 1 })
+      if (chartMode === 'revenue' || chartMode === 'both') datasets.push({ label: 'Revenue', data: data.map(d => Math.round(d.revenue)), backgroundColor: 'rgba(59,130,246,0.55)', borderRadius: 3, order: 2 })
+      if (chartMode === 'both') datasets.push({ label: 'Cost', data: data.map(d => Math.round(d.cost)), backgroundColor: 'rgba(107,114,128,0.45)', borderRadius: 3, order: 3 })
       chartInstance.current = new Chart(ctx, {
         type: 'bar',
         data: { labels: data.map(d => d.month), datasets },
@@ -90,9 +83,7 @@ export default function ReportsPage() {
             legend: { display: false },
             tooltip: {
               backgroundColor: '#161616', borderColor: '#2a2a2a', borderWidth: 1,
-              titleColor: '#ffffff', titleFont: { size: 13, weight: 'bold' as const },
-              bodyColor: '#EAB308', bodyFont: { size: 14, weight: 'bold' as const },
-              padding: 14, displayColors: false,
+              titleColor: '#fff', bodyColor: '#EAB308', padding: 12, displayColors: false,
               callbacks: {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 title: (items: any[]) => items[0]?.label || '',
@@ -102,9 +93,9 @@ export default function ReportsPage() {
             },
           },
           scales: {
-            x: { ticks: { color: '#555', font: { size: 10 }, maxRotation: 45, autoSkip: data.length > 18 }, grid: { color: '#181818' }, border: { color: '#222' } },
+            x: { ticks: { color: '#555', font: { size: 9 }, maxRotation: 45, autoSkip: data.length > 18 }, grid: { color: '#181818' }, border: { color: '#222' } },
             y: {
-              ticks: { color: '#555', font: { size: 10 }, callback: (v: number | string) => { const num = typeof v === 'string' ? parseFloat(v) : v; const abs = Math.abs(num); const s = abs >= 1000 ? `$${(abs / 1000).toFixed(0)}k` : `$${abs}`; return num < 0 ? `-${s}` : s } },
+              ticks: { color: '#555', font: { size: 9 }, callback: (v: number | string) => { const n = typeof v === 'string' ? parseFloat(v) : v; const abs = Math.abs(n); const s = abs >= 1000 ? `$${(abs / 1000).toFixed(0)}k` : `$${abs}`; return n < 0 ? `-${s}` : s } },
               grid: { color: '#1e1e1e' }, border: { color: '#222' },
             },
           },
@@ -116,99 +107,114 @@ export default function ReportsPage() {
   }, [data, chartMode, activeTab])
 
   return (
-    <main style={{ padding: '24px 28px', overflowY: 'auto', background: '#0a0a0a', minHeight: '100vh', color: '#e5e5e5', fontFamily: 'system-ui, sans-serif' }}>
-      <h1 style={{ fontSize: 26, fontWeight: 600, color: '#fff', marginBottom: 20 }}>Reports</h1>
+    <>
+      <style>{`
+        .reports-stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; margin-bottom: 16px; }
+        @media (max-width: 768px) {
+          .reports-stats { grid-template-columns: repeat(2,1fr) !important; }
+          .reports-stats .last-stat { grid-column: span 2; }
+        }
+        .report-tabs { display: flex; gap: 4px; margin-bottom: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .report-tabs::-webkit-scrollbar { display: none; }
+        .chart-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+      `}</style>
+      <main style={{ padding: '16px', overflowY: 'auto', background: '#0a0a0a', minHeight: '100vh', color: '#e5e5e5', fontFamily: 'system-ui, sans-serif' }}>
+        <h1 style={{ fontSize: 22, fontWeight: 600, color: '#fff', marginBottom: 16 }}>Reports</h1>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-        {(['Profit', 'Aging', 'Vendor Spend', 'Cashflow'] as Tab[]).map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} style={{ background: activeTab === tab ? '#1e1e1e' : 'transparent', border: `1px solid ${activeTab === tab ? '#EAB308' : '#222'}`, color: activeTab === tab ? '#EAB308' : '#555', borderRadius: 6, padding: '6px 16px', fontSize: 12, cursor: 'pointer', fontWeight: activeTab === tab ? 500 : 400 }}>{tab}</button>
-        ))}
-      </div>
-
-      {activeTab === 'Profit' && (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 20 }}>
-            {[
-              { label: 'TOTAL REVENUE', value: `$${(totalRevenue / 1000).toFixed(0)}k`, color: '#fff' },
-              { label: 'TOTAL COST', value: `$${(totalCost / 1000).toFixed(0)}k`, color: '#fff' },
-              { label: 'NET PROFIT', value: `${totalProfit >= 0 ? '' : '-'}$${(Math.abs(totalProfit) / 1000).toFixed(0)}k`, color: totalProfit >= 0 ? '#22c55e' : '#ef4444' },
-              { label: 'TRUCKS SOLD', value: String(totalSold), color: '#EAB308' },
-              { label: 'BEST MONTH', value: bestMonth?.month || '—', color: '#EAB308' },
-            ].map(s => (
-              <div key={s.label} style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '14px 16px', borderBottom: '2px solid #EAB308' }}>
-                <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.08em', marginBottom: 6 }}>{s.label}</div>
-                <div style={{ fontSize: 20, fontWeight: 600, color: s.color }}>{s.value}</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '20px', marginBottom: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 13, color: '#888', fontWeight: 500 }}>Monthly Profit Report</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div style={{ display: 'flex', background: '#0f0f0f', border: '1px solid #222', borderRadius: 6, overflow: 'hidden' }}>
-                  {([['profit', 'Profit'], ['revenue', 'Revenue'], ['both', 'All']] as [ChartMode, string][]).map(([mode, label]) => (
-                    <button key={mode} onClick={() => setChartMode(mode)} style={{ padding: '5px 12px', fontSize: 11, cursor: 'pointer', border: 'none', background: chartMode === mode ? '#EAB308' : 'transparent', color: chartMode === mode ? '#000' : '#666', fontWeight: chartMode === mode ? 600 : 400 }}>{label}</button>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', background: '#0f0f0f', border: '1px solid #222', borderRadius: 6, overflow: 'hidden' }}>
-                  {(['6M', '1Y', '2Y', 'All'] as Range[]).map(r => (
-                    <button key={r} onClick={() => setRange(r)} style={{ padding: '5px 10px', fontSize: 11, cursor: 'pointer', border: 'none', background: range === r ? '#EAB308' : 'transparent', color: range === r ? '#000' : '#666', fontWeight: range === r ? 600 : 400 }}>{r}</button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div style={{ position: 'relative', width: '100%', height: 260 }}>
-              <canvas ref={chartRef} />
-            </div>
-          </div>
-
-          <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #222' }}>
-                  {['Month', 'Trucks Sold', 'Revenue', 'Cost', 'Profit', 'Margin'].map(h => (
-                    <th key={h} style={{ padding: '11px 16px', textAlign: h === 'Month' ? 'left' : 'right', color: '#555', fontWeight: 400, fontSize: 11 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((row, i) => {
-                  const margin = row.revenue > 0 ? ((row.profit / row.revenue) * 100).toFixed(1) : '0.0'
-                  return (
-                    <tr key={i} onMouseEnter={() => setHoveredRow(i)} onMouseLeave={() => setHoveredRow(null)}
-                      style={{ borderBottom: '1px solid #1a1a1a', background: hoveredRow === i ? '#1c1c1c' : 'transparent' }}>
-                      <td style={{ padding: '10px 16px', color: '#ccc', fontWeight: 500 }}>{row.month}</td>
-                      <td style={{ padding: '10px 16px', color: '#888', textAlign: 'right' }}>{row.sold}</td>
-                      <td style={{ padding: '10px 16px', color: '#ccc', textAlign: 'right' }}>${row.revenue.toLocaleString()}</td>
-                      <td style={{ padding: '10px 16px', color: '#888', textAlign: 'right' }}>${Math.round(row.cost).toLocaleString()}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: row.profit >= 0 ? '#22c55e' : '#ef4444' }}>{row.profit >= 0 ? '' : '-'}${Math.abs(Math.round(row.profit)).toLocaleString()}</td>
-                      <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: 12, color: parseFloat(margin) >= 0 ? '#22c55e' : '#ef4444' }}>{margin}%</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-              <tfoot>
-                <tr style={{ borderTop: '2px solid #2a2a2a', background: '#111' }}>
-                  <td style={{ padding: '12px 16px', color: '#fff', fontWeight: 600 }}>Total</td>
-                  <td style={{ padding: '12px 16px', color: '#EAB308', textAlign: 'right', fontWeight: 600 }}>{totalSold}</td>
-                  <td style={{ padding: '12px 16px', color: '#fff', textAlign: 'right', fontWeight: 600 }}>${Math.round(totalRevenue).toLocaleString()}</td>
-                  <td style={{ padding: '12px 16px', color: '#888', textAlign: 'right', fontWeight: 600 }}>${Math.round(totalCost).toLocaleString()}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, fontSize: 14, color: totalProfit >= 0 ? '#22c55e' : '#ef4444' }}>{totalProfit >= 0 ? '' : '-'}${Math.abs(Math.round(totalProfit)).toLocaleString()}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: totalProfit >= 0 ? '#22c55e' : '#ef4444' }}>{totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0'}%</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </>
-      )}
-
-      {activeTab !== 'Profit' && (
-        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '60px', textAlign: 'center' }}>
-          <div style={{ fontSize: 32, color: '#2a2a2a', marginBottom: 12 }}>📊</div>
-          <div style={{ fontSize: 14, color: '#555' }}>{activeTab} report coming soon.</div>
+        <div className="report-tabs">
+          {(['Profit', 'Aging', 'Vendor Spend', 'Cashflow'] as Tab[]).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{ background: activeTab === tab ? '#1e1e1e' : 'transparent', border: `1px solid ${activeTab === tab ? '#EAB308' : '#222'}`, color: activeTab === tab ? '#EAB308' : '#555', borderRadius: 6, padding: '7px 16px', fontSize: 12, cursor: 'pointer', fontWeight: activeTab === tab ? 500 : 400, whiteSpace: 'nowrap' }}>{tab}</button>
+          ))}
         </div>
-      )}
-    </main>
+
+        {activeTab === 'Profit' && (
+          <>
+            <div className="reports-stats">
+              {[
+                { label: 'TOTAL REVENUE', value: `$${(totalRevenue / 1000).toFixed(0)}k`, color: '#fff' },
+                { label: 'TOTAL COST', value: `$${(totalCost / 1000).toFixed(0)}k`, color: '#fff' },
+                { label: 'NET PROFIT', value: `${totalProfit >= 0 ? '' : '-'}$${(Math.abs(totalProfit) / 1000).toFixed(0)}k`, color: totalProfit >= 0 ? '#22c55e' : '#ef4444' },
+                { label: 'TRUCKS SOLD', value: String(totalSold), color: '#EAB308' },
+                { label: 'BEST MONTH', value: bestMonth?.month || '—', color: '#EAB308', last: true },
+              ].map((s: any) => (
+                <div key={s.label} className={s.last ? 'last-stat' : ''} style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '12px 14px', borderBottom: '2px solid #EAB308' }}>
+                  <div style={{ fontSize: 9, color: '#555', letterSpacing: '0.08em', marginBottom: 5 }}>{s.label}</div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: s.color }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '16px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ fontSize: 13, color: '#888', fontWeight: 500 }}>Monthly Profit Report</div>
+                <div className="chart-controls">
+                  <div style={{ display: 'flex', background: '#0f0f0f', border: '1px solid #222', borderRadius: 6, overflow: 'hidden' }}>
+                    {([['profit', 'P'], ['revenue', 'R'], ['both', 'All']] as [ChartMode, string][]).map(([mode, label]) => (
+                      <button key={mode} onClick={() => setChartMode(mode)} style={{ padding: '5px 10px', fontSize: 11, cursor: 'pointer', border: 'none', background: chartMode === mode ? '#EAB308' : 'transparent', color: chartMode === mode ? '#000' : '#666', fontWeight: chartMode === mode ? 600 : 400 }}>{label}</button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', background: '#0f0f0f', border: '1px solid #222', borderRadius: 6, overflow: 'hidden' }}>
+                    {(['6M', '1Y', '2Y', 'All'] as Range[]).map(r => (
+                      <button key={r} onClick={() => setRange(r)} style={{ padding: '5px 8px', fontSize: 11, cursor: 'pointer', border: 'none', background: range === r ? '#EAB308' : 'transparent', color: range === r ? '#000' : '#666', fontWeight: range === r ? 600 : 400 }}>{r}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{ position: 'relative', width: '100%', height: 220 }}>
+                <canvas ref={chartRef} />
+              </div>
+            </div>
+
+            {/* Mobile-friendly table with horizontal scroll */}
+            <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #222' }}>
+                      {['Month', 'Sold', 'Revenue', 'Cost', 'Profit', 'Margin'].map(h => (
+                        <th key={h} style={{ padding: '10px 12px', textAlign: h === 'Month' ? 'left' : 'right', color: '#555', fontWeight: 400, fontSize: 11, whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.map((row, i) => {
+                      const margin = row.revenue > 0 ? ((row.profit / row.revenue) * 100).toFixed(1) : '0.0'
+                      return (
+                        <tr key={i} onMouseEnter={() => setHoveredRow(i)} onMouseLeave={() => setHoveredRow(null)}
+                          style={{ borderBottom: '1px solid #1a1a1a', background: hoveredRow === i ? '#1c1c1c' : 'transparent' }}>
+                          <td style={{ padding: '9px 12px', color: '#ccc', fontWeight: 500, whiteSpace: 'nowrap' }}>{row.month}</td>
+                          <td style={{ padding: '9px 12px', color: '#888', textAlign: 'right' }}>{row.sold}</td>
+                          <td style={{ padding: '9px 12px', color: '#ccc', textAlign: 'right', whiteSpace: 'nowrap' }}>${row.revenue.toLocaleString()}</td>
+                          <td style={{ padding: '9px 12px', color: '#888', textAlign: 'right', whiteSpace: 'nowrap' }}>${Math.round(row.cost).toLocaleString()}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'right', fontWeight: 600, color: row.profit >= 0 ? '#22c55e' : '#ef4444', whiteSpace: 'nowrap' }}>{row.profit >= 0 ? '' : '-'}${Math.abs(Math.round(row.profit)).toLocaleString()}</td>
+                          <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 12, color: parseFloat(margin) >= 0 ? '#22c55e' : '#ef4444', whiteSpace: 'nowrap' }}>{margin}%</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop: '2px solid #2a2a2a', background: '#111' }}>
+                      <td style={{ padding: '11px 12px', color: '#fff', fontWeight: 600 }}>Total</td>
+                      <td style={{ padding: '11px 12px', color: '#EAB308', textAlign: 'right', fontWeight: 600 }}>{totalSold}</td>
+                      <td style={{ padding: '11px 12px', color: '#fff', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>${Math.round(totalRevenue).toLocaleString()}</td>
+                      <td style={{ padding: '11px 12px', color: '#888', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>${Math.round(totalCost).toLocaleString()}</td>
+                      <td style={{ padding: '11px 12px', textAlign: 'right', fontWeight: 700, fontSize: 14, color: totalProfit >= 0 ? '#22c55e' : '#ef4444', whiteSpace: 'nowrap' }}>{totalProfit >= 0 ? '' : '-'}${Math.abs(Math.round(totalProfit)).toLocaleString()}</td>
+                      <td style={{ padding: '11px 12px', textAlign: 'right', fontWeight: 600, color: totalProfit >= 0 ? '#22c55e' : '#ef4444', whiteSpace: 'nowrap' }}>{totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0'}%</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab !== 'Profit' && (
+          <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 10, padding: '60px', textAlign: 'center' }}>
+            <div style={{ fontSize: 32, color: '#2a2a2a', marginBottom: 12 }}>📊</div>
+            <div style={{ fontSize: 14, color: '#555' }}>{activeTab} report coming soon.</div>
+          </div>
+        )}
+      </main>
+    </>
   )
 }
