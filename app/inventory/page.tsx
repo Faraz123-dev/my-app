@@ -13,12 +13,13 @@ type Truck = {
 }
 
 const statusColors: Record<string, { bg: string; color: string; border: string }> = {
-  Purchased:           { bg: 'rgba(255,255,255,0.04)', color: '#888', border: 'rgba(255,255,255,0.1)' },
-  'In Reconditioning': { bg: 'rgba(34,197,94,0.1)',   color: '#22c55e', border: 'rgba(34,197,94,0.3)' },
-  'Ready to List':     { bg: 'rgba(234,179,8,0.1)',   color: '#EAB308', border: 'rgba(234,179,8,0.3)' },
-  Listed:              { bg: 'rgba(56,189,248,0.1)',  color: '#38bdf8', border: 'rgba(56,189,248,0.3)' },
-  'Deal Pending':      { bg: 'rgba(249,115,22,0.1)',  color: '#f97316', border: 'rgba(249,115,22,0.3)' },
-  Sold:                { bg: 'rgba(34,197,94,0.1)',   color: '#22c55e', border: 'rgba(34,197,94,0.3)' },
+  Intake:              { bg: 'var(--gold-dim)',    color: 'var(--gold)',    border: 'var(--gold)' },
+  Purchased:           { bg: 'var(--hover)',       color: 'var(--text2)',   border: 'var(--border)' },
+  'In Reconditioning': { bg: 'var(--green-dim)',   color: 'var(--green)',   border: 'var(--green)' },
+  'Ready to List':     { bg: 'var(--gold-dim)',    color: 'var(--gold)',    border: 'var(--gold)' },
+  Listed:              { bg: 'var(--blue-dim)',    color: 'var(--blue)',    border: 'var(--blue)' },
+  'Deal Pending':      { bg: 'var(--orange-dim)',  color: 'var(--orange)',  border: 'var(--orange)' },
+  Sold:                { bg: 'var(--green-dim)',   color: 'var(--green)',   border: 'var(--green)' },
 }
 
 const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
@@ -121,6 +122,8 @@ export default function InventoryPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards')
   const [newTruck, setNewTruck] = useState({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '' })
+  const [editTruck, setEditTruck] = useState<Truck | null>(null)
+  const [editForm, setEditForm] = useState<Partial<Truck>>({})
 
   useEffect(() => { loadTrucks() }, [])
 
@@ -153,6 +156,40 @@ export default function InventoryPage() {
     if (!confirm('Delete this truck?')) return
     await supabase.from('Inventory Data').delete().eq('id', id)
     loadTrucks()
+  }
+
+  function openEdit(truck: Truck, e: React.MouseEvent) {
+    e.stopPropagation()
+    setEditTruck(truck)
+    setEditForm({
+      status: truck.status, bought_on: truck.bought_on, vin: truck.vin,
+      year: truck.year, make: truck.make, model: truck.model, colour: truck.colour,
+      kilometers: truck.kilometers, bought_from: truck.bought_from,
+      purchase_price: truck.purchase_price, recondition_cost: truck.recondition_cost,
+      sold_price: truck.sold_price, date_sold: truck.date_sold,
+      customer: truck.customer, payment_status: truck.payment_status, notes: truck.notes,
+    })
+  }
+
+  async function saveEdit() {
+    if (!editTruck) return
+    const payload = {
+      ...editForm,
+      year:             editForm.year             ? Number(editForm.year)             : null,
+      kilometers:       editForm.kilometers        ? Number(editForm.kilometers)        : null,
+      purchase_price:   editForm.purchase_price    ? Number(editForm.purchase_price)    : null,
+      recondition_cost: editForm.recondition_cost  ? Number(editForm.recondition_cost)  : null,
+      sold_price:       editForm.sold_price        ? Number(editForm.sold_price)        : null,
+      date_sold:        editForm.date_sold         || null,
+      customer:         editForm.customer          || null,
+      bought_from:      editForm.bought_from       || null,
+      colour:           editForm.colour            || null,
+      notes:            editForm.notes             || null,
+    }
+    const { error } = await supabase.from('Inventory Data').update(payload).eq('id', editTruck.id)
+    if (error) { alert('Error saving: ' + error.message); return }
+    setTrucks(prev => prev.map(t => t.id === editTruck.id ? { ...t, ...payload } : t))
+    setEditTruck(null)
   }
 
   const filtered = trucks.filter(t => {
@@ -217,7 +254,7 @@ export default function InventoryPage() {
             <input style={{ ...IS, paddingLeft: 34 }} placeholder="Search VIN, Make, Model..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <select style={{ ...IS, cursor: 'pointer' }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-            {['All Statuses', 'Purchased', 'In Reconditioning', 'Ready to List', 'Listed', 'Deal Pending', 'Sold'].map(s => <option key={s}>{s}</option>)}
+            {['All Statuses', 'Intake', 'Purchased', 'In Reconditioning', 'Ready to List', 'Listed', 'Deal Pending', 'Sold'].map(s => <option key={s}>{s}</option>)}
           </select>
           <select style={{ ...IS, cursor: 'pointer' }} value={paymentFilter} onChange={e => setPaymentFilter(e.target.value)}>
             {['All Payments', 'Paid', 'Unpaid', 'N/A'].map(s => <option key={s}>{s}</option>)}
@@ -239,7 +276,7 @@ export default function InventoryPage() {
               : filtered.map(truck => {
                 const allIn = (truck.purchase_price || 0) + (truck.recondition_cost || 0)
                 const profit = truck.sold_price != null ? truck.sold_price - allIn : null
-                const sc = statusColors[truck.status] || statusColors['Purchased']
+                const sc = statusColors[truck.status] || { bg: 'rgba(255,255,255,0.04)', color: '#888', border: 'rgba(255,255,255,0.1)' }
                 return (
                   <div key={truck.id} className="inv-card" onClick={() => window.location.href = `/inventory/${truck.id}`}>
                     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
@@ -255,6 +292,7 @@ export default function InventoryPage() {
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                             <span style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: 99, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{truck.status}</span>
+                            <button onClick={e => openEdit(truck, e)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13, transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>✏️</button>
                             <button onClick={e => { e.stopPropagation(); deleteTruck(truck.id) }} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
                           </div>
                         </div>
@@ -293,18 +331,18 @@ export default function InventoryPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Photo', 'Status', 'Bought On', 'VIN', 'Year', 'Make', 'Model', 'KMs', 'Purchase', 'All-In', 'Sold Price', 'Profit', 'Payment', ''].map(h => (
+                    {['Photo', 'Status', 'Bought On', 'VIN', 'Year', 'Make', 'Model', 'Colour', 'KMs', 'Bought From', 'Purchase', 'Recon', 'All-In', 'Date Sold', 'Customer', 'Sold Price', 'Profit', 'Payment', ''].map(h => (
                       <th key={h} style={{ padding: '11px 12px', textAlign: 'left', color: 'var(--text4)', fontWeight: 600, fontSize: 10, letterSpacing: '0.08em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0
-                    ? <tr><td colSpan={14} style={{ padding: 48, textAlign: 'center', color: 'var(--text4)' }}>No trucks found</td></tr>
+                    ? <tr><td colSpan={19} style={{ padding: 48, textAlign: 'center', color: 'var(--text4)' }}>No trucks found</td></tr>
                     : filtered.map(truck => {
                       const allIn = (truck.purchase_price || 0) + (truck.recondition_cost || 0)
                       const profit = truck.sold_price != null ? truck.sold_price - allIn : null
-                      const sc = statusColors[truck.status] || statusColors['Purchased']
+                      const sc = statusColors[truck.status] || { bg: 'rgba(255,255,255,0.04)', color: '#888', border: 'rgba(255,255,255,0.1)' }
                       return (
                         <tr key={truck.id}
                           onClick={() => window.location.href = `/inventory/${truck.id}`}
@@ -328,9 +366,14 @@ export default function InventoryPage() {
                           <td style={{ padding: '10px 12px', color: 'var(--text)' }}>{truck.year || '—'}</td>
                           <td style={{ padding: '10px 12px', color: 'var(--text)' }}>{truck.make || '—'}</td>
                           <td style={{ padding: '10px 12px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{truck.model || '—'}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{truck.colour || '—'}</td>
                           <td style={{ padding: '10px 12px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{truck.kilometers ? Number(truck.kilometers).toLocaleString() : '—'}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{truck.bought_from || '—'}</td>
                           <td style={{ padding: '10px 12px', color: 'var(--text)', whiteSpace: 'nowrap' }}>${(truck.purchase_price || 0).toLocaleString()}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>${(truck.recondition_cost || 0).toLocaleString()}</td>
                           <td style={{ padding: '10px 12px', color: 'var(--text)', whiteSpace: 'nowrap' }}>${allIn.toLocaleString()}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{truck.date_sold ? fmt(truck.date_sold) : '—'}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{truck.customer || '—'}</td>
                           <td style={{ padding: '10px 12px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{truck.sold_price != null ? `$${truck.sold_price.toLocaleString()}` : '—'}</td>
                           <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: 700, color: profit == null ? 'var(--text4)' : profit >= 0 ? 'var(--green)' : 'var(--red)' }}>
                             {profit == null ? '—' : `${profit < 0 ? '-' : ''}$${Math.abs(profit).toLocaleString()}`}
@@ -341,7 +384,10 @@ export default function InventoryPage() {
                               : <span style={{ color: 'var(--text4)', fontSize: 11 }}>N/A</span>}
                           </td>
                           <td style={{ padding: '10px 12px' }}>
-                            <button onClick={e => { e.stopPropagation(); deleteTruck(truck.id) }} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button onClick={e => openEdit(truck, e)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13, transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>✏️</button>
+                              <button onClick={e => { e.stopPropagation(); deleteTruck(truck.id) }} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, transition: 'color 0.15s' }} onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
+                            </div>
                           </td>
                         </tr>
                       )
@@ -387,6 +433,72 @@ export default function InventoryPage() {
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setShowAddModal(false)} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 10, padding: '13px', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
                 <button onClick={addTruck} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 10, padding: '13px', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 16px var(--gold-glow)' }}>Add Truck</button>
+              </div>
+            </div>
+          </div>
+        )}
+      {/* ── EDIT TRUCK MODAL ── */}
+        {editTruck && (
+          <div onClick={() => setEditTruck(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(10px)', padding: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0, letterSpacing: '-0.01em' }}>Edit Truck</h2>
+                <button onClick={() => setEditTruck(null)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 16, width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              </div>
+
+              {/* Status + Dates */}
+              <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>STATUS & DATES</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <div><label style={LS}>Status</label>
+                  <select style={{ ...IS, cursor: 'pointer' }} value={editForm.status || ''} onChange={e => setEditForm(p => ({ ...p, status: e.target.value }))}>
+                    {['Intake','Purchased','In Reconditioning','Ready to List','Listed','Deal Pending','Sold'].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div><label style={LS}>Bought On</label><input style={IS} type="date" value={editForm.bought_on || ''} onChange={e => setEditForm(p => ({ ...p, bought_on: e.target.value }))} /></div>
+              </div>
+
+              {/* Vehicle */}
+              <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>VEHICLE</div>
+              <div style={{ marginBottom: 12 }}><label style={LS}>VIN</label><input style={IS} placeholder="VIN" value={editForm.vin || ''} onChange={e => setEditForm(p => ({ ...p, vin: e.target.value }))} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div><label style={LS}>Year</label><input style={IS} type="number" placeholder="2020" value={editForm.year || ''} onChange={e => setEditForm(p => ({ ...p, year: e.target.value as any }))} /></div>
+                <div><label style={LS}>Make</label><input style={IS} placeholder="Volvo" value={editForm.make || ''} onChange={e => setEditForm(p => ({ ...p, make: e.target.value }))} /></div>
+                <div><label style={LS}>Model</label><input style={IS} placeholder="VNL 760" value={editForm.model || ''} onChange={e => setEditForm(p => ({ ...p, model: e.target.value }))} /></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <div><label style={LS}>Colour</label><input style={IS} placeholder="White" value={editForm.colour || ''} onChange={e => setEditForm(p => ({ ...p, colour: e.target.value }))} /></div>
+                <div><label style={LS}>Kilometers</label><input style={IS} type="number" placeholder="450000" value={editForm.kilometers || ''} onChange={e => setEditForm(p => ({ ...p, kilometers: e.target.value as any }))} /></div>
+              </div>
+
+              {/* Purchase */}
+              <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>PURCHASE</div>
+              <div style={{ marginBottom: 12 }}><label style={LS}>Bought From</label><input style={IS} placeholder="e.g. Ryder Trucks" value={editForm.bought_from || ''} onChange={e => setEditForm(p => ({ ...p, bought_from: e.target.value }))} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <div><label style={LS}>Purchase Price ($)</label><input style={IS} type="number" placeholder="35000" value={editForm.purchase_price || ''} onChange={e => setEditForm(p => ({ ...p, purchase_price: e.target.value as any }))} /></div>
+                <div><label style={LS}>Recondition Cost ($)</label><input style={IS} type="number" placeholder="0" value={editForm.recondition_cost || ''} onChange={e => setEditForm(p => ({ ...p, recondition_cost: e.target.value as any }))} /></div>
+              </div>
+
+              {/* Sale */}
+              <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>SALE</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" placeholder="80000" value={editForm.sold_price || ''} onChange={e => setEditForm(p => ({ ...p, sold_price: e.target.value as any }))} /></div>
+                <div><label style={LS}>Date Sold</label><input style={IS} type="date" value={editForm.date_sold || ''} onChange={e => setEditForm(p => ({ ...p, date_sold: e.target.value }))} /></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <div><label style={LS}>Customer</label><input style={IS} placeholder="Customer name" value={editForm.customer || ''} onChange={e => setEditForm(p => ({ ...p, customer: e.target.value }))} /></div>
+                <div><label style={LS}>Payment Status</label>
+                  <select style={{ ...IS, cursor: 'pointer' }} value={editForm.payment_status || 'N/A'} onChange={e => setEditForm(p => ({ ...p, payment_status: e.target.value }))}>
+                    {['N/A','Paid','Unpaid'].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div style={{ marginBottom: 22 }}><label style={LS}>Notes</label><textarea style={{ ...IS, height: 70, resize: 'vertical' }} placeholder="Any notes..." value={editForm.notes || ''} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} /></div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setEditTruck(null)} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '13px', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+                <button onClick={saveEdit} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '13px', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 16px var(--gold-glow)' }}>Save Changes</button>
               </div>
             </div>
           </div>

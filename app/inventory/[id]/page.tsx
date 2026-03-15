@@ -34,21 +34,20 @@ const statusStyle = (s: string) => {
     Sold:                { bg: 'rgba(34,197,94,0.1)',   color: 'var(--green)' },
     Intake:              { bg: 'rgba(234,179,8,0.1)',   color: 'var(--gold)' },
   }
-  return map[s] || map['Purchased']
+  return map[s] || { bg: 'var(--hover)', color: 'var(--text2)' }
 }
 
 // ── Modal shell ──────────────────────────────────────────────────────────────
 function Modal({ title, onClose, onSave, children }: { title: string; onClose: () => void; onSave: () => void; children: React.ReactNode }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(8px)' }}>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '20px 20px 0 0', padding: 24, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: 'var(--shadow)' }}>
-        <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 99, margin: '0 auto 20px' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{title}</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 22 }}>×</button>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(10px)', padding: '20px' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 520, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0, letterSpacing: '-0.01em' }}>{title}</h3>
+          <button onClick={onClose} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 16, width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
         {children}
-        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
           <button onClick={onClose} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '13px', fontSize: 14, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
           <button onClick={onSave} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '13px', fontSize: 14, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 16px var(--gold-glow)' }}>Save</button>
         </div>
@@ -179,7 +178,7 @@ export default function TruckDetailPage() {
     ])
     if (t) {
       setTruck(t)
-      setDetailsForm({ colour: t.colour, kilometers: t.kilometers, bought_from: t.bought_from })
+      setDetailsForm({ colour: t.colour, kilometers: t.kilometers, bought_from: t.bought_from, purchase_price: t.purchase_price, recondition_cost: t.recondition_cost, date_sold: t.date_sold, customer: t.customer, payment_status: t.payment_status, sold_price: t.sold_price })
       setNotesForm({ notes: t.notes || '' })
       setSaleForm({ sold_price: t.sold_price?.toString() || '', date_sold: t.date_sold || '', customer: t.customer || '', payment_status: t.payment_status || 'N/A' })
       setListingForm({ listing_platform: t.listing_platform || '', listing_link: t.listing_link || '', listing_date: t.listing_date || '', asking_price: t.asking_price?.toString() || '' })
@@ -197,8 +196,18 @@ export default function TruckDetailPage() {
 
   // ── Details ──
   async function saveDetails() {
-    await supabase.from('Inventory Data').update(detailsForm).eq('id', id)
-    setTruck(prev => prev ? { ...prev, ...detailsForm } : prev)
+    const payload = {
+      ...detailsForm,
+      kilometers:       detailsForm.kilometers       ? Number(detailsForm.kilometers)       : null,
+      purchase_price:   detailsForm.purchase_price   ? Number(detailsForm.purchase_price)   : null,
+      recondition_cost: detailsForm.recondition_cost ? Number(detailsForm.recondition_cost) : null,
+      sold_price:       (detailsForm as any).sold_price ? Number((detailsForm as any).sold_price) : null,
+      date_sold:        (detailsForm as any).date_sold  || null,
+      customer:         (detailsForm as any).customer   || null,
+      payment_status:   (detailsForm as any).payment_status || null,
+    }
+    await supabase.from('Inventory Data').update(payload).eq('id', id)
+    setTruck(prev => prev ? { ...prev, ...payload } : prev)
     setEditingDetails(false)
   }
 
@@ -216,7 +225,7 @@ export default function TruckDetailPage() {
       date_sold: saleForm.date_sold || null,
       customer: saleForm.customer || null,
       payment_status: saleForm.payment_status,
-      status: saleForm.sold_price ? 'Sold' : (truck?.status ?? 'Purchased'),
+      status: saleForm.sold_price && parseFloat(saleForm.sold_price) > 0 ? 'Sold' : (truck?.status === 'Sold' ? 'Deal Pending' : (truck?.status ?? 'Purchased')),
     }
     await supabase.from('Inventory Data').update(update).eq('id', id)
     setTruck(prev => prev ? { ...prev, ...update } : prev)
@@ -299,7 +308,7 @@ export default function TruckDetailPage() {
   const laborTotal   = labors.reduce((s, l) => s + l.hours * l.rate, 0)
   const invoiceTotal = invoices.reduce((s, i) => s + i.amount, 0)
   const otherTotal   = otherCosts.reduce((s, o) => s + o.amount, 0)
-  const reconTotal   = partsTotal + laborTotal + invoiceTotal + otherTotal
+  const reconTotal   = (truck.recondition_cost || 0) + partsTotal + laborTotal + invoiceTotal + otherTotal
   const allInCost    = (truck.purchase_price || 0) + reconTotal
   const profit       = truck.sold_price != null ? truck.sold_price - allInCost : null
   const daysInInv    = truck.bought_on ? Math.floor((Date.now() - new Date(truck.bought_on).getTime()) / 86400000) : null
@@ -747,13 +756,34 @@ export default function TruckDetailPage() {
 
         {/* Edit Details */}
         {editingDetails && (
-          <Modal title="Edit Details" onClose={() => setEditingDetails(false)} onSave={saveDetails}>
-            {([['Colour', 'colour', 'White'], ['KM', 'kilometers', '450000'], ['Bought From', 'bought_from', 'e.g. Ryder']] as const).map(([label, key, ph]) => (
-              <div key={key} style={{ marginBottom: 14 }}>
-                <label style={LS}>{label}</label>
-                <input style={IS} placeholder={ph} value={(detailsForm as any)[key] || ''} onChange={e => setDetailsForm(p => ({ ...p, [key]: e.target.value }))} />
+          <Modal title="Edit Truck Details" onClose={() => setEditingDetails(false)} onSave={saveDetails}>
+            {/* Vehicle info */}
+            <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>VEHICLE</div>
+            <div className="form-2col" style={{ marginBottom: 14 }}>
+              <div><label style={LS}>Colour</label><input style={IS} placeholder="White" value={(detailsForm as any).colour || ''} onChange={e => setDetailsForm(p => ({ ...p, colour: e.target.value }))} /></div>
+              <div><label style={LS}>Kilometers</label><input style={IS} type="number" placeholder="450000" value={(detailsForm as any).kilometers || ''} onChange={e => setDetailsForm(p => ({ ...p, kilometers: e.target.value }))} /></div>
+            </div>
+            {/* Purchase info */}
+            <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>PURCHASE</div>
+            <div className="form-2col" style={{ marginBottom: 14 }}>
+              <div><label style={LS}>Purchase Price ($)</label><input style={IS} type="number" placeholder="35000" value={(detailsForm as any).purchase_price || ''} onChange={e => setDetailsForm(p => ({ ...p, purchase_price: e.target.value }))} /></div>
+              <div><label style={LS}>Recondition Cost ($)</label><input style={IS} type="number" placeholder="0" value={(detailsForm as any).recondition_cost || ''} onChange={e => setDetailsForm(p => ({ ...p, recondition_cost: e.target.value }))} /></div>
+            </div>
+            <div style={{ marginBottom: 14 }}><label style={LS}>Bought From</label><input style={IS} placeholder="e.g. Ryder Trucks" value={(detailsForm as any).bought_from || ''} onChange={e => setDetailsForm(p => ({ ...p, bought_from: e.target.value }))} /></div>
+            {/* Sale info */}
+            <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>SALE</div>
+            <div className="form-2col" style={{ marginBottom: 14 }}>
+              <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" placeholder="80000" value={(detailsForm as any).sold_price || ''} onChange={e => setDetailsForm(p => ({ ...p, sold_price: e.target.value } as any))} /></div>
+              <div><label style={LS}>Date Sold</label><input style={IS} type="date" value={(detailsForm as any).date_sold || ''} onChange={e => setDetailsForm(p => ({ ...p, date_sold: e.target.value } as any))} /></div>
+            </div>
+            <div className="form-2col">
+              <div><label style={LS}>Customer</label><input style={IS} placeholder="Customer name" value={(detailsForm as any).customer || ''} onChange={e => setDetailsForm(p => ({ ...p, customer: e.target.value } as any))} /></div>
+              <div><label style={LS}>Payment Status</label>
+                <select style={{ ...IS, cursor: 'pointer' }} value={(detailsForm as any).payment_status || 'N/A'} onChange={e => setDetailsForm(p => ({ ...p, payment_status: e.target.value } as any))}>
+                  {['N/A', 'Paid', 'Unpaid'].map(s => <option key={s}>{s}</option>)}
+                </select>
               </div>
-            ))}
+            </div>
           </Modal>
         )}
 

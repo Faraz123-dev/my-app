@@ -28,9 +28,9 @@ export default function CalculatorPage() {
     <>
       <style>{`
         .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-        .calc-results { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .calc-results { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 20px; }
         .calc-input:focus { border-color: var(--gold) !important; }
-        @media(max-width:480px) { .calc-grid { grid-template-columns: 1fr !important; } }
+        @media(max-width:480px) { .calc-grid { grid-template-columns: 1fr !important; } .calc-results { grid-template-columns: 1fr 1fr !important; } }
       `}</style>
       <main style={{ padding: '24px 20px', background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)', fontFamily: 'system-ui,sans-serif' }}>
         <div style={{ marginBottom: 24 }}>
@@ -67,10 +67,11 @@ export default function CalculatorPage() {
 
           <div className="calc-results">
             {[
-              { label: 'ALL-IN COST', value: `$${Math.round(allIn).toLocaleString()}`, color: 'var(--text)', accent: 'var(--gold)' },
-              { label: 'BREAK-EVEN', value: `$${Math.round(allIn).toLocaleString()}`, color: 'var(--text)', accent: 'var(--gold)' },
-              { label: 'MIN SELL REQUIRED', value: `$${Math.round(minSell).toLocaleString()}`, color: 'var(--gold)', accent: 'var(--gold)' },
-              { label: 'PROJECTED PROFIT', value: projectedProfit !== null ? `${projectedProfit >= 0 ? '' : '-'}$${Math.abs(Math.round(projectedProfit)).toLocaleString()}` : '—', color: statusColor, accent: statusColor },
+              { label: 'ALL-IN COST',       value: `$${Math.round(allIn).toLocaleString()}`,                                                                                                      color: 'var(--text)',  accent: 'var(--gold)' },
+              { label: 'BREAK-EVEN PRICE',  value: `$${Math.round(allIn).toLocaleString()}`,                                                                                                      color: 'var(--text)',  accent: 'var(--border)' },
+              { label: 'MIN SELL REQUIRED', value: targetProfit ? `$${Math.round(minSell).toLocaleString()}` : '—',                                                                               color: 'var(--gold)',  accent: 'var(--gold)' },
+              { label: 'PROJECTED PROFIT',  value: projectedProfit !== null ? `${projectedProfit >= 0 ? '' : '-'}$${Math.abs(Math.round(projectedProfit)).toLocaleString()}` : '—',               color: statusColor,    accent: statusColor },
+              { label: 'MARGIN %',          value: sellPrice && parseFloat(sellPrice) > 0 ? `${(((parseFloat(sellPrice)||0) - allIn) / (parseFloat(sellPrice)) * 100).toFixed(1)}%` : '—',      color: statusColor,    accent: statusColor },
             ].map(stat => (
               <div key={stat.label} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, padding: '16px 18px', borderBottom: `2px solid ${stat.accent}` }}>
                 <div style={{ fontSize: 9.5, color: 'var(--text4)', letterSpacing: '0.12em', marginBottom: 10, fontWeight: 700 }}>{stat.label}</div>

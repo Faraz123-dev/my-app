@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 const inspectionItems = [
   { id: 'engine', label: 'Engine runs properly' },
@@ -33,6 +35,61 @@ export default function TruckIntakePage() {
   const [simTarget, setSimTarget] = useState('')
   const [targetMode, setTargetMode] = useState<'$' | '%'>('$')
   const [showSim, setShowSim] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const router = useRouter()
+
+  const truckPayload = (status: string) => ({
+    status,
+    bought_on: new Date().toISOString().split('T')[0],
+    vin: vin || 'UNKNOWN',
+    year: parseInt(year) || null,
+    make: make || null,
+    model: model || null,
+    kilometers: parseInt(kilometers) || null,
+    purchase_price: parseFloat(offerPrice) || null,
+    recondition_cost: parseFloat(estRecon) || 0,
+    payment_status: 'N/A',
+    notes: [
+      notes,
+      decision ? `Decision: ${decision}` : null,
+      sellerContact ? `Seller contact: ${sellerContact}` : null,
+      Object.entries(checked).filter(([,v]) => v).length > 0
+        ? `Passed: ${Object.entries(checked).filter(([,v]) => v).map(([k]) => k).join(', ')}`
+        : null,
+    ].filter(Boolean).join('\n') || null,
+    bought_from: sellerName || null,
+  })
+
+  async function saveIntakeOnly() {
+    if (!vin && !sellerName && !make) return alert('Please enter at least a VIN, make, or seller name.')
+    setSaving(true)
+    const { data: truck, error } = await supabase
+      .from('Inventory Data')
+      .insert([truckPayload('Intake')])
+      .select()
+      .single()
+    setSaving(false)
+    if (error) { alert('Error saving intake: ' + error.message); return }
+    setSaved(true)
+    setTimeout(() => {
+      setSaved(false)
+      router.push(truck ? `/inventory/${truck.id}` : '/inventory')
+    }, 1200)
+  }
+
+  async function createTruckAndBuy() {
+    if (!vin) return alert('VIN is required to create a truck file.')
+    setSaving(true)
+    const { data: truck, error } = await supabase
+      .from('Inventory Data')
+      .insert([truckPayload('Purchased')])
+      .select()
+      .single()
+    setSaving(false)
+    if (error) { alert('Error creating truck: ' + error.message); return }
+    router.push(truck ? `/inventory/${truck.id}` : '/inventory')
+  }
 
   const allIn = (parseFloat(simPurchase) || 0) + (parseFloat(simRecon) || 0) + (parseFloat(simFees) || 0)
   const projectedProfit = simSell ? (parseFloat(simSell) || 0) - allIn : null
@@ -166,8 +223,18 @@ export default function TruckIntakePage() {
         </div>
 
         <div style={{ display: 'flex', gap: 12 }}>
-          <button style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '14px', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>Save Intake Only</button>
-          <button style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '14px', fontSize: 13, cursor: 'pointer', fontWeight: 800, boxShadow: '0 4px 16px var(--gold-glow)' }}>Create Truck File & Buy</button>
+          <button
+            onClick={saveIntakeOnly}
+            disabled={saving}
+            style={{ flex: 1, background: saved ? 'var(--green-dim)' : 'var(--hover)', border: `1px solid ${saved ? 'var(--green)' : 'var(--border)'}`, color: saved ? 'var(--green)' : 'var(--text2)', borderRadius: 12, padding: '14px', fontSize: 13, cursor: saving ? 'default' : 'pointer', fontWeight: 600, transition: 'all 0.2s' }}>
+            {saved ? '✓ Saved!' : saving ? 'Saving...' : 'Save Intake Only'}
+          </button>
+          <button
+            onClick={createTruckAndBuy}
+            disabled={saving}
+            style={{ flex: 2, background: saving ? 'var(--hover)' : 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: saving ? 'var(--text3)' : '#000', borderRadius: 12, padding: '14px', fontSize: 13, cursor: saving ? 'default' : 'pointer', fontWeight: 800, boxShadow: saving ? 'none' : '0 4px 16px var(--gold-glow)', transition: 'all 0.2s' }}>
+            {saving ? 'Creating...' : 'Create Truck File & Buy'}
+          </button>
         </div>
       </main>
     </>
