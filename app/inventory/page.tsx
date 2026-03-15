@@ -25,7 +25,7 @@ const statusColors: Record<string, { bg: string; color: string; border: string }
 const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
 
 // Photo cell with upload + preview
-function PhotoCell({ truck, onUploaded }: { truck: Truck; onUploaded: (url: string) => void }) {
+function PhotoCell({ truck, onUploaded, onRemoved }: { truck: Truck; onUploaded: (url: string) => void; onRemoved: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
@@ -43,6 +43,15 @@ function PhotoCell({ truck, onUploaded }: { truck: Truck; onUploaded: (url: stri
       onUploaded(data.publicUrl)
     }
     setUploading(false)
+  }
+
+  async function removePhoto(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!confirm('Remove this photo?')) return
+    const path = truck.photo_url!.split('/invoices/')[1]
+    if (path) await supabase.storage.from('invoices').remove([path])
+    await supabase.from('Inventory Data').update({ photo_url: null }).eq('id', truck.id)
+    onRemoved()
   }
 
   if (truck.photo_url) {
@@ -76,6 +85,11 @@ function PhotoCell({ truck, onUploaded }: { truck: Truck; onUploaded: (url: stri
                   onClick={e => { e.stopPropagation(); fileRef.current?.click() }}
                   style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: 99, padding: '7px 18px', fontSize: 12, cursor: 'pointer', fontWeight: 600, backdropFilter: 'blur(8px)', whiteSpace: 'nowrap' }}>
                   🔄 Replace
+                </button>
+                <button
+                  onClick={removePhoto}
+                  style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.5)', color: '#fff', borderRadius: 99, padding: '7px 18px', fontSize: 12, cursor: 'pointer', fontWeight: 600, backdropFilter: 'blur(8px)', whiteSpace: 'nowrap' }}>
+                  🗑 Remove
                 </button>
                 <button onClick={() => setPreview(null)} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: '50%', width: 36, height: 36, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>×</button>
               </div>
@@ -282,7 +296,7 @@ export default function InventoryPage() {
                     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
                       {/* Photo thumbnail in card view */}
                       <div onClick={e => e.stopPropagation()} style={{ flexShrink: 0 }}>
-                        <PhotoCell truck={truck} onUploaded={url => setTrucks(prev => prev.map(t => t.id === truck.id ? { ...t, photo_url: url } : t))} />
+                        <PhotoCell truck={truck} onUploaded={url => setTrucks(prev => prev.map(t => t.id === truck.id ? { ...t, photo_url: url } : t))} onRemoved={() => setTrucks(prev => prev.map(t => t.id === truck.id ? { ...t, photo_url: null } : t))} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
@@ -355,6 +369,7 @@ export default function InventoryPage() {
                             <PhotoCell
                               truck={truck}
                               onUploaded={url => setTrucks(prev => prev.map(t => t.id === truck.id ? { ...t, photo_url: url } : t))}
+                              onRemoved={() => setTrucks(prev => prev.map(t => t.id === truck.id ? { ...t, photo_url: null } : t))}
                             />
                           </td>
 

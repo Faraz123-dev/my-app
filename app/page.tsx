@@ -43,6 +43,7 @@ export default function DashboardPage() {
   const [tip,        setTip]        = useState<{ x: number; y: number; label: string; profit: number; revenue: number; count: number } | null>(null)
   const [hovDonut,   setHovDonut]   = useState<string | null>(null)
   const chartRef = useRef<HTMLDivElement>(null)
+  const [drilldown, setDrilldown] = useState<{ title: string; trucks: any[] } | null>(null)
 
   useEffect(() => { loadAll() }, [])
 
@@ -222,12 +223,19 @@ export default function DashboardPage() {
             {/* ── KPI CARDS ── */}
             <div className="dash-kpi">
               {[
-                { label: 'ACTIVE INVENTORY', val: inStock, sub: `${soldTotal} total sold`, icon: '🚛', c: 'var(--gold)', dim: 'var(--gold-dim)' },
-                { label: 'CAPITAL DEPLOYED', val: `$${cashTiedUp.toLocaleString()}`, sub: 'True all-in (incl. recon)', icon: '💰', c: 'var(--blue)', dim: 'var(--blue-dim)' },
-                { label: 'PENDING PAYMENTS', val: pending.length, sub: `$${pendingAmt.toLocaleString()} outstanding`, icon: '⏳', c: 'var(--orange)', dim: 'var(--orange-dim)' },
-                { label: 'THIS MONTH PROFIT', val: `${monthProfit < 0 ? '-' : ''}$${Math.abs(monthProfit).toLocaleString()}`, sub: `${monthSold.length} trucks · $${monthRevenue.toLocaleString()} revenue`, icon: '📈', c: monthProfit >= 0 ? 'var(--green)' : 'var(--red)', dim: monthProfit >= 0 ? 'var(--green-dim)' : 'var(--red-dim)' },
+                { label: 'ACTIVE INVENTORY', val: inStock, sub: `${soldTotal} total sold`, icon: '🚛', c: 'var(--gold)', dim: 'var(--gold-dim)',
+                  onClick: () => setDrilldown({ title: 'Active Inventory', trucks: trucks.filter(t => t.status !== 'Sold').map(t => ({ ...t, _col1: t.status, _col2: `$${allIn(t).toLocaleString()}`, _label1: 'STATUS', _label2: 'ALL-IN' })) }) },
+                { label: 'CAPITAL DEPLOYED', val: `$${cashTiedUp.toLocaleString()}`, sub: 'True all-in (incl. recon)', icon: '💰', c: 'var(--blue)', dim: 'var(--blue-dim)',
+                  onClick: () => setDrilldown({ title: 'Capital Deployed — In-Stock Trucks', trucks: trucks.filter(t => t.status !== 'Sold').sort((a,b) => allIn(b)-allIn(a)).map(t => ({ ...t, _col1: t.status, _col2: `$${allIn(t).toLocaleString()}`, _label1: 'STATUS', _label2: 'ALL-IN' })) }) },
+                { label: 'PENDING PAYMENTS', val: pending.length, sub: `$${pendingAmt.toLocaleString()} outstanding`, icon: '⏳', c: 'var(--orange)', dim: 'var(--orange-dim)',
+                  onClick: () => setDrilldown({ title: 'Pending Payments', trucks: pending.map(t => ({ ...t, _col1: t.customer || '—', _col2: `$${(t.sold_price||0).toLocaleString()}`, _label1: 'CUSTOMER', _label2: 'SOLD FOR' })) }) },
+                { label: 'THIS MONTH PROFIT', val: `${monthProfit < 0 ? '-' : ''}$${Math.abs(monthProfit).toLocaleString()}`, sub: `${monthSold.length} trucks · $${monthRevenue.toLocaleString()} revenue`, icon: '📈', c: monthProfit >= 0 ? 'var(--green)' : 'var(--red)', dim: monthProfit >= 0 ? 'var(--green-dim)' : 'var(--red-dim)',
+                  onClick: () => setDrilldown({ title: 'This Month Sold Trucks', trucks: monthSold.map(t => ({ ...t, _col1: `$${(t.sold_price||0).toLocaleString()}`, _col2: `${(truckProfit(t)||0) >= 0 ? '' : '-'}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}`, _label1: 'SOLD FOR', _label2: 'PROFIT' })) }) },
               ].map(c => (
-                <div key={c.label} className="kpi-card" style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', boxShadow: 'var(--shadow-card)' }}>
+                <div key={c.label} className="kpi-card" onClick={c.onClick}
+                  style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', boxShadow: 'var(--shadow-card)', cursor: 'pointer' }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--gold)')}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--card-border)')}>
                   <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: c.dim, filter: 'blur(20px)', pointerEvents: 'none' }} />
                   <div style={{ position: 'relative' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -236,6 +244,7 @@ export default function DashboardPage() {
                     </div>
                     <div style={{ fontSize: 28, fontWeight: 800, color: c.c, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>{c.val}</div>
                     <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>{c.sub}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 6, fontWeight: 500 }}>Click to view breakdown →</div>
                   </div>
                 </div>
               ))}
@@ -244,14 +253,22 @@ export default function DashboardPage() {
             {/* ── ALL-TIME STATS ── */}
             <div className="dash-stat">
               {[
-                { label: 'ALL-TIME REVENUE',  val: `$${Math.round(allTimeRevenue).toLocaleString()}`,                                                c: 'var(--text)'  },
-                { label: 'ALL-TIME PROFIT',   val: `${allTimeProfit < 0 ? '-' : ''}$${Math.abs(Math.round(allTimeProfit)).toLocaleString()}`,         c: allTimeProfit >= 0 ? 'var(--green)' : 'var(--red)' },
-                { label: 'AVG PROFIT / TRUCK', val: `${avgProfit < 0 ? '-' : ''}$${Math.abs(Math.round(avgProfit)).toLocaleString()}`,                c: avgProfit >= 0 ? 'var(--gold)' : 'var(--red)' },
-                { label: 'TOTAL TRUCKS SOLD', val: String(soldTotal),                                                                                 c: 'var(--text)'  },
+                { label: 'ALL-TIME REVENUE',   val: `$${Math.round(allTimeRevenue).toLocaleString()}`,                                             c: 'var(--text)',
+                  onClick: () => setDrilldown({ title: 'All-Time Revenue — Sold Trucks', trucks: allTimeSold.sort((a,b)=>(b.sold_price||0)-(a.sold_price||0)).map(t => ({ ...t, _label1: 'SOLD DATE', _col1: t.date_sold||'—', _label2: 'REVENUE', _col2: `$${(t.sold_price||0).toLocaleString()}` })) }) },
+                { label: 'ALL-TIME PROFIT',    val: `${allTimeProfit < 0 ? '-' : ''}$${Math.abs(Math.round(allTimeProfit)).toLocaleString()}`,      c: allTimeProfit >= 0 ? 'var(--green)' : 'var(--red)',
+                  onClick: () => setDrilldown({ title: 'All-Time Profit — Sold Trucks', trucks: allTimeSold.sort((a,b)=>(truckProfit(b)||0)-(truckProfit(a)||0)).map(t => ({ ...t, _label1: 'ALL-IN', _col1: `$${allIn(t).toLocaleString()}`, _label2: 'PROFIT', _col2: `${(truckProfit(t)||0)<0?'-':''}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}` })) }) },
+                { label: 'AVG PROFIT / TRUCK', val: `${avgProfit < 0 ? '-' : ''}$${Math.abs(Math.round(avgProfit)).toLocaleString()}`,             c: avgProfit >= 0 ? 'var(--gold)' : 'var(--red)',
+                  onClick: () => setDrilldown({ title: 'Avg Profit Breakdown — Sold Trucks', trucks: allTimeSold.sort((a,b)=>(truckProfit(b)||0)-(truckProfit(a)||0)).map(t => ({ ...t, _label1: 'SOLD FOR', _col1: `$${(t.sold_price||0).toLocaleString()}`, _label2: 'PROFIT', _col2: `${(truckProfit(t)||0)<0?'-':''}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}` })) }) },
+                { label: 'TOTAL TRUCKS SOLD',  val: String(soldTotal),                                                                              c: 'var(--text)',
+                  onClick: () => setDrilldown({ title: 'All Sold Trucks', trucks: allTimeSold.sort((a,b)=>new Date(b.date_sold||0).getTime()-new Date(a.date_sold||0).getTime()).map(t => ({ ...t, _label1: 'SOLD DATE', _col1: t.date_sold||'—', _label2: 'PROFIT', _col2: `${(truckProfit(t)||0)<0?'-':''}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}` })) }) },
               ].map(s => (
-                <div key={s.label} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, padding: '14px 16px', boxShadow: 'var(--shadow-card)' }}>
+                <div key={s.label} onClick={s.onClick}
+                  style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, padding: '14px 16px', boxShadow: 'var(--shadow-card)', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--gold)')}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--card-border)')}>
                   <div style={{ fontSize: 9.5, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 8 }}>{s.label}</div>
                   <div style={{ fontSize: 20, fontWeight: 800, color: s.c, letterSpacing: '-0.02em' }}>{s.val}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 6 }}>Click to view →</div>
                 </div>
               ))}
             </div>
@@ -465,6 +482,55 @@ export default function DashboardPage() {
           </>
         )}
       </main>
+
+      {/* ── DRILLDOWN MODAL ── */}
+      {drilldown && (
+        <div onClick={() => setDrilldown(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(10px)', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, width: '100%', maxWidth: 620, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
+              <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{drilldown.title}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>{drilldown.trucks.length} truck{drilldown.trucks.length !== 1 ? 's' : ''}</span>
+                <button onClick={() => setDrilldown(null)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', width: 32, height: 32, borderRadius: '50%', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              </div>
+            </div>
+            {/* List */}
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {drilldown.trucks.length === 0 ? (
+                <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--text4)', fontSize: 13 }}>No trucks to show.</div>
+              ) : drilldown.trucks.map((t: any) => {
+                const profit = truckProfit(t)
+                return (
+                  <div key={t.id} onClick={() => { window.location.href = `/inventory/${t.id}`; setDrilldown(null) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 24px', borderBottom: '1px solid var(--border2)', cursor: 'pointer', transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    {/* Truck name */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {t.year} {t.make} {t.model}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, fontFamily: 'monospace' }}>{t.vin}</div>
+                    </div>
+                    {/* Col 1 */}
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: 9.5, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 2 }}>{t._label1}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)' }}>{t._col1}</div>
+                    </div>
+                    {/* Col 2 */}
+                    <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 80 }}>
+                      <div style={{ fontSize: 9.5, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 2 }}>{t._label2}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--gold)' }}>{t._col2}</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text4)' }}>→</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
