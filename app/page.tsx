@@ -11,8 +11,7 @@ type Truck = {
   payment_status: string | null; kilometers: number | null
 }
 
-// Per-truck actual recon cost computed from all cost tables
-type TruckCosts = Record<string, number> // truck_id → total recon cost
+type TruckCosts = Record<string, number>
 
 function getMonthKey(d: string | null) {
   if (!d) return null
@@ -21,16 +20,18 @@ function getMonthKey(d: string | null) {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`
 }
 function fmtKey(key: string) {
-  // YTD: "2024"
   if (/^\d{4}$/.test(key)) return key
-  // Quarterly: "2024-Q3"
   if (/^\d{4}-Q\d$/.test(key)) {
-    const [y, q] = key.split("-")
-    return q + " " + "'" + y.slice(2)
+    const [y, q] = key.split('-')
+    return `${q} '${y.slice(2)}`
   }
-  // Monthly: "2024-03"
-  const [y, m] = key.split("-")
-  return new Date(+y, +m - 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" })
+  if (/^\d{4}-\d{2}$/.test(key)) {
+    const [y, m] = key.split('-')
+    const d = new Date(parseInt(y), parseInt(m) - 1, 1)
+    if (isNaN(d.getTime())) return key
+    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+  }
+  return key
 }
 
 export default function DashboardPage() {
@@ -42,15 +43,13 @@ export default function DashboardPage() {
   const [hovBar,     setHovBar]     = useState<number | null>(null)
   const [tip,        setTip]        = useState<{ x: number; y: number; label: string; profit: number; revenue: number; count: number } | null>(null)
   const [hovDonut,   setHovDonut]   = useState<string | null>(null)
+  const [drilldown,  setDrilldown]  = useState<{ title: string; trucks: any[] } | null>(null)
   const chartRef = useRef<HTMLDivElement>(null)
-  const [drilldown, setDrilldown] = useState<{ title: string; trucks: any[] } | null>(null)
 
   useEffect(() => { loadAll() }, [])
 
   async function loadAll() {
     setLoading(true)
-
-    // Load trucks + all 4 cost tables in parallel
     const [
       { data: t },
       { data: parts },
@@ -64,79 +63,71 @@ export default function DashboardPage() {
       supabase.from('vendor_invoices').select('truck_id,amount'),
       supabase.from('other_costs').select('truck_id,amount'),
     ])
-
-    // Build per-truck actual recon costs
     const costs: TruckCosts = {}
     const add = (tid: string, amt: number) => { costs[tid] = (costs[tid] || 0) + amt }
-    ;(parts || []).forEach((p: any)       => add(p.truck_id, (p.qty || 0) * (p.unit_cost || 0)))
-    ;(labor || []).forEach((l: any)       => add(l.truck_id, (l.hours || 0) * (l.rate || 0)))
-    ;(vendorInv || []).forEach((i: any)   => add(i.truck_id, i.amount || 0))
-    ;(otherCosts || []).forEach((o: any)  => add(o.truck_id, o.amount || 0))
-
+    ;(parts || []).forEach((p: any)      => add(p.truck_id, (p.qty || 0) * (p.unit_cost || 0)))
+    ;(labor || []).forEach((l: any)      => add(l.truck_id, (l.hours || 0) * (l.rate || 0)))
+    ;(vendorInv || []).forEach((i: any)  => add(i.truck_id, i.amount || 0))
+    ;(otherCosts || []).forEach((o: any) => add(o.truck_id, o.amount || 0))
     setTrucks(t || [])
     setTruckCosts(costs)
     setLoading(false)
   }
 
-  // Helper: actual all-in cost for a truck
-  // Uses recondition_cost field + any additional costs from cost tables
   const allIn = (t: Truck) => (t.purchase_price || 0) + (t.recondition_cost || 0) + (truckCosts[t.id] || 0)
   const truckProfit = (t: Truck) => t.sold_price != null ? t.sold_price - allIn(t) : null
 
-  // ── KPI cards ──
-  const inStock      = trucks.filter(t => t.status !== 'Sold').length
-  const soldTotal    = trucks.filter(t => t.status === 'Sold').length
-  const cashTiedUp   = trucks.filter(t => t.status !== 'Sold').reduce((s, t) => s + allIn(t), 0)
-  const pending      = trucks.filter(t => t.payment_status === 'Unpaid')
-  const pendingAmt   = pending.reduce((s, t) => s + (t.sold_price || 0), 0)
+  // KPIs
+  const inStock    = trucks.filter(t => t.status !== 'Sold').length
+  const soldTotal  = trucks.filter(t => t.status === 'Sold').length
+  const cashTiedUp = trucks.filter(t => t.status !== 'Sold').reduce((s, t) => s + allIn(t), 0)
+  const pending    = trucks.filter(t => t.payment_status === 'Unpaid')
+  const pendingAmt = pending.reduce((s, t) => s + (t.sold_price || 0), 0)
 
   const now      = new Date()
   const thisKey  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const monthSold = trucks.filter(t => t.status === 'Sold' && getMonthKey(t.date_sold) === thisKey)
+  const monthSold    = trucks.filter(t => t.status === 'Sold' && getMonthKey(t.date_sold) === thisKey)
   const monthProfit  = monthSold.reduce((s, t) => s + (truckProfit(t) || 0), 0)
   const monthRevenue = monthSold.reduce((s, t) => s + (t.sold_price || 0), 0)
 
-  // ── All-time stats ──
   const allTimeSold    = trucks.filter(t => t.status === 'Sold')
   const allTimeRevenue = allTimeSold.reduce((s, t) => s + (t.sold_price || 0), 0)
   const allTimeProfit  = allTimeSold.reduce((s, t) => s + (truckProfit(t) || 0), 0)
   const avgProfit      = allTimeSold.length > 0 ? allTimeProfit / allTimeSold.length : 0
 
-  // ── Profit chart ──
-  type ChartBucket = { profit: number; count: number; revenue: number }
-  const byMonth: Record<string, ChartBucket> = {}
+  // Chart buckets
+  type Bucket = { profit: number; count: number; revenue: number; trucks: Truck[] }
+  const byMonth: Record<string, Bucket> = {}
+  const byQuarter: Record<string, Bucket> = {}
+  const byYear: Record<string, Bucket> = {}
+
   trucks.filter(t => t.status === 'Sold' && t.date_sold).forEach(t => {
     const k = getMonthKey(t.date_sold)!
     if (!k) return
-    if (!byMonth[k]) byMonth[k] = { profit: 0, count: 0, revenue: 0 }
+    if (!byMonth[k]) byMonth[k] = { profit: 0, count: 0, revenue: 0, trucks: [] }
     byMonth[k].profit  += truckProfit(t) || 0
     byMonth[k].count++
     byMonth[k].revenue += t.sold_price || 0
-  })
-  const byQuarter: Record<string, ChartBucket> = {}
-  trucks.filter(t => t.status === 'Sold' && t.date_sold).forEach(t => {
+    byMonth[k].trucks.push(t)
+
     const d = new Date(t.date_sold!)
-    if (isNaN(d.getTime())) return
     const q = Math.ceil((d.getMonth() + 1) / 3)
-    const k = d.getFullYear() + '-Q' + q
-    if (!byQuarter[k]) byQuarter[k] = { profit: 0, count: 0, revenue: 0 }
-    byQuarter[k].profit  += truckProfit(t) || 0
-    byQuarter[k].count++
-    byQuarter[k].revenue += t.sold_price || 0
+    const qk = d.getFullYear() + '-Q' + q
+    if (!byQuarter[qk]) byQuarter[qk] = { profit: 0, count: 0, revenue: 0, trucks: [] }
+    byQuarter[qk].profit  += truckProfit(t) || 0
+    byQuarter[qk].count++
+    byQuarter[qk].revenue += t.sold_price || 0
+    byQuarter[qk].trucks.push(t)
+
+    const yk = String(d.getFullYear())
+    if (!byYear[yk]) byYear[yk] = { profit: 0, count: 0, revenue: 0, trucks: [] }
+    byYear[yk].profit  += truckProfit(t) || 0
+    byYear[yk].count++
+    byYear[yk].revenue += t.sold_price || 0
+    byYear[yk].trucks.push(t)
   })
-  const byYear: Record<string, ChartBucket> = {}
-  trucks.filter(t => t.status === 'Sold' && t.date_sold).forEach(t => {
-    const d = new Date(t.date_sold!)
-    if (isNaN(d.getTime())) return
-    const k = String(d.getFullYear())
-    if (!byYear[k]) byYear[k] = { profit: 0, count: 0, revenue: 0 }
-    byYear[k].profit  += truckProfit(t) || 0
-    byYear[k].count++
-    byYear[k].revenue += t.sold_price || 0
-  })
-  const chartData: Record<string, ChartBucket> =
-    chartMode === 'quarterly' ? byQuarter :
-    chartMode === 'ytd'       ? byYear    : byMonth
+
+  const chartData = chartMode === 'quarterly' ? byQuarter : chartMode === 'ytd' ? byYear : byMonth
   const allKeys   = Object.keys(chartData).sort()
   const months    = chartMode === 'monthly' ? allKeys.slice(-range) : allKeys
   const maxP      = Math.max(...months.map(k => Math.abs(chartData[k].profit)), 1)
@@ -144,7 +135,7 @@ export default function DashboardPage() {
   const totRev    = months.reduce((s, k) => s + chartData[k].revenue, 0)
   const totSold   = months.reduce((s, k) => s + chartData[k].count, 0)
 
-  // ── Aging donut ──
+  // Aging donut
   const agingBuckets = { '0-15d': 0, '16-30d': 0, '31-60d': 0, '60+d': 0 }
   const agingList: (Truck & { days: number; allIn: number })[] = []
   trucks.filter(t => t.status !== 'Sold' && t.bought_on).forEach(t => {
@@ -159,10 +150,10 @@ export default function DashboardPage() {
   const totalAging = Object.values(agingBuckets).reduce((a, b) => a + b, 0)
 
   const donut = [
-    { label: '0–15d',  count: agingBuckets['0-15d'],  color: 'var(--green)'  },
-    { label: '16–30d', count: agingBuckets['16-30d'], color: 'var(--gold)'   },
-    { label: '31–60d', count: agingBuckets['31-60d'], color: 'var(--orange)' },
-    { label: '60+d',   count: agingBuckets['60+d'],   color: 'var(--red)'    },
+    { label: '0–15d',  count: agingBuckets['0-15d'],  color: '#22c55e' },
+    { label: '16–30d', count: agingBuckets['16-30d'], color: '#EAB308' },
+    { label: '31–60d', count: agingBuckets['31-60d'], color: '#f97316' },
+    { label: '60+d',   count: agingBuckets['60+d'],   color: '#ef4444' },
   ]
   const R = 54; let cum = 0
   const arcs = donut.map(seg => {
@@ -175,362 +166,352 @@ export default function DashboardPage() {
     return { ...seg, path: pct > 0 ? `M70 70 L${x1} ${y1} A${R} ${R} 0 ${pct > 0.5 ? 1 : 0} 1 ${x2} ${y2}Z` : '', pct }
   })
 
+  const card = { background: '#161616', border: '1px solid #252525', borderRadius: 12, padding: '18px 20px' }
+
   return (
-    <>
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg) } }
-        .dash-kpi  { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
-        .dash-stat { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
-        .dash-mid  { display: grid; grid-template-columns: 1fr 290px; gap: 16px; margin-bottom: 20px; }
-        .dash-bot  { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .kpi-card  { border-radius: 16px; padding: 20px; position: relative; overflow: hidden; cursor: default; transition: transform 0.2s; }
-        .kpi-card:hover { transform: translateY(-2px); }
-        .range-btn { padding: 5px 11px; font-size: 11px; cursor: pointer; border: none; border-radius: 6px; font-weight: 600; transition: all 0.15s; }
-        @media(max-width:900px){
-          .dash-kpi{grid-template-columns:1fr 1fr!important}
-          .dash-stat{grid-template-columns:1fr 1fr!important}
-          .dash-mid{grid-template-columns:1fr!important}
-          .dash-bot{grid-template-columns:1fr!important}
-        }
-        @media(max-width:480px){
-          .dash-kpi{grid-template-columns:1fr!important}
-          .dash-stat{grid-template-columns:1fr 1fr!important}
-        }
-      `}</style>
+    <div style={{ padding: '24px 28px', background: '#0a0a0a', minHeight: '100vh', fontFamily: 'system-ui,sans-serif', color: '#e5e5e5' }}>
 
-      <main style={{ padding: '24px 20px', background: 'var(--bg)', minHeight: '100vh', fontFamily: 'system-ui,sans-serif', color: 'var(--text)' }}>
-
-        {/* Header */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 6, opacity: 0.7 }}>OVERVIEW</div>
-              <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em', lineHeight: 1 }}>Dashboard</h1>
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 500 }}>
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-            </div>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <h1 style={{ fontSize: 26, fontWeight: 700, color: '#fff', margin: 0 }}>Dashboard</h1>
+          <div style={{ fontSize: 12, color: '#555' }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
           </div>
-          <div style={{ marginTop: 16, height: 1, background: 'linear-gradient(90deg, var(--gold), transparent)' }} />
         </div>
+        <div style={{ marginTop: 14, height: 1, background: 'linear-gradient(90deg, #EAB308, transparent)' }} />
+      </div>
 
-        {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-            <div style={{ width: 38, height: 38, border: '2px solid transparent', borderTopColor: 'var(--gold)', borderRightColor: 'var(--gold-dim)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+      {loading ? (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
+          <div style={{ width: 36, height: 36, border: '2px solid transparent', borderTopColor: '#EAB308', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        </div>
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 20 }}>
+            {[
+              { label: 'ACTIVE INVENTORY', val: inStock, sub: `${soldTotal} total sold`, icon: '🚛', c: '#EAB308',
+                onClick: () => setDrilldown({ title: 'Active Inventory', trucks: trucks.filter(t => t.status !== 'Sold').map(t => ({ ...t, _label1: 'STATUS', _col1: t.status, _label2: 'ALL-IN', _col2: `$${allIn(t).toLocaleString()}` })) }) },
+              { label: 'CAPITAL DEPLOYED', val: `$${cashTiedUp.toLocaleString()}`, sub: 'True all-in (incl. recon)', icon: '💰', c: '#38bdf8',
+                onClick: () => setDrilldown({ title: 'Capital Deployed', trucks: trucks.filter(t => t.status !== 'Sold').sort((a,b) => allIn(b)-allIn(a)).map(t => ({ ...t, _label1: 'STATUS', _col1: t.status, _label2: 'ALL-IN', _col2: `$${allIn(t).toLocaleString()}` })) }) },
+              { label: 'PENDING PAYMENTS', val: pending.length, sub: `$${pendingAmt.toLocaleString()} outstanding`, icon: '⏳', c: '#f97316',
+                onClick: () => setDrilldown({ title: 'Pending Payments', trucks: pending.map(t => ({ ...t, _label1: 'CUSTOMER', _col1: t.customer||'—', _label2: 'SOLD FOR', _col2: `$${(t.sold_price||0).toLocaleString()}` })) }) },
+              { label: 'THIS MONTH PROFIT', val: `${monthProfit < 0 ? '-' : ''}$${Math.abs(monthProfit).toLocaleString()}`, sub: `${monthSold.length} trucks · $${monthRevenue.toLocaleString()} revenue`, icon: '📈', c: monthProfit >= 0 ? '#22c55e' : '#ef4444',
+                onClick: () => setDrilldown({ title: 'This Month — Sold Trucks', trucks: monthSold.map(t => ({ ...t, _label1: 'SOLD FOR', _col1: `$${(t.sold_price||0).toLocaleString()}`, _label2: 'PROFIT', _col2: `${(truckProfit(t)||0)<0?'-':''}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}` })) }) },
+            ].map(c => (
+              <div key={c.label} onClick={c.onClick} style={{ ...card, cursor: 'pointer', transition: 'border-color 0.15s, transform 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#EAB308'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#252525'; e.currentTarget.style.transform = 'translateY(0)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{ fontSize: 9.5, color: '#555', letterSpacing: '0.14em', fontWeight: 700 }}>{c.label}</span>
+                  <span style={{ fontSize: 18 }}>{c.icon}</span>
+                </div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: c.c, letterSpacing: '-0.02em', marginBottom: 4 }}>{c.val}</div>
+                <div style={{ fontSize: 11, color: '#555' }}>{c.sub}</div>
+                <div style={{ fontSize: 10, color: '#3a3a3a', marginTop: 6 }}>Click to view breakdown →</div>
+              </div>
+            ))}
           </div>
-        ) : (
-          <>
-            {/* ── KPI CARDS ── */}
-            <div className="dash-kpi">
-              {[
-                { label: 'ACTIVE INVENTORY', val: inStock, sub: `${soldTotal} total sold`, icon: '🚛', c: 'var(--gold)', dim: 'var(--gold-dim)',
-                  onClick: () => setDrilldown({ title: 'Active Inventory', trucks: trucks.filter(t => t.status !== 'Sold').map(t => ({ ...t, _col1: t.status, _col2: `$${allIn(t).toLocaleString()}`, _label1: 'STATUS', _label2: 'ALL-IN' })) }) },
-                { label: 'CAPITAL DEPLOYED', val: `$${cashTiedUp.toLocaleString()}`, sub: 'True all-in (incl. recon)', icon: '💰', c: 'var(--blue)', dim: 'var(--blue-dim)',
-                  onClick: () => setDrilldown({ title: 'Capital Deployed — In-Stock Trucks', trucks: trucks.filter(t => t.status !== 'Sold').sort((a,b) => allIn(b)-allIn(a)).map(t => ({ ...t, _col1: t.status, _col2: `$${allIn(t).toLocaleString()}`, _label1: 'STATUS', _label2: 'ALL-IN' })) }) },
-                { label: 'PENDING PAYMENTS', val: pending.length, sub: `$${pendingAmt.toLocaleString()} outstanding`, icon: '⏳', c: 'var(--orange)', dim: 'var(--orange-dim)',
-                  onClick: () => setDrilldown({ title: 'Pending Payments', trucks: pending.map(t => ({ ...t, _col1: t.customer || '—', _col2: `$${(t.sold_price||0).toLocaleString()}`, _label1: 'CUSTOMER', _label2: 'SOLD FOR' })) }) },
-                { label: 'THIS MONTH PROFIT', val: `${monthProfit < 0 ? '-' : ''}$${Math.abs(monthProfit).toLocaleString()}`, sub: `${monthSold.length} trucks · $${monthRevenue.toLocaleString()} revenue`, icon: '📈', c: monthProfit >= 0 ? 'var(--green)' : 'var(--red)', dim: monthProfit >= 0 ? 'var(--green-dim)' : 'var(--red-dim)',
-                  onClick: () => setDrilldown({ title: 'This Month Sold Trucks', trucks: monthSold.map(t => ({ ...t, _col1: `$${(t.sold_price||0).toLocaleString()}`, _col2: `${(truckProfit(t)||0) >= 0 ? '' : '-'}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}`, _label1: 'SOLD FOR', _label2: 'PROFIT' })) }) },
-              ].map(c => (
-                <div key={c.label} className="kpi-card" onClick={c.onClick}
-                  style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', boxShadow: 'var(--shadow-card)', cursor: 'pointer' }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--gold)')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--card-border)')}>
-                  <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: c.dim, filter: 'blur(20px)', pointerEvents: 'none' }} />
-                  <div style={{ position: 'relative' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                      <span style={{ fontSize: 9.5, color: 'var(--text3)', letterSpacing: '0.14em', fontWeight: 700 }}>{c.label}</span>
-                      <div style={{ width: 32, height: 32, borderRadius: 10, background: c.dim, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>{c.icon}</div>
-                    </div>
-                    <div style={{ fontSize: 28, fontWeight: 800, color: c.c, letterSpacing: '-0.03em', lineHeight: 1, marginBottom: 6 }}>{c.val}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 500 }}>{c.sub}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 6, fontWeight: 500 }}>Click to view breakdown →</div>
+
+          {/* All-time stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+            {[
+              { label: 'ALL-TIME REVENUE',   val: `$${Math.round(allTimeRevenue).toLocaleString()}`, c: '#fff',
+                onClick: () => setDrilldown({ title: 'All-Time Revenue', trucks: allTimeSold.sort((a,b)=>(b.sold_price||0)-(a.sold_price||0)).map(t => ({ ...t, _label1: 'SOLD DATE', _col1: t.date_sold||'—', _label2: 'REVENUE', _col2: `$${(t.sold_price||0).toLocaleString()}` })) }) },
+              { label: 'ALL-TIME PROFIT',    val: `${allTimeProfit < 0 ? '-' : ''}$${Math.abs(Math.round(allTimeProfit)).toLocaleString()}`, c: allTimeProfit >= 0 ? '#22c55e' : '#ef4444',
+                onClick: () => setDrilldown({ title: 'All-Time Profit', trucks: allTimeSold.sort((a,b)=>(truckProfit(b)||0)-(truckProfit(a)||0)).map(t => ({ ...t, _label1: 'ALL-IN', _col1: `$${allIn(t).toLocaleString()}`, _label2: 'PROFIT', _col2: `${(truckProfit(t)||0)<0?'-':''}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}` })) }) },
+              { label: 'AVG PROFIT / TRUCK', val: `${avgProfit < 0 ? '-' : ''}$${Math.abs(Math.round(avgProfit)).toLocaleString()}`, c: '#EAB308',
+                onClick: () => setDrilldown({ title: 'Avg Profit Breakdown', trucks: allTimeSold.sort((a,b)=>(truckProfit(b)||0)-(truckProfit(a)||0)).map(t => ({ ...t, _label1: 'SOLD FOR', _col1: `$${(t.sold_price||0).toLocaleString()}`, _label2: 'PROFIT', _col2: `${(truckProfit(t)||0)<0?'-':''}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}` })) }) },
+              { label: 'TOTAL TRUCKS SOLD',  val: String(soldTotal), c: '#fff',
+                onClick: () => setDrilldown({ title: 'All Sold Trucks', trucks: allTimeSold.sort((a,b)=>new Date(b.date_sold||0).getTime()-new Date(a.date_sold||0).getTime()).map(t => ({ ...t, _label1: 'SOLD DATE', _col1: t.date_sold||'—', _label2: 'PROFIT', _col2: `${(truckProfit(t)||0)<0?'-':''}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}` })) }) },
+            ].map(s => (
+              <div key={s.label} onClick={s.onClick} style={{ ...card, padding: '14px 16px', cursor: 'pointer', transition: 'border-color 0.15s' }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = '#EAB308')}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = '#252525')}>
+                <div style={{ fontSize: 9.5, color: '#444', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 8 }}>{s.label}</div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: s.c }}>{s.val}</div>
+                <div style={{ fontSize: 10, color: '#3a3a3a', marginTop: 6 }}>Click to view →</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Chart + Donut */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 290px', gap: 16, marginBottom: 20 }}>
+
+            {/* Profit chart */}
+            <div style={{ ...card, padding: '20px 24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 10 }}>PROFIT BY PERIOD</div>
+                  <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
+                    {[
+                      { l: 'NET PROFIT', v: `${totProfit < 0 ? '-' : ''}$${Math.abs(Math.round(totProfit)).toLocaleString()}`, c: totProfit >= 0 ? '#EAB308' : '#ef4444' },
+                      { l: 'REVENUE',    v: `$${Math.round(totRev).toLocaleString()}`,   c: '#fff' },
+                      { l: 'TRUCKS',     v: String(totSold),                              c: '#fff' },
+                    ].map(s => (
+                      <div key={s.l}>
+                        <div style={{ fontSize: 9, color: '#444', marginBottom: 4, letterSpacing: '0.1em', fontWeight: 600 }}>{s.l}</div>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: s.c }}>{s.v}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {/* ── ALL-TIME STATS ── */}
-            <div className="dash-stat">
-              {[
-                { label: 'ALL-TIME REVENUE',   val: `$${Math.round(allTimeRevenue).toLocaleString()}`,                                             c: 'var(--text)',
-                  onClick: () => setDrilldown({ title: 'All-Time Revenue — Sold Trucks', trucks: allTimeSold.sort((a,b)=>(b.sold_price||0)-(a.sold_price||0)).map(t => ({ ...t, _label1: 'SOLD DATE', _col1: t.date_sold||'—', _label2: 'REVENUE', _col2: `$${(t.sold_price||0).toLocaleString()}` })) }) },
-                { label: 'ALL-TIME PROFIT',    val: `${allTimeProfit < 0 ? '-' : ''}$${Math.abs(Math.round(allTimeProfit)).toLocaleString()}`,      c: allTimeProfit >= 0 ? 'var(--green)' : 'var(--red)',
-                  onClick: () => setDrilldown({ title: 'All-Time Profit — Sold Trucks', trucks: allTimeSold.sort((a,b)=>(truckProfit(b)||0)-(truckProfit(a)||0)).map(t => ({ ...t, _label1: 'ALL-IN', _col1: `$${allIn(t).toLocaleString()}`, _label2: 'PROFIT', _col2: `${(truckProfit(t)||0)<0?'-':''}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}` })) }) },
-                { label: 'AVG PROFIT / TRUCK', val: `${avgProfit < 0 ? '-' : ''}$${Math.abs(Math.round(avgProfit)).toLocaleString()}`,             c: avgProfit >= 0 ? 'var(--gold)' : 'var(--red)',
-                  onClick: () => setDrilldown({ title: 'Avg Profit Breakdown — Sold Trucks', trucks: allTimeSold.sort((a,b)=>(truckProfit(b)||0)-(truckProfit(a)||0)).map(t => ({ ...t, _label1: 'SOLD FOR', _col1: `$${(t.sold_price||0).toLocaleString()}`, _label2: 'PROFIT', _col2: `${(truckProfit(t)||0)<0?'-':''}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}` })) }) },
-                { label: 'TOTAL TRUCKS SOLD',  val: String(soldTotal),                                                                              c: 'var(--text)',
-                  onClick: () => setDrilldown({ title: 'All Sold Trucks', trucks: allTimeSold.sort((a,b)=>new Date(b.date_sold||0).getTime()-new Date(a.date_sold||0).getTime()).map(t => ({ ...t, _label1: 'SOLD DATE', _col1: t.date_sold||'—', _label2: 'PROFIT', _col2: `${(truckProfit(t)||0)<0?'-':''}$${Math.abs(Math.round(truckProfit(t)||0)).toLocaleString()}` })) }) },
-              ].map(s => (
-                <div key={s.label} onClick={s.onClick}
-                  style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 12, padding: '14px 16px', boxShadow: 'var(--shadow-card)', cursor: 'pointer', transition: 'border-color 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--gold)')}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--card-border)')}>
-                  <div style={{ fontSize: 9.5, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 8 }}>{s.label}</div>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: s.c, letterSpacing: '-0.02em' }}>{s.val}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 6 }}>Click to view →</div>
-                </div>
-              ))}
-            </div>
-
-            {/* ── CHART + DONUT ── */}
-            <div className="dash-mid">
-
-              {/* Profit chart */}
-              <div className="gcard">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
-                  <div>
-                    <div className="section-title">PROFIT BY MONTH</div>
-                    <div style={{ display: 'flex', gap: 22, flexWrap: 'wrap' }}>
-                      {[
-                        { l: 'NET PROFIT', v: `${totProfit < 0 ? '-' : ''}$${Math.abs(Math.round(totProfit)).toLocaleString()}`, c: totProfit >= 0 ? 'var(--gold)' : 'var(--red)' },
-                        { l: 'REVENUE',    v: `$${Math.round(totRev).toLocaleString()}`,                                          c: 'var(--text)' },
-                        { l: 'TRUCKS',     v: String(totSold),                                                                    c: 'var(--text)' },
-                      ].map(s => (
-                        <div key={s.l}>
-                          <div style={{ fontSize: 9, color: 'var(--text4)', marginBottom: 4, letterSpacing: '0.1em', fontWeight: 600 }}>{s.l}</div>
-                          <div style={{ fontSize: 18, fontWeight: 800, color: s.c, letterSpacing: '-0.02em' }}>{s.v}</div>
-                        </div>
-                      ))}
-                    </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+                  <div style={{ display: 'flex', background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: 8, overflow: 'hidden' }}>
+                    {(['monthly', 'quarterly', 'ytd'] as const).map(m => (
+                      <button key={m} onClick={() => setChartMode(m)} style={{ padding: '5px 10px', fontSize: 11, cursor: 'pointer', border: 'none', background: chartMode === m ? '#EAB308' : 'transparent', color: chartMode === m ? '#000' : '#666', fontWeight: 600 }}>
+                        {m === 'monthly' ? 'Monthly' : m === 'quarterly' ? 'Quarterly' : 'YTD'}
+                      </button>
+                    ))}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
-                    {/* View mode */}
-                    <div style={{ display: 'flex', background: 'var(--hover)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                      {([['monthly','Monthly'],['quarterly','Quarterly'],['ytd','YTD']] as const).map(([m, l]) => (
-                        <button key={m} onClick={() => setChartMode(m)} className="range-btn"
-                          style={{ background: chartMode === m ? 'var(--gold)' : 'transparent', color: chartMode === m ? '#000' : 'var(--text3)', padding: '5px 10px' }}>
-                          {l}
+                  {chartMode === 'monthly' && (
+                    <div style={{ display: 'flex', background: '#0f0f0f', border: '1px solid #2a2a2a', borderRadius: 8, overflow: 'hidden' }}>
+                      {([6, 12, 24] as const).map(r => (
+                        <button key={r} onClick={() => setRange(r)} style={{ padding: '5px 10px', fontSize: 11, cursor: 'pointer', border: 'none', background: range === r ? '#EAB308' : 'transparent', color: range === r ? '#000' : '#666', fontWeight: 600 }}>
+                          {r}mo
                         </button>
                       ))}
                     </div>
-                    {/* Monthly range filter — only shown in monthly mode */}
-                    {chartMode === 'monthly' && (
-                      <div style={{ display: 'flex', background: 'var(--hover)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                        {([6, 12, 24] as const).map(r => (
-                          <button key={r} onClick={() => setRange(r)} className="range-btn"
-                            style={{ background: range === r ? 'var(--gold)' : 'transparent', color: range === r ? '#000' : 'var(--text3)' }}>
-                            {r}mo
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
+              </div>
 
-                {months.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text4)', fontSize: 13 }}>No sold trucks yet — profit data will appear here.</div>
-                ) : (
-                  <div ref={chartRef} style={{ position: 'relative' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', height: 160, gap: 3, paddingLeft: 46, paddingBottom: 28, position: 'relative', overflowX: 'auto' }}>
-                      {/* Y axis */}
-                      {[1, 0.5, 0].map((p, i) => {
-                        const v = maxP * 1.1 * p
-                        return (
-                          <div key={i}>
-                            <div style={{ position: 'absolute', left: 0, top: `${(1 - p) * 100}%`, fontSize: 8, color: 'var(--text4)', transform: 'translateY(-50%)', whiteSpace: 'nowrap' }}>{v < 0 ? '-' : ''}${v >= 1000 ? `${Math.round(Math.abs(v) / 1000)}k` : Math.round(Math.abs(v))}</div>
-                            <div style={{ position: 'absolute', left: 46, right: 0, top: `${(1 - p) * 100}%`, height: 1, background: 'var(--border2)', pointerEvents: 'none' }} />
+              {months.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#444', fontSize: 13 }}>No sold trucks yet.</div>
+              ) : (
+                <div ref={chartRef} style={{ position: 'relative' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', height: 160, gap: 3, paddingLeft: 46, paddingBottom: 28, position: 'relative' }}>
+                    {[1, 0.5, 0].map((p, i) => {
+                      const v = maxP * 1.1 * p
+                      return (
+                        <div key={i}>
+                          <div style={{ position: 'absolute', left: 0, top: `${(1-p)*100}%`, fontSize: 8, color: '#3a3a3a', transform: 'translateY(-50%)', whiteSpace: 'nowrap' }}>
+                            ${v >= 1000 ? `${Math.round(v/1000)}k` : Math.round(v)}
                           </div>
-                        )
-                      })}
-                      {/* Bars */}
-                      {months.map((key, i) => {
-                        const d = chartData[key]
-                        const h = Math.min(Math.abs((d.profit / (maxP * 1.1)) * 100), 100)
-                        const neg = d.profit < 0
-                        const hov = hovBar === i
-                        return (
-                          <div key={key} style={{ flex: 1, minWidth: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', position: 'relative', cursor: 'pointer' }}
-                            onMouseEnter={e => {
-                              setHovBar(i)
-                              const r = e.currentTarget.getBoundingClientRect()
-                              const p = chartRef.current?.getBoundingClientRect()
-                              if (p) setTip({ x: r.left - p.left + r.width / 2, y: r.top - p.top - 12, label: fmtKey(key), profit: d.profit, revenue: d.revenue, count: d.count })
-                            }}
-                            onMouseLeave={() => { setHovBar(null); setTip(null) }}>
-                            <div style={{ width: hov ? '88%' : '70%', height: `${h}%`, borderRadius: neg ? '0 0 5px 5px' : '5px 5px 0 0', minHeight: 3, transition: 'all 0.18s', background: neg ? (hov ? 'var(--red)' : 'var(--red-dim)') : (hov ? 'var(--gold)' : 'var(--gold-dim)'), boxShadow: hov ? (neg ? '0 0 16px var(--red-dim)' : '0 0 16px var(--gold-dim)') : 'none' }} />
-                            <div style={{ position: 'absolute', bottom: -22, fontSize: 7.5, color: hov ? 'var(--text2)' : 'var(--text4)', whiteSpace: 'nowrap' }}>{fmtKey(key)}</div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    {/* Tooltip */}
-                    {tip && (
-                      <div style={{ position: 'absolute', left: tip.x, top: tip.y, transform: 'translate(-50%,-100%)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 16px', pointerEvents: 'none', zIndex: 10, whiteSpace: 'nowrap', boxShadow: 'var(--shadow)' }}>
-                        <div style={{ fontSize: 10, color: 'var(--text3)', marginBottom: 6, letterSpacing: '0.1em', fontWeight: 700 }}>{tip.label}</div>
-                        <div style={{ fontSize: 17, fontWeight: 800, color: tip.profit >= 0 ? 'var(--gold)' : 'var(--red)', letterSpacing: '-0.02em', marginBottom: 3 }}>{tip.profit < 0 ? '-' : ''}${Math.abs(Math.round(tip.profit)).toLocaleString()}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 2 }}>Revenue: ${Math.round(tip.revenue).toLocaleString()}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)' }}>{tip.count} truck{tip.count !== 1 ? 's' : ''} sold</div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Aging donut */}
-              <div className="gcard">
-                <div className="section-title">INVENTORY AGING</div>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-                  <svg width="150" height="150" viewBox="0 0 140 140">
-                    <circle cx="70" cy="70" r={R} fill="var(--surface2)" />
-                    {totalAging === 0
-                      ? <circle cx="70" cy="70" r={R} fill="none" stroke="var(--border)" strokeWidth="16" />
-                      : arcs.map((a, i) => a.pct > 0 && (
-                        <path key={i} d={a.path} fill={a.color}
-                          opacity={hovDonut === null || hovDonut === a.label ? 1 : 0.2}
-                          style={{ transition: 'opacity 0.2s', cursor: 'pointer' }}
-                          onMouseEnter={() => setHovDonut(a.label)}
-                          onMouseLeave={() => setHovDonut(null)} />
-                      ))}
-                    <circle cx="70" cy="70" r="34" fill="var(--bg)" />
-                    <text x="70" y="63" textAnchor="middle" fill="var(--text)" fontSize="22" fontWeight="800" fontFamily="system-ui">{inStock}</text>
-                    <text x="70" y="77" textAnchor="middle" fill="var(--text3)" fontSize="7.5" letterSpacing="1.5" fontWeight="600">IN STOCK</text>
-                  </svg>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {donut.map(s => (
-                    <div key={s.label} onMouseEnter={() => setHovDonut(s.label)} onMouseLeave={() => setHovDonut(null)}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s', background: hovDonut === s.label ? 'var(--hover)' : 'transparent', border: `1px solid ${hovDonut === s.label ? 'var(--border)' : 'transparent'}` }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
-                        <span style={{ fontSize: 12, color: hovDonut === s.label ? 'var(--text)' : 'var(--text2)', fontWeight: 500 }}>{s.label}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: s.count > 0 ? 'var(--text)' : 'var(--text4)' }}>{s.count}</span>
-                        {totalAging > 0 && s.count > 0 && <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600 }}>{Math.round(s.count / totalAging * 100)}%</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                {/* Total capital at risk */}
-                {totalAging > 0 && (
-                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700 }}>CAPITAL AT RISK</span>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--orange)' }}>
-                      ${trucks.filter(t => t.status !== 'Sold' && t.bought_on && Math.floor((Date.now() - new Date(t.bought_on).getTime()) / 86400000) >= 30).reduce((s, t) => s + allIn(t), 0).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* ── BOTTOM TABLES ── */}
-            <div className="dash-bot">
-
-              {/* Aging 30+ */}
-              <div className="gcard">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <span style={{ fontSize: 14 }}>⚠️</span>
-                  <span className="section-title" style={{ marginBottom: 0 }}>AGING INVENTORY (30+ DAYS)</span>
-                  {agingList.length > 0 && <span style={{ marginLeft: 'auto', background: 'var(--orange-dim)', color: 'var(--orange)', border: '1px solid var(--orange)', borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>{agingList.length}</span>}
-                </div>
-                {agingList.length === 0
-                  ? <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--text4)', fontSize: 13 }}>✓ No aging inventory</div>
-                  : agingList.slice(0, 6).map(t => (
-                    <div key={t.id} onClick={() => window.location.href = `/inventory/${t.id}`} style={{ borderBottom: '1px solid var(--border2)', padding: '11px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderRadius: 6, transition: 'background 0.15s' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 3, height: 32, borderRadius: 99, background: t.days > 60 ? 'var(--red)' : 'var(--orange)', flexShrink: 0 }} />
-                        <div>
-                          <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{t.year} {t.make} {t.model}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{t.status}</div>
+                          <div style={{ position: 'absolute', left: 46, right: 0, top: `${(1-p)*100}%`, height: 1, background: '#1e1e1e', pointerEvents: 'none' }} />
                         </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: t.days > 60 ? 'var(--red)' : 'var(--orange)' }}>{t.days}d</div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)' }}>${t.allIn.toLocaleString()} in</div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-
-              {/* Pending payments */}
-              <div className="gcard">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <span style={{ fontSize: 14 }}>⏳</span>
-                  <span className="section-title" style={{ marginBottom: 0 }}>PENDING PAYMENTS</span>
-                  {pending.length > 0 && <span style={{ marginLeft: 'auto', background: 'var(--orange-dim)', color: 'var(--orange)', border: '1px solid var(--orange)', borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>{pending.length}</span>}
-                </div>
-                {pending.length === 0
-                  ? <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--text4)', fontSize: 13 }}>📥 All caught up</div>
-                  : pending.slice(0, 6).map(t => (
-                    <div key={t.id} onClick={() => window.location.href = `/inventory/${t.id}`} style={{ borderBottom: '1px solid var(--border2)', padding: '11px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderRadius: 6, transition: 'background 0.15s' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 3, height: 32, borderRadius: 99, background: 'var(--gold)', flexShrink: 0 }} />
-                        <div>
-                          <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{t.year} {t.make} {t.model}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{t.customer || '—'}</div>
+                      )
+                    })}
+                    {months.map((key, i) => {
+                      const d = chartData[key]
+                      const h = Math.min(Math.abs((d.profit / (maxP * 1.1)) * 100), 100)
+                      const neg = d.profit < 0
+                      const hov = hovBar === i
+                      // Detect year change
+                      const thisYear = key.split('-')[0]
+                      const prevYear = i > 0 ? months[i-1].split('-')[0] : thisYear
+                      const isNewYear = chartMode === 'monthly' && thisYear !== prevYear
+                      // Show month label only if not too crowded — show every 2nd if >18 bars
+                      const showLabel = months.length <= 18 || i % 2 === 0
+                      return (
+                        <div key={key} style={{ flex: 1, minWidth: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', position: 'relative', cursor: 'pointer' }}
+                          onMouseEnter={e => {
+                            setHovBar(i)
+                            const r = e.currentTarget.getBoundingClientRect()
+                            const pr = chartRef.current?.getBoundingClientRect()
+                            if (pr) setTip({ x: r.left - pr.left + r.width/2, y: r.top - pr.top - 12, label: fmtKey(key), profit: d.profit, revenue: d.revenue, count: d.count })
+                          }}
+                          onMouseLeave={() => { setHovBar(null); setTip(null) }}
+                          onClick={() => setDrilldown({
+                            title: `${fmtKey(key)} — Sold Trucks`,
+                            trucks: d.trucks.sort((a, b) => (truckProfit(b) || 0) - (truckProfit(a) || 0)).map(t => ({
+                              ...t,
+                              _label1: 'SOLD FOR',
+                              _col1: `$${(t.sold_price || 0).toLocaleString()}`,
+                              _label2: 'PROFIT',
+                              _col2: `${(truckProfit(t) || 0) < 0 ? '-' : ''}$${Math.abs(Math.round(truckProfit(t) || 0)).toLocaleString()}`,
+                            }))
+                          })}>
+                          {/* Year divider line */}
+                          {isNewYear && (
+                            <div style={{ position: 'absolute', left: -4, top: 0, bottom: 0, width: 1, background: '#EAB308', opacity: 0.4 }} />
+                          )}
+                          {/* Year label above divider */}
+                          {isNewYear && (
+                            <div style={{ position: 'absolute', left: -3, top: -16, fontSize: 9, color: '#EAB308', fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '0.05em' }}>{thisYear}</div>
+                          )}
+                          <div style={{ width: hov ? '88%' : '70%', height: `${h}%`, minHeight: 3, borderRadius: neg ? '0 0 5px 5px' : '5px 5px 0 0', transition: 'all 0.15s', background: neg ? (hov ? '#ef4444' : '#3a1a1a') : (hov ? '#EAB308' : '#3a2e00'), boxShadow: hov ? (neg ? '0 0 12px #ef444466' : '0 0 12px #EAB30866') : 'none' }} />
+                          {showLabel && (
+                            <div style={{ position: 'absolute', bottom: -22, fontSize: 7.5, color: hov ? '#aaa' : isNewYear ? '#EAB308' : '#444', whiteSpace: 'nowrap', fontWeight: isNewYear ? 700 : 400 }}>
+                              {chartMode === 'monthly'
+                                ? new Date(parseInt(key.split('-')[0]), parseInt(key.split('-')[1]) - 1, 1).toLocaleDateString('en-US', { month: 'short' })
+                                : fmtKey(key)}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--gold)' }}>${(t.sold_price || 0).toLocaleString()}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>profit: ${Math.round(truckProfit(t) || 0).toLocaleString()}</div>
-                      </div>
-                    </div>
-                  ))}
-                {pending.length > 0 && (
-                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border2)', display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700 }}>TOTAL OUTSTANDING</span>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--gold)' }}>${pendingAmt.toLocaleString()}</span>
+                      )
+                    })}
                   </div>
-                )}
-              </div>
+                  <div style={{ fontSize: 10, color: '#444', textAlign: 'center', marginTop: 4 }}>Click any bar to see breakdown</div>
+                  {tip && (
+                    <div style={{ position: 'absolute', left: tip.x, top: tip.y, transform: 'translate(-50%,-100%)', background: '#1e1e1e', border: '1px solid #333', borderRadius: 10, padding: '10px 14px', pointerEvents: 'none', zIndex: 10, whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: 10, color: '#888', marginBottom: 4, letterSpacing: '0.1em', fontWeight: 700 }}>{tip.label}</div>
+                      <div style={{ fontSize: 17, fontWeight: 800, color: tip.profit >= 0 ? '#EAB308' : '#ef4444', marginBottom: 3 }}>{tip.profit < 0 ? '-' : ''}${Math.abs(Math.round(tip.profit)).toLocaleString()}</div>
+                      <div style={{ fontSize: 11, color: '#666', marginBottom: 2 }}>Revenue: ${Math.round(tip.revenue).toLocaleString()}</div>
+                      <div style={{ fontSize: 11, color: '#666' }}>{tip.count} truck{tip.count !== 1 ? 's' : ''} sold</div>
+                      <div style={{ fontSize: 10, color: '#EAB308', marginTop: 4 }}>Click to see breakdown →</div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </>
-        )}
-      </main>
 
-      {/* ── DRILLDOWN MODAL ── */}
-      {drilldown && (
-        <div onClick={() => setDrilldown(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(10px)', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, width: '100%', maxWidth: 620, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
-              <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{drilldown.title}</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 600 }}>{drilldown.trucks.length} truck{drilldown.trucks.length !== 1 ? 's' : ''}</span>
-                <button onClick={() => setDrilldown(null)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', width: 32, height: 32, borderRadius: '50%', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            {/* Aging donut */}
+            <div style={{ ...card, padding: '20px 22px' }}>
+              <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 16 }}>INVENTORY AGING</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+                <svg width="150" height="150" viewBox="0 0 140 140">
+                  <circle cx="70" cy="70" r={R} fill="#0f0f0f" />
+                  {totalAging === 0
+                    ? <circle cx="70" cy="70" r={R} fill="none" stroke="#2a2a2a" strokeWidth="16" />
+                    : arcs.map((a, i) => a.pct > 0 && (
+                      <path key={i} d={a.path} fill={a.color}
+                        opacity={hovDonut === null || hovDonut === a.label ? 1 : 0.2}
+                        style={{ transition: 'opacity 0.2s', cursor: 'pointer' }}
+                        onMouseEnter={() => setHovDonut(a.label)}
+                        onMouseLeave={() => setHovDonut(null)} />
+                    ))}
+                  <circle cx="70" cy="70" r="34" fill="#161616" />
+                  <text x="70" y="63" textAnchor="middle" fill="#fff" fontSize="22" fontWeight="800" fontFamily="system-ui">{inStock}</text>
+                  <text x="70" y="77" textAnchor="middle" fill="#555" fontSize="7.5" letterSpacing="1.5" fontWeight="600">IN STOCK</text>
+                </svg>
               </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {donut.map(s => (
+                  <div key={s.label} onMouseEnter={() => setHovDonut(s.label)} onMouseLeave={() => setHovDonut(null)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s', background: hovDonut === s.label ? '#1e1e1e' : 'transparent', border: `1px solid ${hovDonut === s.label ? '#2a2a2a' : 'transparent'}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, display: 'inline-block' }} />
+                      <span style={{ fontSize: 12, color: hovDonut === s.label ? '#ccc' : '#777', fontWeight: 500 }}>{s.label}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: s.count > 0 ? '#fff' : '#444' }}>{s.count}</span>
+                      {totalAging > 0 && s.count > 0 && <span style={{ fontSize: 10, color: '#555', fontWeight: 600 }}>{Math.round(s.count/totalAging*100)}%</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {totalAging > 0 && (
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #1e1e1e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 10, color: '#444', letterSpacing: '0.1em', fontWeight: 700 }}>CAPITAL AT RISK</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: '#f97316' }}>
+                    ${trucks.filter(t => t.status !== 'Sold' && t.bought_on && Math.floor((Date.now()-new Date(t.bought_on).getTime())/86400000) >= 30).reduce((s, t) => s + allIn(t), 0).toLocaleString()}
+                  </span>
+                </div>
+              )}
             </div>
-            {/* List */}
-            <div style={{ overflowY: 'auto', flex: 1 }}>
-              {drilldown.trucks.length === 0 ? (
-                <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--text4)', fontSize: 13 }}>No trucks to show.</div>
-              ) : drilldown.trucks.map((t: any) => {
-                const profit = truckProfit(t)
-                return (
-                  <div key={t.id} onClick={() => { window.location.href = `/inventory/${t.id}`; setDrilldown(null) }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 24px', borderBottom: '1px solid var(--border2)', cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
+          </div>
+
+          {/* Bottom tables */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+
+            {/* Aging 30+ */}
+            <div style={card}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <span>⚠️</span>
+                <span style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em' }}>AGING INVENTORY (30+ DAYS)</span>
+                {agingList.length > 0 && <span style={{ marginLeft: 'auto', background: '#2a1500', color: '#f97316', border: '1px solid #4a3000', borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>{agingList.length}</span>}
+              </div>
+              {agingList.length === 0
+                ? <div style={{ textAlign: 'center', padding: '28px 0', color: '#444', fontSize: 13 }}>✓ No aging inventory</div>
+                : agingList.slice(0, 6).map(t => (
+                  <div key={t.id} onClick={() => window.location.href = `/inventory/${t.id}`}
+                    style={{ borderBottom: '1px solid #1a1a1a', padding: '11px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderRadius: 6, transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#1a1a1a')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    {/* Truck name */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {t.year} {t.make} {t.model}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 3, height: 32, borderRadius: 99, background: t.days > 60 ? '#ef4444' : '#f97316', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, color: '#ccc', fontWeight: 600 }}>{t.year} {t.make} {t.model}</div>
+                        <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>{t.status}</div>
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, fontFamily: 'monospace' }}>{t.vin}</div>
                     </div>
-                    {/* Col 1 */}
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 9.5, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 2 }}>{t._label1}</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)' }}>{t._col1}</div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: t.days > 60 ? '#ef4444' : '#f97316' }}>{t.days}d</div>
+                      <div style={{ fontSize: 11, color: '#555' }}>${t.allIn.toLocaleString()} in</div>
                     </div>
-                    {/* Col 2 */}
-                    <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 80 }}>
-                      <div style={{ fontSize: 9.5, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 2 }}>{t._label2}</div>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--gold)' }}>{t._col2}</div>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text4)' }}>→</div>
                   </div>
-                )
-              })}
+                ))}
+            </div>
+
+            {/* Pending payments */}
+            <div style={card}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                <span>⏳</span>
+                <span style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em' }}>PENDING PAYMENTS</span>
+                {pending.length > 0 && <span style={{ marginLeft: 'auto', background: '#2a1500', color: '#f97316', border: '1px solid #4a3000', borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>{pending.length}</span>}
+              </div>
+              {pending.length === 0
+                ? <div style={{ textAlign: 'center', padding: '28px 0', color: '#444', fontSize: 13 }}>📥 All caught up</div>
+                : pending.slice(0, 6).map(t => (
+                  <div key={t.id} onClick={() => window.location.href = `/inventory/${t.id}`}
+                    style={{ borderBottom: '1px solid #1a1a1a', padding: '11px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderRadius: 6, transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#1a1a1a')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 3, height: 32, borderRadius: 99, background: '#EAB308', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, color: '#ccc', fontWeight: 600 }}>{t.year} {t.make} {t.model}</div>
+                        <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>{t.customer || '—'}</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: '#EAB308' }}>${(t.sold_price||0).toLocaleString()}</div>
+                      <div style={{ fontSize: 11, color: '#555', marginTop: 2 }}>profit: ${Math.round(truckProfit(t)||0).toLocaleString()}</div>
+                    </div>
+                  </div>
+                ))}
+              {pending.length > 0 && (
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #1e1e1e', display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 10, color: '#444', letterSpacing: '0.1em', fontWeight: 700 }}>TOTAL OUTSTANDING</span>
+                  <span style={{ fontSize: 14, fontWeight: 800, color: '#EAB308' }}>${pendingAmt.toLocaleString()}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Drilldown Modal */}
+      {drilldown && (
+        <div onClick={() => setDrilldown(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#161616', border: '1px solid #2a2a2a', borderRadius: 16, width: '100%', maxWidth: 620, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #222' }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#fff', margin: 0 }}>{drilldown.title}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 12, color: '#555', fontWeight: 600 }}>{drilldown.trucks.length} truck{drilldown.trucks.length !== 1 ? 's' : ''}</span>
+                <button onClick={() => setDrilldown(null)} style={{ background: '#1e1e1e', border: '1px solid #2a2a2a', color: '#888', cursor: 'pointer', width: 30, height: 30, borderRadius: '50%', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              </div>
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {drilldown.trucks.length === 0
+                ? <div style={{ padding: '48px 24px', textAlign: 'center', color: '#444', fontSize: 13 }}>No trucks to show.</div>
+                : drilldown.trucks.map((t: any) => (
+                  <div key={t.id} onClick={() => { window.location.href = `/inventory/${t.id}`; setDrilldown(null) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 24px', borderBottom: '1px solid #1a1a1a', cursor: 'pointer', transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#1e1e1e')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.year} {t.make} {t.model}</div>
+                      <div style={{ fontSize: 11, color: '#555', marginTop: 2, fontFamily: 'monospace' }}>{t.vin}</div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: 9.5, color: '#444', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 2 }}>{t._label1}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#ccc' }}>{t._col1}</div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 80 }}>
+                      <div style={{ fontSize: 9.5, color: '#444', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 2 }}>{t._label2}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: '#EAB308' }}>{t._col2}</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#3a3a3a' }}>→</div>
+                  </div>
+                ))}
             </div>
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }

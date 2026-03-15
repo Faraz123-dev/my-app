@@ -16,10 +16,20 @@ const navItems = [
   { label: 'Tutorial', icon: '📖', href: '/Tutorial' },
 ]
 
+// Bottom nav shows only the 5 most used items on mobile
+const bottomNavItems = [
+  { label: 'Dashboard', icon: '⊞', href: '/' },
+  { label: 'Inventory', icon: '☰', href: '/inventory' },
+  { label: 'Intake', icon: '📋', href: '/truck-intake' },
+  { label: 'Reports', icon: '📊', href: '/reports' },
+  { label: 'More', icon: '•••', href: null },
+]
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [dark, setDark] = useState(true)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const { user, loading } = useUser()
@@ -46,8 +56,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  useEffect(() => { if (isMobile) setSidebarOpen(false) }, [pathname, isMobile])
-  useEffect(() => { if (!loading && !user && pathname !== '/login') router.push('/login') }, [user, loading, pathname])
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false)
+      setShowMoreMenu(false)
+    }
+  }, [pathname, isMobile])
+
+  useEffect(() => {
+    if (!loading && !user && pathname !== '/login') router.push('/login')
+  }, [user, loading, pathname])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -70,30 +88,28 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const currentPage = navItems.find(n => n.href === pathname || (n.href !== '/' && pathname.startsWith(n.href)))
 
-  // Theme tokens
   const t = {
     bg: dark ? '#050505' : '#f5f5f0',
     sidebar: dark ? 'linear-gradient(180deg,#0c0c0c,#080808,#060606)' : 'linear-gradient(180deg,#ffffff,#fafaf8)',
     sidebarBorder: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)',
-    topbar: dark ? 'rgba(5,5,5,0.92)' : 'rgba(250,250,248,0.92)',
+    topbar: dark ? 'rgba(5,5,5,0.95)' : 'rgba(250,250,248,0.95)',
     topbarBorder: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.07)',
+    bottomNav: dark ? 'rgba(8,8,8,0.97)' : 'rgba(255,255,255,0.97)',
+    bottomNavBorder: dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)',
     navActive: dark ? 'linear-gradient(135deg,rgba(234,179,8,0.12),rgba(234,179,8,0.04))' : 'linear-gradient(135deg,rgba(234,179,8,0.15),rgba(234,179,8,0.06))',
-    navActiveBorder: dark ? 'rgba(234,179,8,0.25)' : 'rgba(234,179,8,0.4)',
     navHover: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
     navColor: dark ? '#4a4a4a' : '#888',
-    navHoverColor: dark ? '#aaa' : '#444',
     text: dark ? '#e5e5e5' : '#1a1a1a',
     subtext: dark ? '#555' : '#999',
     mutedtext: dark ? '#333' : '#bbb',
     brandTitle: dark ? '#fff' : '#111',
     brandSub: dark ? '#3a3a3a' : '#bbb',
     divider: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)',
-    pillBg: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)',
-    pillBorder: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)',
-    pillColor: dark ? '#888' : '#666',
     userCardBg: dark ? 'linear-gradient(135deg,rgba(234,179,8,0.07),rgba(255,255,255,0.02))' : 'linear-gradient(135deg,rgba(234,179,8,0.1),rgba(0,0,0,0.02))',
     userCardBorder: dark ? 'rgba(234,179,8,0.12)' : 'rgba(234,179,8,0.25)',
     shadow: dark ? '0 8px 40px rgba(0,0,0,0.8)' : '0 4px 24px rgba(0,0,0,0.12)',
+    moreMenu: dark ? '#111' : '#fff',
+    moreMenuBorder: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)',
   }
 
   return (
@@ -129,6 +145,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes fadeUp { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
         @keyframes shimmer { 0%,100%{opacity:.6} 50%{opacity:1} }
+        @keyframes slideUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }
         body { background: var(--bg); color: var(--text); transition: background 0.3s, color 0.3s; }
 
         .nav-link {
@@ -159,14 +176,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           box-shadow: 0 4px 20px rgba(234,179,8,0.35), inset 0 1px 0 rgba(255,255,255,0.3);
         }
         .cta-btn:hover { box-shadow: 0 6px 28px rgba(234,179,8,0.55); transform: translateY(-1px); }
-
-        /* Theme toggle */
         .theme-toggle {
           display: flex; align-items: center; gap: 7px;
           background: var(--hover); border: 1px solid var(--border);
           border-radius: 99px; padding: 5px 10px; cursor: pointer;
-          transition: all 0.18s; font-size: 12px; color: var(--text2);
-          font-weight: 500;
+          transition: all 0.18s; font-size: 12px; color: var(--text2); font-weight: 500;
         }
         .theme-toggle:hover { border-color: var(--gold); color: var(--gold); }
         .toggle-track {
@@ -179,125 +193,257 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           box-shadow: 0 1px 4px rgba(0,0,0,0.3);
         }
         .page-content { animation: fadeUp 0.22s ease; }
+
+        /* ── BOTTOM NAV ── */
+        .bottom-nav-item {
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 4px; flex: 1; padding: 8px 4px; cursor: pointer;
+          text-decoration: none; transition: all 0.15s; border: none; background: none;
+          -webkit-tap-highlight-color: transparent; min-height: 56px;
+        }
+        .bottom-nav-item .icon { font-size: 20px; transition: transform 0.15s; }
+        .bottom-nav-item .label { font-size: 10px; font-weight: 500; transition: color 0.15s; }
+        .bottom-nav-item:active .icon { transform: scale(0.88); }
+        .bottom-nav-item.active .icon { filter: drop-shadow(0 0 6px rgba(234,179,8,0.6)); }
+
+        /* More menu */
+        .more-menu-item {
+          display: flex; align-items: center; gap: 12px;
+          padding: 14px 20px; text-decoration: none; font-size: 14px;
+          transition: background 0.15s; -webkit-tap-highlight-color: transparent;
+          border-radius: 10px; margin: 2px 8px;
+        }
+        .more-menu-item:active { background: var(--hover); }
+
+        /* Mobile page padding — accounts for bottom nav */
+        @media (max-width: 767px) {
+          .mobile-page-padding { padding-bottom: 80px !important; }
+        }
       `}</style>
 
       <div style={{ display: 'flex', minHeight: '100vh', background: t.bg, fontFamily: "'Inter',system-ui,-apple-system,sans-serif", color: t.text, transition: 'background 0.3s,color 0.3s' }}>
 
-        {/* Mobile overlay */}
+        {/* Mobile overlay for sidebar */}
         {isMobile && sidebarOpen && (
           <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 29, backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }} />
         )}
 
-        {/* ── SIDEBAR ── */}
-        <aside style={{
-          width: 232, position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 30,
-          transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
-          transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
-          display: 'flex', flexDirection: 'column',
-          background: t.sidebar, borderRight: `1px solid ${t.sidebarBorder}`,
-          boxShadow: sidebarOpen ? t.shadow : 'none',
-        }}>
-          {/* Brand */}
-          <div style={{ padding: '24px 20px 20px', borderBottom: `1px solid ${t.divider}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, background: 'linear-gradient(135deg,#EAB308,#f59e0b,#d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#000', fontWeight: 900, boxShadow: '0 6px 24px rgba(234,179,8,0.4),inset 0 1px 0 rgba(255,255,255,0.4)' }}>A&S</div>
-              <div>
-                <div style={{ fontSize: 12.5, fontWeight: 800, color: t.brandTitle, letterSpacing: '0.04em' }}>AAMIR & SONS</div>
-                <div style={{ fontSize: 9.5, color: t.brandSub, letterSpacing: '0.1em', fontWeight: 500, marginTop: 1 }}>TRADING LTD.</div>
-              </div>
-            </div>
-            <div style={{ marginTop: 18, height: 1, background: `linear-gradient(90deg,rgba(234,179,8,${dark ? '0.4' : '0.6'}),transparent)` }} />
-          </div>
+        {/* More menu overlay */}
+        {isMobile && showMoreMenu && (
+          <div onClick={() => setShowMoreMenu(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 49, backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }} />
+        )}
 
-          {/* Nav */}
-          <nav style={{ padding: '16px 10px', flex: 1, overflowY: 'auto' }}>
-            <div style={{ fontSize: 9.5, color: t.mutedtext, padding: '0 14px', marginBottom: 12, letterSpacing: '0.15em', fontWeight: 700 }}>NAVIGATION</div>
-            {navItems.map(item => {
-              const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
-              return (
-                <a key={item.label} href={item.href} className={`nav-link${isActive ? ' active' : ''}`}>
-                  <span style={{ fontSize: 15, width: 22, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-                  <span style={{ flex: 1 }}>{item.label}</span>
-                  {isActive && <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--gold)', boxShadow: '0 0 10px var(--gold),0 0 20px rgba(234,179,8,0.4)', flexShrink: 0, animation: 'shimmer 2s ease infinite' }} />}
-                </a>
-              )
-            })}
-          </nav>
-
-          {/* User */}
-          <div style={{ padding: '14px 12px', borderTop: `1px solid ${t.divider}` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: t.userCardBg, border: `1px solid ${t.userCardBorder}` }}>
-              <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg,#EAB308,#d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#000', boxShadow: '0 3px 12px rgba(234,179,8,0.4)' }}>
-                {displayName.charAt(0).toUpperCase()}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, color: t.text, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
-                <div style={{ fontSize: 10, color: '#22c55e', marginTop: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e', display: 'inline-block' }} /> Online
+        {/* ── SIDEBAR (desktop only) ── */}
+        {!isMobile && (
+          <aside style={{
+            width: 232, position: 'fixed', top: 0, bottom: 0, left: 0, zIndex: 30,
+            transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+            transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
+            display: 'flex', flexDirection: 'column',
+            background: t.sidebar, borderRight: `1px solid ${t.sidebarBorder}`,
+            boxShadow: sidebarOpen ? t.shadow : 'none',
+          }}>
+            <div style={{ padding: '24px 20px 20px', borderBottom: `1px solid ${t.divider}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <img src="/AamirandSons-Logo.png" alt="Aamir & Sons" style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 12.5, fontWeight: 800, color: t.brandTitle, letterSpacing: '0.04em' }}>AAMIR & SONS</div>
+                  <div style={{ fontSize: 9.5, color: t.brandSub, letterSpacing: '0.1em', fontWeight: 500, marginTop: 1 }}>TRADING LTD.</div>
                 </div>
               </div>
-              <button onClick={handleSignOut} title="Sign out" style={{ background: 'none', border: 'none', color: t.mutedtext, cursor: 'pointer', fontSize: 16, padding: '3px', transition: 'color 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                onMouseLeave={e => (e.currentTarget.style.color = t.mutedtext)}>⎋</button>
+              <div style={{ marginTop: 18, height: 1, background: `linear-gradient(90deg,rgba(234,179,8,${dark ? '0.4' : '0.6'}),transparent)` }} />
             </div>
-          </div>
-        </aside>
+
+            <nav style={{ padding: '16px 10px', flex: 1, overflowY: 'auto' }}>
+              <div style={{ fontSize: 9.5, color: t.mutedtext, padding: '0 14px', marginBottom: 12, letterSpacing: '0.15em', fontWeight: 700 }}>NAVIGATION</div>
+              {navItems.map(item => {
+                const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+                return (
+                  <a key={item.label} href={item.href} className={`nav-link${isActive ? ' active' : ''}`}>
+                    <span style={{ fontSize: 15, width: 22, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    {isActive && <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--gold)', boxShadow: '0 0 10px var(--gold),0 0 20px rgba(234,179,8,0.4)', flexShrink: 0, animation: 'shimmer 2s ease infinite' }} />}
+                  </a>
+                )
+              })}
+            </nav>
+
+            <div style={{ padding: '14px 12px', borderTop: `1px solid ${t.divider}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12, background: t.userCardBg, border: `1px solid ${t.userCardBorder}` }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg,#EAB308,#d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#000', boxShadow: '0 3px 12px rgba(234,179,8,0.4)' }}>
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, color: t.text, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
+                  <div style={{ fontSize: 10, color: '#22c55e', marginTop: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e', display: 'inline-block' }} /> Online
+                  </div>
+                </div>
+                <button onClick={handleSignOut} title="Sign out" style={{ background: 'none', border: 'none', color: t.mutedtext, cursor: 'pointer', fontSize: 16, padding: '3px', transition: 'color 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                  onMouseLeave={e => (e.currentTarget.style.color = t.mutedtext)}>⎋</button>
+              </div>
+            </div>
+          </aside>
+        )}
 
         {/* ── MAIN ── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: (!isMobile && sidebarOpen) ? 232 : 0, transition: 'margin-left 0.28s cubic-bezier(0.4,0,0.2,1)' }}>
 
           {/* Topbar */}
           <header style={{
-            height: 58, flexShrink: 0, position: 'sticky', top: 0, zIndex: 20,
+            height: isMobile ? 52 : 58, flexShrink: 0, position: 'sticky', top: 0, zIndex: 20,
             background: t.topbar, borderBottom: `1px solid ${t.topbarBorder}`,
             backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0 20px',
+            padding: isMobile ? '0 16px' : '0 20px',
             boxShadow: dark ? '0 1px 0 rgba(255,255,255,0.04),0 8px 32px rgba(0,0,0,0.4)' : '0 1px 0 rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.06)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button onClick={() => setSidebarOpen(s => !s)}
-                style={{ background: 'none', border: 'none', color: t.subtext, cursor: 'pointer', fontSize: 18, padding: '6px 8px', borderRadius: 8, transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.color = 'var(--gold)'; e.currentTarget.style.background = 'var(--gold-dim)' }}
-                onMouseLeave={e => { e.currentTarget.style.color = t.subtext; e.currentTarget.style.background = 'none' }}>☰</button>
-              {currentPage && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: t.mutedtext, fontSize: 14 }}>/</span>
-                  <span style={{ fontSize: 13, color: t.subtext, fontWeight: 600 }}>{currentPage.label}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12 }}>
+              {/* On mobile show logo instead of hamburger */}
+              {isMobile ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <img src="/AamirandSons-Logo.jpeg" alt="Aamir & Sons" style={{ width: 30, height: 30, objectFit: 'contain', borderRadius: 6, flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: t.text }}>
+                    {currentPage?.label || 'Aamir & Sons'}
+                  </span>
                 </div>
+              ) : (
+                <>
+                  <button onClick={() => setSidebarOpen(s => !s)}
+                    style={{ background: 'none', border: 'none', color: t.subtext, cursor: 'pointer', fontSize: 18, padding: '6px 8px', borderRadius: 8, transition: 'all 0.15s' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--gold)'; e.currentTarget.style.background = 'var(--gold-dim)' }}
+                    onMouseLeave={e => { e.currentTarget.style.color = t.subtext; e.currentTarget.style.background = 'none' }}>☰</button>
+                  {currentPage && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ color: t.mutedtext, fontSize: 14 }}>/</span>
+                      <span style={{ fontSize: 13, color: t.subtext, fontWeight: 600 }}>{currentPage.label}</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 8 }}>
               {!isMobile && <a href="/calculator" className="topbar-pill">📈 Profit Sim</a>}
               <a href="/truck-intake" className="cta-btn">+ {isMobile ? 'Intake' : 'New Intake'}</a>
 
-              {/* ── THEME TOGGLE ── */}
-              <button onClick={() => setDark(d => !d)} className="theme-toggle" title={dark ? 'Switch to light mode' : 'Switch to dark mode'}>
+              <button onClick={() => setDark(d => !d)} className="theme-toggle" title={dark ? 'Light mode' : 'Dark mode'}>
                 <span style={{ fontSize: 14 }}>{dark ? '☀️' : '🌙'}</span>
-                {!isMobile && <span>{dark ? 'Light' : 'Dark'}</span>}
-                <div className="toggle-track" style={{ background: dark ? '#EAB30855' : '#00000022' }}>
-                  <div className="toggle-thumb" style={{ left: dark ? '14px' : '2px', background: dark ? '#EAB308' : '#888' }} />
-                </div>
+                {!isMobile && (
+                  <>
+                    <span>{dark ? 'Light' : 'Dark'}</span>
+                    <div className="toggle-track" style={{ background: dark ? '#EAB30855' : '#00000022' }}>
+                      <div className="toggle-thumb" style={{ left: dark ? '14px' : '2px', background: dark ? '#EAB308' : '#888' }} />
+                    </div>
+                  </>
+                )}
               </button>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 12, borderLeft: `1px solid ${t.divider}` }}>
-                <div style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg,#EAB308,#d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#000', boxShadow: '0 3px 14px rgba(234,179,8,0.4)', cursor: 'default' }}>
-                  {displayName.charAt(0).toUpperCase()}
+              {!isMobile && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 12, borderLeft: `1px solid ${t.divider}` }}>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg,#EAB308,#d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#000', boxShadow: '0 3px 14px rgba(234,179,8,0.4)' }}>
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                  <span style={{ fontSize: 12, color: t.subtext, fontWeight: 500 }}>{displayName}</span>
+                  <button onClick={handleSignOut} title="Sign out" style={{ background: 'none', border: 'none', color: t.mutedtext, cursor: 'pointer', fontSize: 13, padding: '4px 6px', borderRadius: 6, transition: 'color 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+                    onMouseLeave={e => (e.currentTarget.style.color = t.mutedtext)}>⎋</button>
                 </div>
-                {!isMobile && <span style={{ fontSize: 12, color: t.subtext, fontWeight: 500 }}>{displayName}</span>}
-                <button onClick={handleSignOut} title="Sign out" style={{ background: 'none', border: 'none', color: t.mutedtext, cursor: 'pointer', fontSize: 13, padding: '4px 6px', borderRadius: 6, transition: 'color 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
-                  onMouseLeave={e => (e.currentTarget.style.color = t.mutedtext)}>⎋</button>
-              </div>
+              )}
             </div>
           </header>
 
-          {/* Page */}
-          <main className="page-content" style={{ flex: 1, overflowY: 'auto', background: t.bg, transition: 'background 0.3s' }}>
+          {/* Page content */}
+          <main className={`page-content${isMobile ? ' mobile-page-padding' : ''}`} style={{ flex: 1, overflowY: 'auto', background: t.bg, transition: 'background 0.3s' }}>
             {children}
           </main>
         </div>
+
+        {/* ── BOTTOM NAV (mobile only) ── */}
+        {isMobile && (
+          <>
+            {/* More menu popup */}
+            {showMoreMenu && (
+              <div style={{
+                position: 'fixed', bottom: 70, left: 12, right: 12, zIndex: 50,
+                background: t.moreMenu, border: `1px solid ${t.moreMenuBorder}`,
+                borderRadius: 20, padding: '12px 0',
+                boxShadow: '0 -8px 40px rgba(0,0,0,0.5)',
+                animation: 'slideUp 0.2s ease',
+              }}>
+                {/* User info at top */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px 16px', borderBottom: `1px solid ${t.divider}`, marginBottom: 8 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#EAB308,#d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#000' }}>
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: t.text }}>{displayName}</div>
+                    <div style={{ fontSize: 11, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /> Online
+                    </div>
+                  </div>
+                </div>
+
+                {/* Extra nav items */}
+                {[
+                  { label: 'Invoices', icon: '🧾', href: '/invoices' },
+                  { label: 'Calculator', icon: '⚙', href: '/calculator' },
+                  { label: 'Settings', icon: '⚙', href: '/settings' },
+                  { label: 'Tutorial', icon: '📖', href: '/Tutorial' },
+                ].map(item => (
+                  <a key={item.label} href={item.href} className="more-menu-item"
+                    style={{ color: pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)) ? 'var(--gold)' : t.text }}>
+                    <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>{item.icon}</span>
+                    <span style={{ fontWeight: 500 }}>{item.label}</span>
+                    {(pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))) && (
+                      <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)' }} />
+                    )}
+                  </a>
+                ))}
+
+                {/* Sign out */}
+                <div style={{ margin: '8px 0 0', borderTop: `1px solid ${t.divider}`, paddingTop: 8 }}>
+                  <button onClick={handleSignOut} className="more-menu-item" style={{ width: '100%', border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', textAlign: 'left' }}>
+                    <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>⎋</span>
+                    <span style={{ fontWeight: 500 }}>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom nav bar */}
+            <nav style={{
+              position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40,
+              background: t.bottomNav, borderTop: `1px solid ${t.bottomNavBorder}`,
+              display: 'flex', alignItems: 'center',
+              paddingBottom: 'env(safe-area-inset-bottom)',
+              backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+              boxShadow: '0 -4px 24px rgba(0,0,0,0.3)',
+            }}>
+              {[
+                { label: 'Dashboard', icon: '⊞', href: '/' },
+                { label: 'Inventory', icon: '☰', href: '/inventory' },
+                { label: 'Intake', icon: '📋', href: '/truck-intake' },
+                { label: 'Reports', icon: '📊', href: '/reports' },
+              ].map(item => {
+                const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+                return (
+                  <a key={item.label} href={item.href} className={`bottom-nav-item${isActive ? ' active' : ''}`}>
+                    <span className="icon" style={{ filter: isActive ? 'drop-shadow(0 0 6px rgba(234,179,8,0.7))' : 'none' }}>{item.icon}</span>
+                    <span className="label" style={{ color: isActive ? 'var(--gold)' : t.subtext }}>{item.label}</span>
+                  </a>
+                )
+              })}
+
+              {/* More button */}
+              <button onClick={() => setShowMoreMenu(m => !m)} className={`bottom-nav-item${showMoreMenu ? ' active' : ''}`} style={{ border: 'none', cursor: 'pointer' }}>
+                <span className="icon" style={{ fontSize: 18, color: showMoreMenu ? 'var(--gold)' : t.subtext, fontWeight: 700, letterSpacing: 2 }}>•••</span>
+                <span className="label" style={{ color: showMoreMenu ? 'var(--gold)' : t.subtext }}>More</span>
+              </button>
+            </nav>
+          </>
+        )}
       </div>
     </>
   )
