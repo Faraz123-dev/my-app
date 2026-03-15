@@ -40,16 +40,19 @@ export default function SettingsPage() {
 
   async function loadAll() {
     setLoading(true)
-    const [{ data: { user } }, { data: settings }, { data: trucks }, { data: inv }] = await Promise.all([
-      supabase.auth.getUser(),
+    // Try getUser first, fall back to getSession
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
+    const authUser = user || session?.user
+    if (authUser) {
+      setUserEmail(authUser.email || '')
+      setUserCreated(authUser.created_at ? new Date(authUser.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '')
+    }
+    const [{ data: settings }, { data: trucks }, { data: inv }] = await Promise.all([
       supabase.from('settings').select('*').eq('id', 'singleton').single(),
       supabase.from('Inventory Data').select('id,status'),
       supabase.from('vendor_invoices').select('id'),
     ])
-    if (user) {
-      setUserEmail(user.email || '')
-      setUserCreated(user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '')
-    }
     if (settings) {
       setBizName(settings.business_name || 'Aamir & Sons Trading')
       setBizEmail(settings.business_email || 'aamirandsons@hotmail.com')
@@ -273,8 +276,8 @@ export default function SettingsPage() {
                 <h2 style={{ fontSize:16, fontWeight:700, margin:'0 0 16px' }}>Roles Reference</h2>
                 <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                   {[
-                    { role:'Admin', color:'var(--gold)',  dim:'var(--gold-dim)', desc:'Full access — can manage trucks, finances, invoices, users, and all settings.' },
-                    { role:'Ops',   color:'var(--text2)', dim:'var(--hover)',     desc:'Operational access — can manage intake, costs, and documents but cannot edit final profit-related financial fields.' },
+                    { role:'Admin', color:'var(--gold)', dim:'var(--gold-dim)', desc:'Full access — can manage trucks, finances, invoices, users, and all settings.' },
+                    { role:'Ops',   color:'var(--text2)', dim:'var(--hover)',    desc:'Operational access — can manage intake, costs, and documents but cannot edit final profit-related financial fields.' },
                   ].map(r => (
                     <div key={r.role} style={{ display:'flex', gap:14, alignItems:'flex-start' }}>
                       <span style={{ background:r.dim, color:r.color, border:`1px solid ${r.color}`, borderRadius:99, padding:'3px 12px', fontSize:11, fontWeight:700, flexShrink:0, marginTop:1 }}>{r.role}</span>
@@ -293,7 +296,7 @@ export default function SettingsPage() {
                 <p style={{ fontSize:13, color:'var(--text3)', margin:'0 0 20px' }}>A snapshot of your data across the system.</p>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
                   {[['TRUCKS',stats.trucks],['INTAKES',stats.intakes],['VENDORS',stats.vendors],['INVOICES',stats.invoices]].map(([l,v]) => (
-                    <div key={String(l)} style={{ background:'var(--hover)', border:'1px solid var(--border)', borderRadius:12, padding:'16px', textAlign:'center' }}>
+                    <div key={l} style={{ background:'var(--hover)', border:'1px solid var(--border)', borderRadius:12, padding:'16px', textAlign:'center' }}>
                       <div style={{ fontSize:28, fontWeight:800, color:'var(--text)', marginBottom:4 }}>{v}</div>
                       <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.12em', fontWeight:700 }}>{l}</div>
                     </div>
