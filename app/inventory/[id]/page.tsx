@@ -766,8 +766,8 @@ export default function TruckDetailPage() {
             {/* Purchase info */}
             <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>PURCHASE</div>
             <div className="form-2col" style={{ marginBottom: 14 }}>
-              <div><label style={LS}>Purchase Price ($)</label><input style={IS} type="number" placeholder="35000" value={(detailsForm as any).purchase_price || ''} onChange={e => setDetailsForm(p => ({ ...p, purchase_price: e.target.value }))} /></div>
-              <div><label style={LS}>Recondition Cost ($)</label><input style={IS} type="number" placeholder="0" value={(detailsForm as any).recondition_cost || ''} onChange={e => setDetailsForm(p => ({ ...p, recondition_cost: e.target.value }))} /></div>
+              <div><label style={LS}>Purchase Price ($)</label><input style={IS} type="number" placeholder="35000" value={(detailsForm as any).purchase_price || ''} onChange={e => setDetailsForm(p => ({ ...p, purchase_price: e.target.value as any }))} /></div>
+              <div><label style={LS}>Recondition Cost ($)</label><input style={IS} type="number" placeholder="0" value={(detailsForm as any).recondition_cost || ''} onChange={e => setDetailsForm(p => ({ ...p, recondition_cost: e.target.value as any }))} /></div>
             </div>
             <div style={{ marginBottom: 14 }}><label style={LS}>Bought From</label><input style={IS} placeholder="e.g. Ryder Trucks" value={(detailsForm as any).bought_from || ''} onChange={e => setDetailsForm(p => ({ ...p, bought_from: e.target.value }))} /></div>
             {/* Sale info */}
