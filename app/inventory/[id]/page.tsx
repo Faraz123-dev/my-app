@@ -761,7 +761,7 @@ export default function TruckDetailPage() {
             <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>VEHICLE</div>
             <div className="form-2col" style={{ marginBottom: 14 }}>
               <div><label style={LS}>Colour</label><input style={IS} placeholder="White" value={(detailsForm as any).colour || ''} onChange={e => setDetailsForm(p => ({ ...p, colour: e.target.value }))} /></div>
-              <div><label style={LS}>Kilometers</label><input style={IS} type="number" placeholder="450000" value={(detailsForm as any).kilometers || ''} onChange={e => setDetailsForm(p => ({ ...p, kilometers: e.target.value }))} /></div>
+              <div><label style={LS}>Kilometers</label><input style={IS} type="number" placeholder="450000" value={(detailsForm as any).kilometers || ''} onChange={e => setDetailsForm(p => ({ ...p, kilometers: e.target.value as any }))} /></div>
             </div>
             {/* Purchase info */}
             <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>PURCHASE</div>
