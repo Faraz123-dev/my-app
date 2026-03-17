@@ -297,7 +297,7 @@ export default function TruckDetailPage() {
   const laborTotal   = labors.reduce((s, l) => s + l.hours * l.rate, 0)
   const invoiceTotal = invoices.reduce((s, i) => s + i.amount, 0)
   const otherTotal   = otherCosts.reduce((s, o) => s + o.amount, 0)
-  const reconTotal   = (truck.recondition_cost || 0) + partsTotal + laborTotal + invoiceTotal + otherTotal
+  const reconTotal   = partsTotal + laborTotal + invoiceTotal + otherTotal
   const allInCost    = (truck.purchase_price || 0) + reconTotal
   const profit       = truck.sold_price != null ? truck.sold_price - allInCost : null
 

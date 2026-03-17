@@ -245,7 +245,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           }}>
             <div style={{ padding: '24px 20px 20px', borderBottom: `1px solid ${t.divider}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <img src="AamirandSons-Logo.png" alt="Aamir & Sons" style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }} />
+                <img src="/AamirandSons-Logo.png" alt="Aamir & Sons" style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 8, flexShrink: 0 }} />
                 <div>
                   <div style={{ fontSize: 12.5, fontWeight: 800, color: t.brandTitle, letterSpacing: '0.04em' }}>AAMIR & SONS</div>
                   <div style={{ fontSize: 9.5, color: t.brandSub, letterSpacing: '0.1em', fontWeight: 500, marginTop: 1 }}>TRADING LTD.</div>
