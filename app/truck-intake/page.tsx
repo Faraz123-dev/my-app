@@ -23,6 +23,10 @@ export default function TruckIntakePage() {
   const [make, setMake] = useState('')
   const [model, setModel] = useState('')
   const [kilometers, setKilometers] = useState('')
+  const [ratio, setRatio] = useState('')
+  const [horsepower, setHorsepower] = useState('')
+  const [frontAxle, setFrontAxle] = useState('')
+  const [rearAxle, setRearAxle] = useState('')
   const [checked, setChecked] = useState<Record<string, boolean>>({})
   const [notes, setNotes] = useState('')
   const [estRecon, setEstRecon] = useState('')
@@ -46,7 +50,11 @@ export default function TruckIntakePage() {
     year: parseInt(year) || null,
     make: make || null,
     model: model || null,
-    kilometers: parseInt(kilometers) || null,
+    kilometers: parseInt(kilometers.replace(/,/g, '')) || null,
+    ratio: ratio || null,
+    horsepower: horsepower || null,
+    front_axle: frontAxle || null,
+    rear_axle: rearAxle || null,
     purchase_price: parseFloat(offerPrice) || null,
     recondition_cost: parseFloat(estRecon) || 0,
     payment_status: 'N/A',
@@ -137,7 +145,18 @@ export default function TruckIntakePage() {
             <div><label style={LS}>Make</label><input style={IS} placeholder="Freightliner" value={make} onChange={e => setMake(e.target.value)} /></div>
             <div><label style={LS}>Model</label><input style={IS} placeholder="Cascadia" value={model} onChange={e => setModel(e.target.value)} /></div>
           </div>
-          <div><label style={LS}>Kilometers</label><input style={IS} placeholder="450000" value={kilometers} onChange={e => setKilometers(e.target.value)} type="number" /></div>
+          <div style={{ marginBottom: 12 }}><label style={LS}>Kilometers</label><input style={IS} placeholder="450,000" value={kilometers} onChange={e => {
+            const raw = e.target.value.replace(/[^0-9]/g, '')
+            setKilometers(raw ? parseInt(raw).toLocaleString() : '')
+          }} /></div>
+          <div className="intake-2" style={{ marginBottom: 12 }}>
+            <div><label style={LS}>Horsepower (HP)</label><input style={IS} placeholder="e.g. 475" value={horsepower} onChange={e => setHorsepower(e.target.value)} /></div>
+            <div><label style={LS}>Ratio</label><input style={IS} placeholder="e.g. 3.55" value={ratio} onChange={e => setRatio(e.target.value)} /></div>
+          </div>
+          <div className="intake-2">
+            <div><label style={LS}>Front Axle</label><input style={IS} placeholder="e.g. 12,000 lbs" value={frontAxle} onChange={e => setFrontAxle(e.target.value)} /></div>
+            <div><label style={LS}>Rear Axle</label><input style={IS} placeholder="e.g. 40,000 lbs" value={rearAxle} onChange={e => setRearAxle(e.target.value)} /></div>
+          </div>
         </div>
 
         {/* Inspection */}
