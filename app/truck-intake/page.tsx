@@ -122,8 +122,8 @@ export default function TruckIntakePage() {
       <main style={{ padding: '24px 20px', background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)', fontFamily: 'system-ui,sans-serif' }}>
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 6, opacity: 0.7 }}>ACQUISITION</div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>Truck Intake</h1>
-          <p style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>Inspect and evaluate a truck for purchase.</p>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>Truck Acquisition</h1>
+          <p style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>Evaluate and acquire trucks for your fleet.</p>  
           <div style={{ marginTop: 16, height: 1, background: 'linear-gradient(90deg,var(--gold),transparent)' }} />
         </div>
 

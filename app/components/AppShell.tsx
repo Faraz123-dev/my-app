@@ -8,7 +8,7 @@ import { useUser } from '@/lib/useUser'
 const navItems = [
   { label: 'Dashboard', icon: '⊞', href: '/' },
   { label: 'Inventory', icon: '☰', href: '/inventory' },
-  { label: 'Truck Intake', icon: '📋', href: '/truck-intake' },
+  { label: 'Truck Acquisition', icon: '🚛', href: '/truck-intake' },
   { label: 'Invoices', icon: '🧾', href: '/invoices' },
   { label: 'Reports', icon: '📊', href: '/reports' },
   { label: 'Calculator', icon: '⚙', href: '/calculator' },
@@ -326,7 +326,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 8 }}>
               {!isMobile && <a href="/calculator" className="topbar-pill">📈 Profit Sim</a>}
-              <a href="/truck-intake" className="cta-btn">+ {isMobile ? 'Intake' : 'New Intake'}</a>
+              <a href="/truck-intake" className="cta-btn">+ {isMobile ? 'Acquire' : 'New Acquisition'}</a>
 
               <button onClick={() => setDark(d => !d)} className="theme-toggle" title={dark ? 'Light mode' : 'Dark mode'}>
                 <span style={{ fontSize: 14 }}>{dark ? '☀️' : '🌙'}</span>
