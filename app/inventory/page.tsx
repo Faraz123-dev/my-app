@@ -514,7 +514,7 @@ export default function InventoryPage() {
         .inv-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 16px; cursor: pointer; transition: all 0.18s; }
         .inv-card:hover { border-color: var(--gold); }
         .inv-card:active { transform: scale(0.99); }
-        .th-btn { display:flex; align-items:center; gap:4px; background:none; border:none; color:var(--text2); cursor:pointer; font-size:10px; font-weight:600; letter-spacing:0.08em; padding:0; white-space:nowrap; transition:color 0.15s; }
+        .th-btn { display:flex; align-items:center; gap:4px; background:none; border:none; color:var(--text2); cursor:pointer; font-size:11px; font-weight:600; letter-spacing:0.08em; padding:0; white-space:nowrap; transition:color 0.15s; }
         .th-btn:hover { color: var(--text); }
         .th-btn.active { color: var(--gold); }
         @media (max-width: 767px) { .inv-card { border-radius: 12px; padding: 14px; } }
@@ -568,7 +568,7 @@ export default function InventoryPage() {
           <div style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:12, padding:'16px', marginBottom:14, display:'flex', flexDirection:'column', gap:16 }}>
             <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'1fr 1fr', gap:16 }}>
               <div>
-                <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.1em', fontWeight:700, marginBottom:8 }}>BOUGHT ON</div>
+                <div style={{ fontSize:11, color:'var(--text4)', letterSpacing:'0.1em', fontWeight:700, marginBottom:8 }}>BOUGHT ON</div>
                 <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                   <input type="date" style={{ ...IS, flex:1 }} value={boughtFrom} onChange={e => setBoughtFrom(e.target.value)} />
                   <span style={{ color:'var(--text4)', flexShrink:0 }}>→</span>
