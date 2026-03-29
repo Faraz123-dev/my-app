@@ -12,8 +12,10 @@ type Truck = {
   payment_status: string | null; notes: string | null; photo_url: string | null
 }
 
-type TruckPhoto = { id: string; truck_id: string; url: string; sort_order: number }
+type TruckPhoto = { id: string; truck_id: string; url: string; sort_order: number; category: string }
 type SortDir = 'asc' | 'desc'
+type PhotoCategory = 'General' | 'Before Recon' | 'After Recon'
+const PHOTO_CATEGORIES: PhotoCategory[] = ['General', 'Before Recon', 'After Recon']
 
 const statusColors: Record<string, { bg: string; color: string; border: string }> = {
   Intake:              { bg: 'var(--gold-dim)',   color: 'var(--gold)',   border: 'var(--gold)' },
@@ -26,6 +28,12 @@ const statusColors: Record<string, { bg: string; color: string; border: string }
 }
 
 const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+
+const catColors: Record<PhotoCategory, { tab: string; badge: string; badgeTxt: string }> = {
+  'General':      { tab: 'var(--gold)',   badge: 'var(--gold-dim)',   badgeTxt: 'var(--gold)'   },
+  'Before Recon': { tab: 'var(--orange)', badge: 'var(--orange-dim)', badgeTxt: 'var(--orange)' },
+  'After Recon':  { tab: 'var(--green)',  badge: 'var(--green-dim)',  badgeTxt: 'var(--green)'  },
+}
 
 // ── LIGHTBOX ──────────────────────────────────────────────────────────────────
 function Lightbox({ photos, startIndex, onClose }: { photos: TruckPhoto[]; startIndex: number; onClose: () => void }) {
@@ -57,7 +65,12 @@ function Lightbox({ photos, startIndex, onClose }: { photos: TruckPhoto[]; start
       onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
       <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${photo.url})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(30px) brightness(0.25)', transform: 'scale(1.1)' }} />
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', flexShrink: 0 }}>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>{idx + 1} / {photos.length}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>{idx + 1} / {photos.length}</div>
+          {photo.category && photo.category !== 'General' && (
+            <span style={{ background: catColors[photo.category as PhotoCategory]?.badge, color: catColors[photo.category as PhotoCategory]?.badgeTxt, borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>{photo.category}</span>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <a href={photo.url} download onClick={e => e.stopPropagation()} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: 99, padding: '6px 14px', fontSize: 12, fontWeight: 600, textDecoration: 'none', cursor: 'pointer' }}>⬇ Save</a>
           <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: '50%', width: 36, height: 36, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
@@ -88,21 +101,23 @@ function Lightbox({ photos, startIndex, onClose }: { photos: TruckPhoto[]; start
   )
 }
 
-// ── PHOTO MANAGER MODAL ───────────────────────────────────────────────────────
+// ── PHOTO MANAGER ─────────────────────────────────────────────────────────────
 function PhotoManager({ truck, onClose, onChanged }: { truck: Truck; onClose: () => void; onChanged: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [photos, setPhotos] = useState<TruckPhoto[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadMsg, setUploadMsg] = useState('')
+  const [lightboxPhotos, setLightboxPhotos] = useState<TruckPhoto[]>([])
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
+  const [activeCategory, setActiveCategory] = useState<PhotoCategory>('General')
+  const [uploadCategory, setUploadCategory] = useState<PhotoCategory>('General')
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
 
   useEffect(() => { loadPhotos() }, [])
 
   async function loadPhotos() {
-    const { data, error } = await supabase.from('truck_photos').select('*').eq('truck_id', truck.id).order('sort_order')
-    if (error) { console.error('load photos error:', error); return }
+    const { data } = await supabase.from('truck_photos').select('*').eq('truck_id', truck.id).order('sort_order')
     setPhotos(data || [])
   }
 
@@ -118,21 +133,14 @@ function PhotoManager({ truck, onClose, onChanged }: { truck: Truck; onClose: ()
       const ext = file.name.split('.').pop() || 'jpg'
       const path = `trucks/${truck.id}-${Date.now()}-${i}.${ext}`
       const { error: storageErr } = await supabase.storage.from('invoices').upload(path, file, { upsert: true })
-      if (storageErr) { console.error('Storage upload error:', storageErr); setUploadMsg(`Storage error: ${storageErr.message}`); continue }
+      if (storageErr) { setUploadMsg(`Storage error: ${storageErr.message}`); continue }
       const { data: urlData } = supabase.storage.from('invoices').getPublicUrl(path)
       const { error: dbErr } = await supabase.from('truck_photos').insert([{
-        truck_id: truck.id,
-        url: urlData.publicUrl,
-        sort_order: currentMax + i + 1,
+        truck_id: truck.id, url: urlData.publicUrl,
+        sort_order: currentMax + i + 1, category: uploadCategory,
       }])
-      if (dbErr) {
-        console.error('DB insert error:', dbErr)
-        setUploadMsg(`DB error: ${dbErr.message} — Did you create the truck_photos table in Supabase?`)
-        setUploading(false)
-        return
-      }
+      if (dbErr) { setUploadMsg(`DB error: ${dbErr.message}`); setUploading(false); return }
       uploaded++
-      // Keep legacy photo_url pointing to first photo
       if (photos.length === 0 && i === 0) {
         await supabase.from('Inventory Data').update({ photo_url: urlData.publicUrl }).eq('id', truck.id)
       }
@@ -140,8 +148,7 @@ function PhotoManager({ truck, onClose, onChanged }: { truck: Truck; onClose: ()
     setUploadMsg(uploaded > 0 ? `✓ ${uploaded} photo${uploaded > 1 ? 's' : ''} added` : '')
     setUploading(false)
     if (fileRef.current) fileRef.current.value = ''
-    await loadPhotos()
-    onChanged()
+    await loadPhotos(); onChanged()
     setTimeout(() => setUploadMsg(''), 2000)
   }
 
@@ -152,40 +159,72 @@ function PhotoManager({ truck, onClose, onChanged }: { truck: Truck; onClose: ()
     await supabase.from('truck_photos').delete().eq('id', photoId)
     const remaining = photos.filter(p => p.id !== photoId)
     await supabase.from('Inventory Data').update({ photo_url: remaining[0]?.url || null }).eq('id', truck.id)
-    await loadPhotos()
-    onChanged()
+    await loadPhotos(); onChanged()
   }
 
   function onDragStart(i: number) { setDragIdx(i) }
   function onDragEnter(i: number) { setDragOver(i) }
   async function onDragEnd() {
     if (dragIdx === null || dragOver === null || dragIdx === dragOver) { setDragIdx(null); setDragOver(null); return }
-    const reordered = [...photos]
+    const catPhotos = photos.filter(p => p.category === activeCategory)
+    const reordered = [...catPhotos]
     const [moved] = reordered.splice(dragIdx, 1)
     reordered.splice(dragOver, 0, moved)
     const updated = reordered.map((p, i) => ({ ...p, sort_order: i }))
-    setPhotos(updated)
+    setPhotos(prev => [...prev.filter(p => p.category !== activeCategory), ...updated])
     setDragIdx(null); setDragOver(null)
     for (const p of updated) await supabase.from('truck_photos').update({ sort_order: p.sort_order }).eq('id', p.id)
     if (updated[0]) await supabase.from('Inventory Data').update({ photo_url: updated[0].url }).eq('id', truck.id)
     onChanged()
   }
 
+  const catPhotos = photos.filter(p => p.category === activeCategory)
+  const beforePhotos = photos.filter(p => p.category === 'Before Recon')
+  const afterPhotos  = photos.filter(p => p.category === 'After Recon')
+
   return (
     <>
-      {/* Backdrop */}
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        {/* Modal — stop propagation so clicking inside doesn't close */}
-        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 560, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 600, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}>
+
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>Photos</div>
             <button onClick={onClose} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '50%', width: 34, height: 34, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 18 }}>Drag to reorder · tap to view full screen</div>
 
-          {/* Upload button + status */}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
+          {/* Category tabs */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 18, background: 'var(--hover)', borderRadius: 10, padding: 4 }}>
+            {PHOTO_CATEGORIES.map(cat => {
+              const count = photos.filter(p => p.category === cat).length
+              const isActive = activeCategory === cat
+              const c = catColors[cat]
+              return (
+                <button key={cat} onClick={() => setActiveCategory(cat)}
+                  style={{ flex: 1, background: isActive ? c.badge : 'transparent', border: `1px solid ${isActive ? c.tab : 'transparent'}`, color: isActive ? c.tab : 'var(--text3)', borderRadius: 8, padding: '8px 6px', fontSize: 12, cursor: 'pointer', fontWeight: isActive ? 700 : 400, transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                  {cat === 'Before Recon' ? '🔧' : cat === 'After Recon' ? '✨' : '📷'} {cat}
+                  {count > 0 && <span style={{ background: isActive ? c.tab : 'var(--border)', color: isActive ? '#000' : 'var(--text3)', borderRadius: 99, padding: '0 6px', fontSize: 10, fontWeight: 700 }}>{count}</span>}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Category description */}
+          {activeCategory !== 'General' && (
+            <div style={{ background: catColors[activeCategory].badge, border: `1px solid ${catColors[activeCategory].tab}`, borderRadius: 10, padding: '10px 14px', marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: catColors[activeCategory].badgeTxt }}>{activeCategory === 'Before Recon' ? '🔧 Before Reconditioning' : '✨ After Reconditioning'}</div>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>
+                {activeCategory === 'Before Recon' ? 'Photos showing the truck\'s condition before repairs began' : 'Photos showing the finished truck after all reconditioning work'}
+              </div>
+            </div>
+          )}
+
+          {/* Upload controls */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 18, flexWrap: 'wrap' }}>
+            <select value={uploadCategory} onChange={e => setUploadCategory(e.target.value as PhotoCategory)}
+              style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '8px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', cursor: 'pointer' }}>
+              {PHOTO_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+            </select>
             <button onClick={() => fileRef.current?.click()} disabled={uploading}
               style={{ background: uploading ? 'var(--hover)' : 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: uploading ? 'var(--text3)' : '#000', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 800, cursor: uploading ? 'default' : 'pointer', minHeight: 44 }}>
               {uploading ? 'Uploading...' : '+ Add Photos'}
@@ -193,24 +232,23 @@ function PhotoManager({ truck, onClose, onChanged }: { truck: Truck; onClose: ()
             {uploadMsg && <div style={{ fontSize: 12, color: uploadMsg.includes('error') || uploadMsg.includes('Error') ? 'var(--red)' : 'var(--green)', fontWeight: 600 }}>{uploadMsg}</div>}
           </div>
 
-          {/* Grid */}
-          {photos.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text4)', fontSize: 13, fontStyle: 'italic' }}>
-              No photos yet. Click "+ Add Photos" above.
+          {/* Photo grid */}
+          {catPhotos.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text4)', fontSize: 13 }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>{activeCategory === 'Before Recon' ? '🔧' : activeCategory === 'After Recon' ? '✨' : '📷'}</div>
+              No {activeCategory.toLowerCase()} photos yet.
+              <div style={{ fontSize: 11, marginTop: 6, color: 'var(--text4)' }}>Select "{activeCategory}" in the dropdown above and click + Add Photos</div>
             </div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-              {photos.map((p, i) => (
-                <div key={p.id}
-                  draggable
-                  onDragStart={() => onDragStart(i)}
-                  onDragEnter={() => onDragEnter(i)}
-                  onDragEnd={onDragEnd}
-                  onDragOver={e => e.preventDefault()}
-                  style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', aspectRatio: '4/3', border: `2px solid ${dragOver === i ? 'var(--gold)' : i === 0 ? 'rgba(234,179,8,0.5)' : 'var(--border)'}`, opacity: dragIdx === i ? 0.4 : 1, cursor: 'grab', transition: 'all 0.15s' }}>
+              {catPhotos.map((p, i) => (
+                <div key={p.id} draggable
+                  onDragStart={() => onDragStart(i)} onDragEnter={() => onDragEnter(i)}
+                  onDragEnd={onDragEnd} onDragOver={e => e.preventDefault()}
+                  style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', aspectRatio: '4/3', border: `2px solid ${dragOver === i ? 'var(--gold)' : i === 0 && activeCategory === 'General' ? 'rgba(234,179,8,0.5)' : catColors[activeCategory].tab + '55'}`, opacity: dragIdx === i ? 0.4 : 1, cursor: 'grab', transition: 'all 0.15s' }}>
                   <img src={p.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    onClick={() => setLightboxIdx(i)} />
-                  {i === 0 && (
+                    onClick={() => { setLightboxPhotos(catPhotos); setLightboxIdx(i) }} />
+                  {i === 0 && activeCategory === 'General' && (
                     <div style={{ position: 'absolute', top: 6, left: 6, background: 'var(--gold)', color: '#000', borderRadius: 4, fontSize: 9, fontWeight: 800, padding: '2px 6px' }}>COVER</div>
                   )}
                   <button onClick={() => deletePhoto(p.id, p.url)}
@@ -220,19 +258,45 @@ function PhotoManager({ truck, onClose, onChanged }: { truck: Truck; onClose: ()
               ))}
             </div>
           )}
+
+          {/* Before/After comparison — shown on General tab when both exist */}
+          {activeCategory === 'General' && beforePhotos.length > 0 && afterPhotos.length > 0 && (
+            <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+              <div style={{ fontSize: 11, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 12 }}>BEFORE / AFTER COMPARISON</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {([['Before Recon', beforePhotos], ['After Recon', afterPhotos]] as [PhotoCategory, TruckPhoto[]][]).map(([cat, catPh]) => (
+                  <div key={cat} onClick={() => setActiveCategory(cat)} style={{ cursor: 'pointer', borderRadius: 12, overflow: 'hidden', border: `2px solid ${catColors[cat].tab}`, position: 'relative', aspectRatio: '4/3', transition: 'transform 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.02)')}
+                    onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
+                    <img src={catPh[0].url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%)' }} />
+                    <div style={{ position: 'absolute', bottom: 10, left: 10, right: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>{cat === 'Before Recon' ? '🔧' : '✨'} {cat}</div>
+                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>Click to view all</div>
+                      </div>
+                      <span style={{ background: catColors[cat].badge, color: catColors[cat].badgeTxt, borderRadius: 99, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>{catPh.length} photo{catPh.length !== 1 ? 's' : ''}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text4)', textAlign: 'center' }}>Drag photos to reorder · tap to view full screen</div>
         </div>
       </div>
 
       <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFiles} />
 
-      {lightboxIdx !== null && photos.length > 0 && (
-        <Lightbox photos={photos} startIndex={lightboxIdx} onClose={() => setLightboxIdx(null)} />
+      {lightboxIdx !== null && lightboxPhotos.length > 0 && (
+        <Lightbox photos={lightboxPhotos} startIndex={lightboxIdx} onClose={() => setLightboxIdx(null)} />
       )}
     </>
   )
 }
 
-// ── PHOTO CELL (compact, in table/card row) ───────────────────────────────────
+// ── PHOTO CELL ────────────────────────────────────────────────────────────────
 function PhotoCell({ truck, onPhotosChanged }: { truck: Truck; onPhotosChanged: () => void }) {
   const [photos, setPhotos] = useState<TruckPhoto[]>([])
   const [showManager, setShowManager] = useState(false)
@@ -246,11 +310,12 @@ function PhotoCell({ truck, onPhotosChanged }: { truck: Truck; onPhotosChanged: 
   }
 
   const first = photos[0]
+  const beforeCount = photos.filter(p => p.category === 'Before Recon').length
+  const afterCount  = photos.filter(p => p.category === 'After Recon').length
 
   return (
     <>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-        {/* Thumbnail */}
         {first && (
           <div style={{ position: 'relative', flexShrink: 0 }}>
             <div onClick={e => { e.stopPropagation(); setLightboxIdx(0) }}
@@ -265,9 +330,15 @@ function PhotoCell({ truck, onPhotosChanged }: { truck: Truck; onPhotosChanged: 
             )}
           </div>
         )}
-        {/* Add / manage button */}
+        {/* Before/After indicator dots */}
+        {(beforeCount > 0 || afterCount > 0) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {beforeCount > 0 && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--orange)' }} title="Has Before Recon photos" />}
+            {afterCount  > 0 && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)'  }} title="Has After Recon photos" />}
+          </div>
+        )}
         <button onClick={e => { e.stopPropagation(); setShowManager(true) }}
-          style={{ width: first ? 28 : 48, height: 36, borderRadius: 6, border: '1px dashed var(--border)', background: 'var(--hover)', color: 'var(--text3)', cursor: 'pointer', fontSize: first ? 13 : 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}
+          style={{ width: first ? 28 : 48, height: 36, borderRadius: 6, border: '1px dashed var(--border)', background: 'var(--hover)', color: 'var(--text3)', cursor: 'pointer', fontSize: first ? 13 : 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
           title={first ? 'Manage photos' : 'Add photos'}>
           {first ? '⊕' : '📷'}
         </button>
@@ -413,23 +484,23 @@ export default function InventoryPage() {
 
   type Col = { key: keyof Truck | 'allIn' | 'profit'; label: string; sortKey?: keyof Truck; filterable?: boolean }
   const cols: Col[] = [
-    { key: 'status',           label: 'Status',      sortKey: 'status',           filterable: true },
-    { key: 'bought_on',        label: 'Bought On',   sortKey: 'bought_on' },
-    { key: 'vin',              label: 'VIN',         sortKey: 'vin' },
-    { key: 'year',             label: 'Year',        sortKey: 'year',             filterable: true },
-    { key: 'make',             label: 'Make',        sortKey: 'make',             filterable: true },
-    { key: 'model',            label: 'Model',       sortKey: 'model',            filterable: true },
-    { key: 'colour',           label: 'Colour',      sortKey: 'colour',           filterable: true },
-    { key: 'kilometers',       label: 'KMs',         sortKey: 'kilometers' },
-    { key: 'bought_from',      label: 'Bought From', sortKey: 'bought_from',      filterable: true },
-    { key: 'purchase_price',   label: 'Purchase',    sortKey: 'purchase_price' },
-    { key: 'recondition_cost', label: 'Recon',       sortKey: 'recondition_cost' },
-    { key: 'allIn',            label: 'All-In' },
-    { key: 'date_sold',        label: 'Date Sold',   sortKey: 'date_sold' },
-    { key: 'customer',         label: 'Customer',    sortKey: 'customer',         filterable: true },
-    { key: 'sold_price',       label: 'Sold Price',  sortKey: 'sold_price' },
-    { key: 'profit',           label: 'Profit' },
-    { key: 'payment_status',   label: 'Payment',     sortKey: 'payment_status',   filterable: true },
+    { key: 'status', label: 'Status', sortKey: 'status', filterable: true },
+    { key: 'bought_on', label: 'Bought On', sortKey: 'bought_on' },
+    { key: 'vin', label: 'VIN', sortKey: 'vin' },
+    { key: 'year', label: 'Year', sortKey: 'year', filterable: true },
+    { key: 'make', label: 'Make', sortKey: 'make', filterable: true },
+    { key: 'model', label: 'Model', sortKey: 'model', filterable: true },
+    { key: 'colour', label: 'Colour', sortKey: 'colour', filterable: true },
+    { key: 'kilometers', label: 'KMs', sortKey: 'kilometers' },
+    { key: 'bought_from', label: 'Bought From', sortKey: 'bought_from', filterable: true },
+    { key: 'purchase_price', label: 'Purchase', sortKey: 'purchase_price' },
+    { key: 'recondition_cost', label: 'Recon', sortKey: 'recondition_cost' },
+    { key: 'allIn', label: 'All-In' },
+    { key: 'date_sold', label: 'Date Sold', sortKey: 'date_sold' },
+    { key: 'customer', label: 'Customer', sortKey: 'customer', filterable: true },
+    { key: 'sold_price', label: 'Sold Price', sortKey: 'sold_price' },
+    { key: 'profit', label: 'Profit' },
+    { key: 'payment_status', label: 'Payment', sortKey: 'payment_status', filterable: true },
   ]
 
   const popupValues = filterPopup
@@ -440,19 +511,17 @@ export default function InventoryPage() {
     <>
       <style>{`
         @keyframes spin { to { transform:rotate(360deg) } }
-        @keyframes slideUp { from { opacity:0; transform:translateY(30px) } to { opacity:1; transform:translateY(0) } }
         .inv-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 14px; padding: 16px; cursor: pointer; transition: all 0.18s; }
         .inv-card:hover { border-color: var(--gold); }
         .inv-card:active { transform: scale(0.99); }
-        .th-btn { display:flex; align-items:center; gap:4px; background:none; border:none; color:var(--text4); cursor:pointer; font-size:10px; font-weight:600; letter-spacing:0.08em; padding:0; white-space:nowrap; transition:color 0.15s; }
-        .th-btn:hover { color: var(--text2); }
+        .th-btn { display:flex; align-items:center; gap:4px; background:none; border:none; color:var(--text2); cursor:pointer; font-size:10px; font-weight:600; letter-spacing:0.08em; padding:0; white-space:nowrap; transition:color 0.15s; }
+        .th-btn:hover { color: var(--text); }
         .th-btn.active { color: var(--gold); }
         @media (max-width: 767px) { .inv-card { border-radius: 12px; padding: 14px; } }
       `}</style>
 
       <main style={{ padding: isMobile ? '16px' : '24px 20px', background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)', fontFamily: 'system-ui,sans-serif' }}>
 
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 14 : 20 }}>
           <div>
             <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 4, opacity: 0.7 }}>FLEET</div>
@@ -463,7 +532,6 @@ export default function InventoryPage() {
 
         <div style={{ height: 1, background: 'linear-gradient(90deg, var(--gold), transparent)', marginBottom: isMobile ? 14 : 20 }} />
 
-        {/* Stats */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
           {[{ label:'Total', value:trucks.length, color:'var(--text2)' }, { label:'In Stock', value:inStock, color:'var(--gold)' }, { label:'Sold', value:sold, color:'var(--green)' }, { label:'Pending', value:pend, color:'var(--orange)' }].map(s => (
             <div key={s.label} style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:99, padding:'5px 12px', fontSize:12, color:'var(--text2)' }}>
@@ -486,7 +554,6 @@ export default function InventoryPage() {
           )}
         </div>
 
-        {/* Search */}
         <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
           <div style={{ position:'relative', flex:1, minWidth:isMobile?'100%':200 }}>
             <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--text3)', fontSize:15 }}>🔍</span>
@@ -497,7 +564,6 @@ export default function InventoryPage() {
           </button>
         </div>
 
-        {/* Date filters */}
         {showDateFilters && (
           <div style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:12, padding:'16px', marginBottom:14, display:'flex', flexDirection:'column', gap:16 }}>
             <div style={{ display:'grid', gridTemplateColumns:isMobile?'1fr':'1fr 1fr', gap:16 }}>
@@ -549,7 +615,6 @@ export default function InventoryPage() {
           <div style={{ textAlign:'center', padding:60, color:'var(--red)' }}>Error: {error}</div>
         ) : (viewMode==='cards' || isMobile) ? (
 
-          /* ── CARD VIEW ── */
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {filtered.length===0
               ? <div style={{ textAlign:'center', padding:48, color:'var(--text4)' }}>No trucks found</div>
@@ -567,7 +632,7 @@ export default function InventoryPage() {
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
                           <div style={{ minWidth:0 }}>
                             <div style={{ fontSize:isMobile?15:16, fontWeight:700, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{truck.year} {truck.make} {truck.model}</div>
-                            <div style={{ fontSize:11, color:'var(--text3)', marginTop:3, fontFamily:'monospace' }}>{truck.vin}</div>
+                            <div style={{ fontSize:11, color:'var(--text2)', marginTop:3, fontFamily:'monospace', letterSpacing:'0.05em' }}>{truck.vin}</div>
                           </div>
                           <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
                             <span style={{ background:sc.bg, color:sc.color, border:`1px solid ${sc.border}`, borderRadius:99, padding:'3px 10px', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>{truck.status}</span>
@@ -613,13 +678,12 @@ export default function InventoryPage() {
 
         ) : (
 
-          /* ── TABLE VIEW ── */
           <div style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:14, overflow:'hidden' }}>
             <div style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                 <thead>
                   <tr style={{ borderBottom:'1px solid var(--border)' }}>
-                    <th style={{ padding:'11px 12px', textAlign:'left', color:'var(--text4)', fontWeight:600, fontSize:10, letterSpacing:'0.08em' }}>PHOTO</th>
+                    <th style={{ padding:'11px 12px', textAlign:'left', color:'var(--text2)', fontWeight:600, fontSize:10, letterSpacing:'0.08em' }}>PHOTO</th>
                     {cols.map(col => {
                       const isActive = sortCol===col.sortKey
                       return (
@@ -629,7 +693,7 @@ export default function InventoryPage() {
                               {col.label}<span style={{ fontSize:8, marginLeft:2 }}>{isActive?(sortDir==='asc'?'▲':'▼'):'⇅'}</span>
                             </button>
                           ) : (
-                            <span style={{ fontSize:10, color:'var(--text4)', fontWeight:600, letterSpacing:'0.08em' }}>{col.label}</span>
+                            <span style={{ fontSize:10, color:'var(--text2)', fontWeight:600, letterSpacing:'0.08em' }}>{col.label}</span>
                           )}
                         </th>
                       )
@@ -656,7 +720,7 @@ export default function InventoryPage() {
                             <span style={{ background:sc.bg, color:sc.color, border:`1px solid ${sc.border}`, borderRadius:99, padding:'2px 8px', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>{truck.status}</span>
                           </td>
                           <td style={TD}>{fmt(truck.bought_on)}</td>
-                          <td style={{ ...TD, fontFamily:'monospace', fontSize:11 }}>{truck.vin}</td>
+                          <td style={{ ...TD, fontFamily:'monospace', fontSize:11, letterSpacing:'0.05em', color:'var(--text)' }}>{truck.vin}</td>
                           <td style={TD}>{truck.year||'—'}</td>
                           <td style={TD}>{truck.make||'—'}</td>
                           <td style={TD}>{truck.model||'—'}</td>
@@ -695,7 +759,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* Filter popup */}
         {filterPopup && (
           <div ref={popupRef} style={{ position:'fixed', left:filterPopup.x, top:filterPopup.y, zIndex:300, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, boxShadow:'0 12px 40px rgba(0,0,0,0.5)', minWidth:180, maxWidth:240, overflow:'hidden' }}>
             <div style={{ padding:'10px 12px', borderBottom:'1px solid var(--border2)' }}>
@@ -716,7 +779,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* ADD TRUCK MODAL */}
         {showAddModal && (
           <div onClick={() => setShowAddModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:isMobile?'flex-end':'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(8px)', padding:isMobile?0:20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:isMobile?'20px 20px 0 0':20, padding:isMobile?'20px 20px 32px':28, width:'100%', maxWidth:isMobile?'100%':560, maxHeight:'92vh', overflowY:'auto' }}>
@@ -753,7 +815,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* EDIT TRUCK MODAL */}
         {editTruck && (
           <div onClick={() => setEditTruck(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:isMobile?'flex-end':'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(10px)', padding:isMobile?0:20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:isMobile?'20px 20px 0 0':20, padding:isMobile?'20px 20px 32px':28, width:'100%', maxWidth:isMobile?'100%':560, maxHeight:'92vh', overflowY:'auto' }}>
