@@ -323,7 +323,7 @@ export default function TruckDetailPage() {
               <button onClick={() => router.push('/inventory')} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:16, width:36, height:36, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>←</button>
               <div style={{ minWidth:0 }}>
                 <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight:700, color:'var(--text)', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{truck.year} {truck.make} {truck.model}</h1>
-                <div style={{ fontSize:11, color:'var(--text3)', marginTop:3, fontFamily:'monospace' }}>{truck.vin}</div>
+                <div style={{ fontSize:13, color:'var(--text)', marginTop:3, fontFamily:'monospace', letterSpacing:'0.05em' }}>{truck.vin}</div>
               </div>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0, flexWrap:'wrap', justifyContent:'flex-end' }}>
