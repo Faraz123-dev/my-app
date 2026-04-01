@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export async function proxy(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
 
   const supabase = createServerClient(
@@ -10,9 +10,7 @@ export async function proxy(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return req.cookies.getAll()
-        },
+        getAll() { return req.cookies.getAll() },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
             res.cookies.set(name, value, options)
