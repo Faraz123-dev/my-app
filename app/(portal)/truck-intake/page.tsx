@@ -41,11 +41,12 @@ export default function TruckIntakePage() {
   const [showSim, setShowSim] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [boughtOn, setBoughtOn] = useState(new Date().toISOString().split('T')[0])
   const router = useRouter()
 
   const truckPayload = (status: string) => ({
     status,
-    bought_on: new Date().toISOString().split('T')[0],
+    bought_on: boughtOn || new Date().toISOString().split('T')[0],
     vin: vin || 'UNKNOWN',
     year: parseInt(year) || null,
     make: make || null,
@@ -145,6 +146,7 @@ export default function TruckIntakePage() {
             <div><label style={LS}>Make</label><input style={IS} placeholder="Freightliner" value={make} onChange={e => setMake(e.target.value)} /></div>
             <div><label style={LS}>Model</label><input style={IS} placeholder="Cascadia" value={model} onChange={e => setModel(e.target.value)} /></div>
           </div>
+          <div style={{ marginBottom: 12 }}><label style={LS}>Bought On</label><input style={IS} type="date" value={boughtOn} onChange={e => setBoughtOn(e.target.value)} /></div>
           <div style={{ marginBottom: 12 }}><label style={LS}>Kilometers</label><input style={IS} placeholder="450,000" value={kilometers} onChange={e => {
             const raw = e.target.value.replace(/[^0-9]/g, '')
             setKilometers(raw ? parseInt(raw).toLocaleString() : '')
