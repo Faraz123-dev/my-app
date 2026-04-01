@@ -13,7 +13,6 @@ type Truck = {
   payment_status: string | null; notes: string | null
   listing_platform: string | null; listing_link: string | null
   listing_date: string | null; asking_price: number | null
-  condition_before: string | null; condition_after: string | null
 }
 type Part      = { id: string; part: string; category: string; qty: number; unit_cost: number; date: string | null; invoice_url: string | null }
 type Labor     = { id: string; tech: string; hours: number; rate: number; date: string | null; invoice_url: string | null }
@@ -23,16 +22,16 @@ type Offer     = { id: string; amount: number; date: string | null; notes: strin
 type Doc       = { id: string; category: string; name: string; url: string; created_at: string }
 
 const STATUS_PIPELINE = ['Intake', 'Purchased', 'In Reconditioning', 'Ready to List', 'Listed', 'Deal Pending', 'Sold']
-const DOC_CATEGORIES  = ['Photos', 'Purchase Docs', 'Inspection & Safety', 'Repair Invoices', 'Sales Docs', 'Other']
+const DOC_CATEGORIES  = ['Photos', 'Purchase Docs', 'Inspection & Safety', 'Repair Invoices', 'Sales Docs', 'Carfax & Lien Documents']
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
-  Purchased:           { bg: '#1a1a1a',   color: '#888',    border: '#333'    },
-  'In Reconditioning': { bg: '#1a2a1a',   color: '#22c55e', border: '#2a4a2a' },
-  'Ready to List':     { bg: '#2a2a0a',   color: '#EAB308', border: '#4a4a0a' },
-  Listed:              { bg: '#1a2a2a',   color: '#38bdf8', border: '#2a4a4a' },
-  'Deal Pending':      { bg: '#2a1a00',   color: '#f97316', border: '#4a3a00' },
-  Sold:                { bg: '#0a2a0a',   color: '#22c55e', border: '#1a4a1a' },
-  Intake:              { bg: '#2a1a00',   color: '#EAB308', border: '#4a3a00' },
+  Purchased:           { bg: '#1a1a1a', color: '#888',    border: '#333'    },
+  'In Reconditioning': { bg: '#1a2a1a', color: '#22c55e', border: '#2a4a2a' },
+  'Ready to List':     { bg: '#2a2a0a', color: '#EAB308', border: '#4a4a0a' },
+  Listed:              { bg: '#1a2a2a', color: '#38bdf8', border: '#2a4a4a' },
+  'Deal Pending':      { bg: '#2a1a00', color: '#f97316', border: '#4a3a00' },
+  Sold:                { bg: '#0a2a0a', color: '#22c55e', border: '#1a4a1a' },
+  Intake:              { bg: '#2a1a00', color: '#EAB308', border: '#4a3a00' },
 }
 
 const IS = { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '10px 14px', color: 'var(--text)', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' as const, fontFamily: 'system-ui, sans-serif', minHeight: 44 }
@@ -179,8 +178,6 @@ export default function TruckDetailPage() {
         purchase_price: t.purchase_price, recondition_cost: t.recondition_cost,
         date_sold: t.date_sold, customer: t.customer, payment_status: t.payment_status,
         sold_price: t.sold_price,
-        condition_before: t.condition_before,
-        condition_after: t.condition_after,
       })
       setNotesForm({ notes: t.notes || '' })
       setSaleForm({ sold_price: t.sold_price?.toString() || '', date_sold: t.date_sold || '', customer: t.customer || '', payment_status: t.payment_status || 'N/A' })
@@ -206,8 +203,6 @@ export default function TruckDetailPage() {
       date_sold:        detailsForm.date_sold   || null,
       customer:         detailsForm.customer    || null,
       payment_status:   detailsForm.payment_status || null,
-      condition_before: detailsForm.condition_before || null,
-      condition_after:  detailsForm.condition_after  || null,
     }
     await supabase.from('Inventory Data').update(payload).eq('id', id)
     setTruck(prev => prev ? { ...prev, ...payload } : prev)
@@ -386,7 +381,6 @@ export default function TruckDetailPage() {
         {/* ── OVERVIEW ── */}
         {activeTab === 'overview' && (
           <div>
-            {/* Status timeline */}
             <div style={SS}>
               <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.1em', marginBottom:16, fontWeight:600 }}>STATUS TIMELINE</div>
               <div style={{ overflowX:'auto' }}>
@@ -410,7 +404,6 @@ export default function TruckDetailPage() {
               </div>
             </div>
 
-            {/* Key dates + Details */}
             <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:14, marginBottom:14 }}>
               <div style={SS}>
                 <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.1em', marginBottom:14, fontWeight:600 }}>KEY DATES</div>
@@ -435,42 +428,6 @@ export default function TruckDetailPage() {
               </div>
             </div>
 
-            {/* ── BEFORE / AFTER RECON ── */}
-            <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:14, marginBottom:14 }}>
-              {/* BEFORE */}
-              <div style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderLeft:'3px solid #ef4444', borderRadius:12, padding:'16px 20px' }}>
-                <div style={{ fontSize:10, color:'#ef4444', letterSpacing:'0.1em', marginBottom:14, fontWeight:700 }}>📥 BEFORE RECONDITIONING</div>
-                {[
-                  { label:'Purchase Price', value: truck.purchase_price ? `$${truck.purchase_price.toLocaleString()}` : '—' },
-                  { label:'KMs at Purchase', value: truck.kilometers ? `${truck.kilometers.toLocaleString()} km` : '—' },
-                  { label:'Bought From',     value: truck.bought_from || '—' },
-                  { label:'Condition Notes', value: truck.condition_before || '—' },
-                ].map(row => (
-                  <div key={row.label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border2)' }}>
-                    <span style={{ fontSize:13, color:'var(--text2)', flexShrink:0 }}>{row.label}</span>
-                    <span style={{ fontSize:13, color: row.value === '—' ? 'var(--text4)' : 'var(--text)', maxWidth:'55%', textAlign:'right', overflow:'hidden', textOverflow:'ellipsis' }}>{row.value}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* AFTER */}
-              <div style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderLeft:'3px solid #22c55e', borderRadius:12, padding:'16px 20px' }}>
-                <div style={{ fontSize:10, color:'#22c55e', letterSpacing:'0.1em', marginBottom:14, fontWeight:700 }}>📤 AFTER RECONDITIONING</div>
-                {[
-                  { label:'Recon Spent',    value: `$${reconTotal.toLocaleString()}` },
-                  { label:'All-In Cost',    value: `$${allInCost.toLocaleString()}` },
-                  { label:'Asking Price',   value: truck.asking_price ? `$${Number(truck.asking_price).toLocaleString()}` : '—' },
-                  { label:'Condition Notes', value: truck.condition_after || '—' },
-                ].map(row => (
-                  <div key={row.label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border2)' }}>
-                    <span style={{ fontSize:13, color:'var(--text2)', flexShrink:0 }}>{row.label}</span>
-                    <span style={{ fontSize:13, color: row.value === '—' ? 'var(--text4)' : 'var(--text)', maxWidth:'55%', textAlign:'right', overflow:'hidden', textOverflow:'ellipsis' }}>{row.value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Notes */}
             <div style={SS}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.1em', fontWeight:600 }}>NOTES</div>
@@ -719,17 +676,6 @@ export default function TruckDetailPage() {
             <div><label style={LS}>Recondition Cost ($)</label><input style={IS} type="number" placeholder="0" value={detailsForm.recondition_cost||''} onChange={e=>setDetailsForm((p:any)=>({...p,recondition_cost:e.target.value}))} /></div>
           </div>
           <div style={{ marginBottom:14 }}><label style={LS}>Bought From</label><input style={IS} placeholder="e.g. Ryder Trucks" value={detailsForm.bought_from||''} onChange={e=>setDetailsForm((p:any)=>({...p,bought_from:e.target.value}))} /></div>
-
-          <div style={{ fontSize:10, color:'#ef4444', letterSpacing:'0.12em', fontWeight:700, marginBottom:10 }}>📥 CONDITION BEFORE RECON</div>
-          <div style={{ marginBottom:14 }}>
-            <textarea style={{ ...IS, height:80, resize:'vertical', minHeight:80 }} placeholder="Describe the truck's condition when purchased (e.g. worn tires, cracked windshield, engine issues...)" value={detailsForm.condition_before||''} onChange={e=>setDetailsForm((p:any)=>({...p,condition_before:e.target.value}))} />
-          </div>
-
-          <div style={{ fontSize:10, color:'#22c55e', letterSpacing:'0.12em', fontWeight:700, marginBottom:10 }}>📤 CONDITION AFTER RECON</div>
-          <div style={{ marginBottom:14 }}>
-            <textarea style={{ ...IS, height:80, resize:'vertical', minHeight:80 }} placeholder="Describe the truck's condition after reconditioning (e.g. new tires, detailed, engine serviced...)" value={detailsForm.condition_after||''} onChange={e=>setDetailsForm((p:any)=>({...p,condition_after:e.target.value}))} />
-          </div>
-
           <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.12em', fontWeight:700, marginBottom:10 }}>SALE</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
             <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" placeholder="80000" value={detailsForm.sold_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,sold_price:e.target.value}))} /></div>

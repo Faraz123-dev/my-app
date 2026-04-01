@@ -10,6 +10,7 @@ type Truck = {
   purchase_price: number | null; recondition_cost: number | null
   date_sold: string | null; customer: string | null; sold_price: number | null
   payment_status: string | null; notes: string | null; photo_url: string | null
+  photo_before_recon: string | null; photo_after_recon: string | null
 }
 type TruckPhoto = { id: string; truck_id: string; url: string; sort_order: number }
 type SortDir = 'asc' | 'desc'
@@ -86,17 +87,51 @@ function Lightbox({ photos, startIndex, onClose }: { photos: TruckPhoto[]; start
   )
 }
 
+// ── SINGLE PHOTO LIGHTBOX (for before/after) ──────────────────────────────────
+function SingleLightbox({ url, label, onClose }: { url: string; label: string; onClose: () => void }) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#000', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${url})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(30px) brightness(0.25)', transform: 'scale(1.1)' }} />
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', flexShrink: 0 }}>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{label}</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a href={url} download onClick={e => e.stopPropagation()} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: 99, padding: '6px 14px', fontSize: 12, fontWeight: 600, textDecoration: 'none' }}>⬇ Save</a>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: '50%', width: 36, height: 36, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+        </div>
+      </div>
+      <div onClick={e => e.stopPropagation()} style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <img src={url} alt={label} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: 10, boxShadow: '0 24px 80px rgba(0,0,0,0.8)', display: 'block' }} />
+      </div>
+    </div>
+  )
+}
+
 // ── PHOTO MANAGER ─────────────────────────────────────────────────────────────
-function PhotoManager({ truck, photos, onClose, onChanged }: {
-  truck: Truck; photos: TruckPhoto[]; onClose: () => void; onChanged: (p: TruckPhoto[]) => void
+function PhotoManager({ truck, photos, onClose, onChanged, onTruckUpdated }: {
+  truck: Truck; photos: TruckPhoto[]; onClose: () => void
+  onChanged: (p: TruckPhoto[]) => void
+  onTruckUpdated: (updates: Partial<Truck>) => void
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
+  const beforeRef = useRef<HTMLInputElement>(null)
+  const afterRef = useRef<HTMLInputElement>(null)
   const [local, setLocal] = useState<TruckPhoto[]>(photos)
   const [uploading, setUploading] = useState(false)
+  const [uploadingBefore, setUploadingBefore] = useState(false)
+  const [uploadingAfter, setUploadingAfter] = useState(false)
   const [msg, setMsg] = useState('')
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
   const [dragIdx, setDragIdx] = useState<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
+  const [beforeUrl, setBeforeUrl] = useState<string | null>(truck.photo_before_recon)
+  const [afterUrl, setAfterUrl] = useState<string | null>(truck.photo_after_recon)
+  const [singleLightbox, setSingleLightbox] = useState<{ url: string; label: string } | null>(null)
 
   async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
@@ -111,7 +146,7 @@ function PhotoManager({ truck, photos, onClose, onChanged }: {
       if (sErr) { setMsg(`Storage error: ${sErr.message}`); continue }
       const { data: urlData } = supabase.storage.from('invoices').getPublicUrl(path)
       const { data: row, error: dErr } = await supabase.from('truck_photos').insert([{ truck_id: truck.id, url: urlData.publicUrl, sort_order: maxOrder + i + 1 }]).select().single()
-      if (dErr) { setMsg(`DB error: ${dErr.message} — create the truck_photos table first`); setUploading(false); return }
+      if (dErr) { setMsg(`DB error: ${dErr.message}`); setUploading(false); return }
       added.push(row as TruckPhoto)
     }
     if (local.length === 0 && added.length > 0) await supabase.from('Inventory Data').update({ photo_url: added[0].url }).eq('id', truck.id)
@@ -120,6 +155,46 @@ function PhotoManager({ truck, photos, onClose, onChanged }: {
     setUploading(false); if (fileRef.current) fileRef.current.value = ''
     setMsg(`✓ ${added.length} photo${added.length > 1 ? 's' : ''} added`)
     setTimeout(() => setMsg(''), 2500)
+  }
+
+  async function uploadReconPhoto(file: File, type: 'before' | 'after') {
+    const path = `trucks/${truck.id}-recon-${type}-${Date.now()}.${file.name.split('.').pop() || 'jpg'}`
+    const { error: sErr } = await supabase.storage.from('invoices').upload(path, file, { upsert: true })
+    if (sErr) { setMsg(`Upload error: ${sErr.message}`); return null }
+    const { data: urlData } = supabase.storage.from('invoices').getPublicUrl(path)
+    return urlData.publicUrl
+  }
+
+  async function handleBeforeFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return
+    setUploadingBefore(true)
+    const url = await uploadReconPhoto(file, 'before')
+    if (url) {
+      await supabase.from('Inventory Data').update({ photo_before_recon: url }).eq('id', truck.id)
+      setBeforeUrl(url); onTruckUpdated({ photo_before_recon: url })
+    }
+    setUploadingBefore(false)
+    if (beforeRef.current) beforeRef.current.value = ''
+  }
+
+  async function handleAfterFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return
+    setUploadingAfter(true)
+    const url = await uploadReconPhoto(file, 'after')
+    if (url) {
+      await supabase.from('Inventory Data').update({ photo_after_recon: url }).eq('id', truck.id)
+      setAfterUrl(url); onTruckUpdated({ photo_after_recon: url })
+    }
+    setUploadingAfter(false)
+    if (afterRef.current) afterRef.current.value = ''
+  }
+
+  async function deleteReconPhoto(type: 'before' | 'after') {
+    if (!confirm(`Delete ${type} recon photo?`)) return
+    const col = type === 'before' ? 'photo_before_recon' : 'photo_after_recon'
+    await supabase.from('Inventory Data').update({ [col]: null }).eq('id', truck.id)
+    if (type === 'before') { setBeforeUrl(null); onTruckUpdated({ photo_before_recon: null }) }
+    else { setAfterUrl(null); onTruckUpdated({ photo_after_recon: null }) }
   }
 
   async function deletePhoto(photoId: string, url: string) {
@@ -143,22 +218,105 @@ function PhotoManager({ truck, photos, onClose, onChanged }: {
     if (updated[0]) await supabase.from('Inventory Data').update({ photo_url: updated[0].url }).eq('id', truck.id)
   }
 
+  // Recon photo slot component
+  function ReconSlot({ label, url, color, uploading: up, onUpload, onDelete, onView }: {
+    label: string; url: string | null; color: string; uploading: boolean
+    onUpload: () => void; onDelete: () => void; onView: () => void
+  }) {
+    return (
+      <div style={{ border: `2px solid ${url ? color : 'var(--border)'}`, borderRadius: 12, overflow: 'hidden', background: 'var(--hover)', transition: 'border-color 0.2s' }}>
+        {/* Label bar */}
+        <div style={{ padding: '8px 12px', background: url ? `${color}22` : 'transparent', borderBottom: `1px solid ${url ? color : 'var(--border)'}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: url ? color : 'var(--text3)', letterSpacing: '0.1em' }}>{label}</span>
+          {url && (
+            <button onClick={onDelete} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, padding: 2, lineHeight: 1 }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
+          )}
+        </div>
+        {/* Photo area */}
+        {url ? (
+          <div onClick={onView} style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', cursor: 'zoom-in', position: 'relative' }}>
+            <img src={url} alt={label} style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000', display: 'block' }} />
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.2s', background: 'rgba(0,0,0,0.4)' }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+              onMouseLeave={e => (e.currentTarget.style.opacity = '0')}>
+              <span style={{ color: '#fff', fontSize: 28 }}>🔍</span>
+            </div>
+          </div>
+        ) : (
+          <div onClick={onUpload} style={{ width: '100%', aspectRatio: '4/3', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: 8 }}>
+            {up ? (
+              <div style={{ width: 24, height: 24, border: '2px solid transparent', borderTopColor: color, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+            ) : (
+              <>
+                <span style={{ fontSize: 28, opacity: 0.4 }}>📷</span>
+                <span style={{ fontSize: 11, color: 'var(--text4)' }}>Click to upload</span>
+              </>
+            )}
+          </div>
+        )}
+        {/* Replace button */}
+        {url && (
+          <div style={{ padding: '8px 12px', borderTop: `1px solid var(--border2)` }}>
+            <button onClick={onUpload} disabled={up} style={{ width: '100%', background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 8, padding: '6px', fontSize: 11, fontWeight: 600, cursor: up ? 'default' : 'pointer' }}>
+              {up ? 'Uploading...' : '🔄 Replace Photo'}
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 560, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 600, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.6)' }}>
+
+          {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>Photos</div>
             <button onClick={onClose} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '50%', width: 34, height: 34, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 18 }}>Drag to reorder · tap to view full screen</div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20 }}>
+          <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 20 }}>Drag to reorder · tap to view full screen</div>
+
+          {/* ── BEFORE / AFTER RECON ── */}
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ fontSize: 10, color: 'var(--text3)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 12 }}>RECONDITIONING COMPARISON</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <ReconSlot
+                label="📥 BEFORE RECON"
+                url={beforeUrl}
+                color="#ef4444"
+                uploading={uploadingBefore}
+                onUpload={() => beforeRef.current?.click()}
+                onDelete={() => deleteReconPhoto('before')}
+                onView={() => beforeUrl && setSingleLightbox({ url: beforeUrl, label: 'Before Reconditioning' })}
+              />
+              <ReconSlot
+                label="📤 AFTER RECON"
+                url={afterUrl}
+                color="#22c55e"
+                uploading={uploadingAfter}
+                onUpload={() => afterRef.current?.click()}
+                onDelete={() => deleteReconPhoto('after')}
+                onView={() => afterUrl && setSingleLightbox({ url: afterUrl, label: 'After Reconditioning' })}
+              />
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ height: 1, background: 'var(--border)', marginBottom: 20 }} />
+
+          {/* General photos */}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16 }}>
             <button onClick={() => fileRef.current?.click()} disabled={uploading}
               style={{ background: uploading ? 'var(--hover)' : 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: uploading ? 'var(--text3)' : '#000', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 800, cursor: uploading ? 'default' : 'pointer', minHeight: 44 }}>
               {uploading ? 'Uploading...' : '+ Add Photos'}
             </button>
             {msg && <div style={{ fontSize: 12, color: msg.includes('error') || msg.includes('Error') ? 'var(--red)' : 'var(--green)', fontWeight: 600 }}>{msg}</div>}
           </div>
+
           {local.length === 0
             ? <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text4)', fontSize: 13, fontStyle: 'italic' }}>No photos yet. Click "+ Add Photos" above.</div>
             : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
@@ -176,14 +334,24 @@ function PhotoManager({ truck, photos, onClose, onChanged }: {
               </div>}
         </div>
       </div>
-      <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFiles} />
+
+      {/* Hidden file inputs */}
+      <input ref={fileRef}   type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFiles} />
+      <input ref={beforeRef} type="file" accept="image/*"          style={{ display: 'none' }} onChange={handleBeforeFile} />
+      <input ref={afterRef}  type="file" accept="image/*"          style={{ display: 'none' }} onChange={handleAfterFile} />
+
       {lightboxIdx !== null && local.length > 0 && <Lightbox photos={local} startIndex={lightboxIdx} onClose={() => setLightboxIdx(null)} />}
+      {singleLightbox && <SingleLightbox url={singleLightbox.url} label={singleLightbox.label} onClose={() => setSingleLightbox(null)} />}
     </>
   )
 }
 
 // ── PHOTO CELL ────────────────────────────────────────────────────────────────
-function PhotoCell({ truck, photos, onPhotosChanged }: { truck: Truck; photos: TruckPhoto[]; onPhotosChanged: (p: TruckPhoto[]) => void }) {
+function PhotoCell({ truck, photos, onPhotosChanged, onTruckUpdated }: {
+  truck: Truck; photos: TruckPhoto[]
+  onPhotosChanged: (p: TruckPhoto[]) => void
+  onTruckUpdated: (updates: Partial<Truck>) => void
+}) {
   const [showManager, setShowManager] = useState(false)
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
   const first = photos[0]
@@ -211,7 +379,13 @@ function PhotoCell({ truck, photos, onPhotosChanged }: { truck: Truck; photos: T
           {first ? '⊕' : '📷'}
         </button>
       </div>
-      {showManager && <PhotoManager truck={truck} photos={photos} onClose={() => setShowManager(false)} onChanged={onPhotosChanged} />}
+      {showManager && (
+        <PhotoManager truck={truck} photos={photos}
+          onClose={() => setShowManager(false)}
+          onChanged={onPhotosChanged}
+          onTruckUpdated={onTruckUpdated}
+        />
+      )}
       {lightboxIdx !== null && photos.length > 0 && <Lightbox photos={photos} startIndex={lightboxIdx} onClose={() => setLightboxIdx(null)} />}
     </>
   )
@@ -230,7 +404,6 @@ export default function InventoryPage() {
   const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  // ── DEFAULT IS TABLE ──
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table')
   const [sortCol, setSortCol] = useState<keyof Truck>('bought_on')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -252,7 +425,7 @@ export default function InventoryPage() {
     const check = () => {
       const mobile = window.innerWidth < 768
       setIsMobile(mobile)
-      if (mobile) setViewMode('cards') // force cards on mobile
+      if (mobile) setViewMode('cards')
     }
     check(); window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
@@ -285,6 +458,10 @@ export default function InventoryPage() {
 
   function updatePhotosForTruck(truckId: string, newPhotos: TruckPhoto[]) {
     setPhotoMap(prev => ({ ...prev, [truckId]: newPhotos }))
+  }
+
+  function updateTruckFields(truckId: string, updates: Partial<Truck>) {
+    setTrucks(prev => prev.map(t => t.id === truckId ? { ...t, ...updates } : t))
   }
 
   async function addTruck() {
@@ -395,7 +572,6 @@ export default function InventoryPage() {
         .inv-card { background:var(--card-bg); border:1px solid var(--card-border); border-radius:14px; padding:16px; cursor:pointer; transition:all 0.18s; }
         .inv-card:hover { border-color:var(--gold); }
         .inv-card:active { transform:scale(0.99); }
-        /* White headers, size 12 */
         .th-btn { display:flex; align-items:center; gap:4px; background:none; border:none; color:var(--text); cursor:pointer; font-size:12px; font-weight:600; letter-spacing:0.06em; padding:0; white-space:nowrap; transition:color 0.15s; }
         .th-btn:hover { color:var(--gold); }
         .th-btn.active { color:var(--gold); }
@@ -404,7 +580,6 @@ export default function InventoryPage() {
 
       <main style={{ padding: isMobile ? '16px' : '24px 20px', background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)', fontFamily: 'system-ui,sans-serif' }}>
 
-        {/* Header */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: isMobile ? 14 : 20 }}>
           <div>
             <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.15em', fontWeight:700, marginBottom:4, opacity:0.7 }}>FLEET</div>
@@ -415,7 +590,6 @@ export default function InventoryPage() {
 
         <div style={{ height:1, background:'linear-gradient(90deg,var(--gold),transparent)', marginBottom: isMobile ? 14 : 20 }} />
 
-        {/* Stats + view toggle */}
         <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
           {[{ label:'Total', value:trucks.length, color:'var(--text2)' }, { label:'In Stock', value:inStock, color:'var(--gold)' }, { label:'Sold', value:sold, color:'var(--green)' }, { label:'Pending', value:pend, color:'var(--orange)' }].map(s => (
             <div key={s.label} style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:99, padding:'5px 12px', fontSize:12, color:'var(--text2)' }}>
@@ -438,7 +612,6 @@ export default function InventoryPage() {
           )}
         </div>
 
-        {/* Search + date filter button */}
         <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
           <div style={{ position:'relative', flex:1, minWidth: isMobile ? '100%' : 200 }}>
             <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--text3)', fontSize:15 }}>🔍</span>
@@ -449,7 +622,6 @@ export default function InventoryPage() {
           </button>
         </div>
 
-        {/* Date filters */}
         {showDateFilters && (
           <div style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:12, padding:'16px', marginBottom:14, display:'flex', flexDirection:'column', gap:16 }}>
             <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:16 }}>
@@ -500,8 +672,6 @@ export default function InventoryPage() {
         ) : error ? (
           <div style={{ textAlign:'center', padding:60, color:'var(--red)' }}>Error: {error}</div>
         ) : (viewMode === 'cards' || isMobile) ? (
-
-          /* ── CARD VIEW ── */
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {filtered.length === 0
               ? <div style={{ textAlign:'center', padding:48, color:'var(--text4)' }}>No trucks found</div>
@@ -514,7 +684,7 @@ export default function InventoryPage() {
                   <div key={truck.id} className="inv-card" onClick={() => window.location.href = `/inventory/${truck.id}`}>
                     <div style={{ display:'flex', gap:12, alignItems:'flex-start', marginBottom:12 }}>
                       <div onClick={e => e.stopPropagation()} style={{ flexShrink:0 }}>
-                        <PhotoCell truck={truck} photos={photos} onPhotosChanged={p => updatePhotosForTruck(truck.id, p)} />
+                        <PhotoCell truck={truck} photos={photos} onPhotosChanged={p => updatePhotosForTruck(truck.id, p)} onTruckUpdated={u => updateTruckFields(truck.id, u)} />
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
@@ -563,16 +733,12 @@ export default function InventoryPage() {
               })}
             <div style={{ textAlign:'center', padding:'12px 0', fontSize:12, color:'var(--text4)' }}>{filtered.length} of {trucks.length} trucks</div>
           </div>
-
         ) : (
-
-          /* ── TABLE VIEW (default) ── */
           <div style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:14, overflow:'hidden' }}>
             <div style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                 <thead>
                   <tr style={{ borderBottom:'1px solid var(--border)' }}>
-                    {/* PHOTO header — white, size 12 */}
                     <th style={{ padding:'12px 12px', textAlign:'left', color:'var(--text)', fontWeight:600, fontSize:12, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>PHOTO</th>
                     {cols.map(col => {
                       const isActive = sortCol === col.sortKey
@@ -584,7 +750,6 @@ export default function InventoryPage() {
                               <span style={{ fontSize:9, marginLeft:2 }}>{isActive ? (sortDir==='asc' ? '▲' : '▼') : '⇅'}</span>
                             </button>
                           ) : (
-                            /* Non-sortable headers — also white, size 12 */
                             <span style={{ fontSize:12, color:'var(--text)', fontWeight:600, letterSpacing:'0.06em' }}>{col.label}</span>
                           )}
                         </th>
@@ -607,7 +772,7 @@ export default function InventoryPage() {
                           onMouseEnter={e => (e.currentTarget.style.background='var(--hover)')}
                           onMouseLeave={e => (e.currentTarget.style.background='transparent')}>
                           <td style={{ padding:'8px 12px' }} onClick={e => e.stopPropagation()}>
-                            <PhotoCell truck={truck} photos={photos} onPhotosChanged={p => updatePhotosForTruck(truck.id, p)} />
+                            <PhotoCell truck={truck} photos={photos} onPhotosChanged={p => updatePhotosForTruck(truck.id, p)} onTruckUpdated={u => updateTruckFields(truck.id, u)} />
                           </td>
                           <td style={{ padding:'10px 12px' }}>
                             <span style={{ background:sc.bg, color:sc.color, border:`1px solid ${sc.border}`, borderRadius:99, padding:'2px 8px', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>{truck.status}</span>
@@ -652,7 +817,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* Filter popup */}
         {filterPopup && (
           <div ref={popupRef} style={{ position:'fixed', left:filterPopup.x, top:filterPopup.y, zIndex:300, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, boxShadow:'0 12px 40px rgba(0,0,0,0.5)', minWidth:180, maxWidth:240, overflow:'hidden' }}>
             <div style={{ padding:'10px 12px', borderBottom:'1px solid var(--border2)' }}>
@@ -673,7 +837,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* ADD TRUCK MODAL */}
         {showAddModal && (
           <div onClick={() => setShowAddModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(8px)', padding: isMobile ? 0 : 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width:'100%', maxWidth: isMobile ? '100%' : 560, maxHeight:'92vh', overflowY:'auto' }}>
@@ -710,7 +873,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* EDIT TRUCK MODAL */}
         {editTruck && (
           <div onClick={() => setEditTruck(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(10px)', padding: isMobile ? 0 : 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width:'100%', maxWidth: isMobile ? '100%' : 560, maxHeight:'92vh', overflowY:'auto' }}>
