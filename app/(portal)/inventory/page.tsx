@@ -10,6 +10,7 @@ type Truck = {
   purchase_price: number | null; recondition_cost: number | null
   date_sold: string | null; customer: string | null; sold_price: number | null
   payment_status: string | null; notes: string | null; photo_url: string | null
+  horsepower: number | null; ratio: string | null
 }
 type TruckPhoto = { id: string; truck_id: string; url: string; sort_order: number }
 type ReconPhoto = { id: string; truck_id: string; url: string; type: 'before' | 'after'; sort_order: number }
@@ -26,8 +27,11 @@ const statusColors: Record<string, { bg: string; color: string; border: string }
   Sold:                { bg: 'var(--green-dim)',  color: 'var(--green)',  border: 'var(--green)' },
 }
 
-const fmt = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
-
+const fmt = (d: string | null) => {
+  if (!d) return '—'
+  const [y, m, day] = d.split('-').map(Number)
+  return new Date(y, m - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 // ── LIGHTBOX ──────────────────────────────────────────────────────────────────
 function Lightbox({ photos, startIndex, onClose }: { photos: { url: string }[]; startIndex: number; onClose: () => void }) {
   const [idx, setIdx] = useState(startIndex)
@@ -116,7 +120,7 @@ function PhotoManager({ truck, photos, reconPhotos, onClose, onChanged, onReconC
   const afterPhotos  = localRecon.filter(p => p.type === 'after').sort((a, b) => a.sort_order - b.sort_order)
 
   // ── General photos upload
-  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
     setUploading(true); setMsg(`Uploading ${files.length} photo${files.length > 1 ? 's' : ''}...`)
@@ -132,7 +136,31 @@ function PhotoManager({ truck, photos, reconPhotos, onClose, onChanged, onReconC
       if (dErr) { setMsg(`DB error: ${dErr.message}`); setUploading(false); return }
       added.push(row as TruckPhoto)
     }
-    if (local.length === 0 && added.length > 0) await supabase.from('Inventory Data').update({ photo_url: added[0].url }).eq('id', truck.id)
+
+    // 🚛 Fire trigger only on FIRST photo upload
+    if (local.length === 0 && added.length > 0) {
+      await supabase.from('Inventory Data').update({ photo_url: added[0].url }).eq('id', truck.id)
+
+      const { data: truckData } = await supabase.from('Inventory Data').select('*').eq('id', truck.id).single()
+
+      if (truckData) {
+        await fetch('/api/send-truck-alert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            make: truckData.make,
+            model: truckData.model,
+            year: truckData.year,
+            kilometers: truckData.kilometers,
+            horsepower: truckData.horsepower,
+            ratio: truckData.ratio,
+            photo_url: added[0].url,
+            truck_id: truck.id,
+          })
+        })
+      }
+    }
+
     const updated = [...local, ...added]
     setLocal(updated); onChanged(updated)
     setUploading(false)
@@ -140,7 +168,6 @@ function PhotoManager({ truck, photos, reconPhotos, onClose, onChanged, onReconC
     setMsg(`✓ ${added.length} photo${added.length > 1 ? 's' : ''} added`)
     setTimeout(() => setMsg(''), 2500)
   }
-
   // ── Recon photos upload
   async function handleReconFiles(e: React.ChangeEvent<HTMLInputElement>, type: 'before' | 'after') {
     const files = Array.from(e.target.files || [])
@@ -410,7 +437,7 @@ export default function InventoryPage() {
   const [soldFrom,   setSoldFrom]   = useState('')
   const [soldTo,     setSoldTo]     = useState('')
   const [showDateFilters, setShowDateFilters] = useState(false)
-  const [newTruck, setNewTruck] = useState({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '' })
+  const [newTruck, setNewTruck] = useState({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', horsepower: '', ratio: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '' })
   const [editTruck, setEditTruck] = useState<Truck | null>(null)
   const [editForm,  setEditForm]  = useState<Partial<Truck>>({})
 
@@ -466,7 +493,7 @@ export default function InventoryPage() {
     setReconMap(prev => ({ ...prev, [truckId]: newPhotos }))
   }
 
-  async function addTruck() {
+async function addTruck() {
     if (!newTruck.vin) return alert('VIN is required')
     const { error } = await supabase.from('Inventory Data').insert([{
       status: newTruck.status, bought_on: newTruck.bought_on, vin: newTruck.vin,
@@ -476,13 +503,14 @@ export default function InventoryPage() {
       purchase_price: parseFloat(newTruck.purchase_price) || 0,
       recondition_cost: parseFloat(newTruck.recondition_cost) || 0,
       payment_status: 'N/A', notes: newTruck.notes || null,
+      horsepower: parseInt(newTruck.horsepower) || null,
+      ratio: newTruck.ratio || null,
     }])
     if (error) return alert('Error: ' + error.message)
     setShowAddModal(false)
-    setNewTruck({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '' })
+    setNewTruck({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', horsepower: '', ratio: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '' })
     loadAll()
-  }
-
+  }  
   async function deleteTruck(id: string) {
     if (!confirm('Delete this truck?')) return
     await supabase.from('Inventory Data').delete().eq('id', id)
@@ -552,6 +580,8 @@ export default function InventoryPage() {
     { key: 'model',            label: 'Model',       sortKey: 'model',            filterable: true },
     { key: 'colour',           label: 'Colour',      sortKey: 'colour',           filterable: true },
     { key: 'kilometers',       label: 'KMs',         sortKey: 'kilometers' },
+    { key: 'horsepower',       label: 'Horsepower',          sortKey: 'horsepower' },
+    { key: 'ratio',            label: 'Ratio',        sortKey: 'ratio' },
     { key: 'bought_from',      label: 'Bought From', sortKey: 'bought_from',      filterable: true },
     { key: 'purchase_price',   label: 'Purchase',    sortKey: 'purchase_price' },
     { key: 'recondition_cost', label: 'Recon',       sortKey: 'recondition_cost' },
@@ -701,7 +731,7 @@ export default function InventoryPage() {
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
                           <div style={{ minWidth:0 }}>
                             <div style={{ fontSize: isMobile ? 16 : 18, fontWeight:700, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{truck.year} {truck.make} {truck.model}</div>
-                            <div style={{ fontSize:14, color:'var(--text3)', marginTop:3, fontFamily:'monospace' }}>{truck.vin}</div>
+                            <div style={{ fontSize:1, color:'var(--text3)', marginTop:3, fontFamily:'monospace' }}>{truck.vin}</div>
                           </div>
                           <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
                             <span style={{ background:sc.bg, color:sc.color, border:`1px solid ${sc.border}`, borderRadius:99, padding:'3px 10px', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>{truck.status}</span>
@@ -801,6 +831,8 @@ export default function InventoryPage() {
                           <td style={TD}>{truck.model || '—'}</td>
                           <td style={TD}>{truck.colour || '—'}</td>
                           <td style={TD}>{truck.kilometers ? Number(truck.kilometers).toLocaleString() : '—'}</td>
+                          <td style={TD}>{truck.horsepower ? truck.horsepower.toLocaleString() : '—'}</td>
+                          <td style={TD}>{truck.ratio || '—'}</td>
                           <td style={TD}>{truck.bought_from || '—'}</td>
                           <td style={TD}>${(truck.purchase_price||0).toLocaleString()}</td>
                           <td style={TD}>${(truck.recondition_cost||0).toLocaleString()}</td>
@@ -864,7 +896,7 @@ export default function InventoryPage() {
                 <h2 style={{ fontSize:20, fontWeight:800, color:'var(--text)' }}>Add New Truck</h2>
                 <button onClick={() => setShowAddModal(false)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:18, width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+<div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Status</label><select style={{ ...IS, minHeight:44 }} value={newTruck.status} onChange={e => setNewTruck(p=>({...p,status:e.target.value}))}>{['Purchased','In Reconditioning','Ready to List','Listed','Deal Pending','Sold'].map(s=><option key={s}>{s}</option>)}</select></div>
                 <div><label style={LS}>Bought On</label><input type="date" style={{ ...IS, minHeight:44 }} value={newTruck.bought_on} onChange={e => setNewTruck(p=>({...p,bought_on:e.target.value}))} /></div>
               </div>
@@ -877,6 +909,10 @@ export default function InventoryPage() {
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Colour</label><input style={{ ...IS, minHeight:44 }} placeholder="White" value={newTruck.colour} onChange={e => setNewTruck(p=>({...p,colour:e.target.value}))} /></div>
                 <div><label style={LS}>KMs</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="450000" value={newTruck.kilometers} onChange={e => setNewTruck(p=>({...p,kilometers:e.target.value}))} /></div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+                <div><label style={LS}>Horsepower</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="400" value={newTruck.horsepower} onChange={e => setNewTruck(p=>({...p,horsepower:e.target.value}))} /></div>
+                <div><label style={LS}>Ratio</label><input style={{ ...IS, minHeight:44 }} placeholder="3.55" value={newTruck.ratio} onChange={e => setNewTruck(p=>({...p,ratio:e.target.value}))} /></div>
               </div>
               <div style={{ marginBottom:14 }}><label style={LS}>Bought From</label><input style={{ ...IS, minHeight:44 }} placeholder="e.g. Lussicam Inc." value={newTruck.bought_from} onChange={e => setNewTruck(p=>({...p,bought_from:e.target.value}))} /></div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
@@ -914,6 +950,10 @@ export default function InventoryPage() {
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Colour</label><input style={{ ...IS, minHeight:44 }} value={editForm.colour||''} onChange={e => setEditForm(p=>({...p,colour:e.target.value}))} /></div>
                 <div><label style={LS}>Kilometers</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.kilometers||''} onChange={e => setEditForm(p=>({...p,kilometers:e.target.value as any}))} /></div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+              <div><label style={LS}>Horsepower</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.horsepower||''} onChange={e => setEditForm(p=>({...p,horsepower:e.target.value as any}))} /></div>
+              <div><label style={LS}>Ratio</label><input style={{ ...IS, minHeight:44 }} value={editForm.ratio||''} onChange={e => setEditForm(p=>({...p,ratio:e.target.value}))} /></div>
               </div>
               <div style={{ marginBottom:12 }}><label style={LS}>Bought From</label><input style={{ ...IS, minHeight:44 }} value={editForm.bought_from||''} onChange={e => setEditForm(p=>({...p,bought_from:e.target.value}))} /></div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
