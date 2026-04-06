@@ -138,8 +138,8 @@ function PhotoManager({ truck, photos, reconPhotos, onClose, onChanged, onReconC
       added.push(row as TruckPhoto)
     }
     
-// 🚛 Add to alert queue only on FIRST photo upload
-    if (local.length === 0 && added.length > 0) {
+// 🚛 Add to alert queue only on FIRST photo upload and truck is listed
+  if (local.length === 0 && added.length > 0 && (truck.status === 'Listed' || truck.status === 'Ready to List')) {
       await supabase.from('Inventory Data').update({ photo_url: added[0].url }).eq('id', truck.id)
       await supabase.from('alert_queue').insert([{ truck_id: truck.id, photo_url: added[0].url }])
       onQueueUpdated()
