@@ -32,6 +32,7 @@ const fmt = (d: string | null) => {
   const [y, m, day] = d.split('-').map(Number)
   return new Date(y, m - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
+
 // ── LIGHTBOX ──────────────────────────────────────────────────────────────────
 function Lightbox({ photos, startIndex, onClose }: { photos: { url: string }[]; startIndex: number; onClose: () => void }) {
   const [idx, setIdx] = useState(startIndex)
@@ -93,34 +94,34 @@ function Lightbox({ photos, startIndex, onClose }: { photos: { url: string }[]; 
 }
 
 // ── PHOTO MANAGER ─────────────────────────────────────────────────────────────
-function PhotoManager({ truck, photos, reconPhotos, onClose, onChanged, onReconChanged }: {
+function PhotoManager({ truck, photos, reconPhotos, onClose, onChanged, onReconChanged, onQueueUpdated }: {
   truck: Truck
   photos: TruckPhoto[]
   reconPhotos: ReconPhoto[]
   onClose: () => void
   onChanged: (p: TruckPhoto[]) => void
   onReconChanged: (p: ReconPhoto[]) => void
+  onQueueUpdated: () => void
 }) {
-  const fileRef    = useRef<HTMLInputElement>(null)
-  const beforeRef  = useRef<HTMLInputElement>(null)
-  const afterRef   = useRef<HTMLInputElement>(null)
+  const fileRef   = useRef<HTMLInputElement>(null)
+  const beforeRef = useRef<HTMLInputElement>(null)
+  const afterRef  = useRef<HTMLInputElement>(null)
 
-  const [local, setLocal]             = useState<TruckPhoto[]>(photos)
-  const [localRecon, setLocalRecon]   = useState<ReconPhoto[]>(reconPhotos)
-  const [activeTab, setActiveTab]     = useState<PhotoTab>('gallery')
-  const [uploading, setUploading]     = useState(false)
+  const [local, setLocal]                     = useState<TruckPhoto[]>(photos)
+  const [localRecon, setLocalRecon]           = useState<ReconPhoto[]>(reconPhotos)
+  const [activeTab, setActiveTab]             = useState<PhotoTab>('gallery')
+  const [uploading, setUploading]             = useState(false)
   const [uploadingBefore, setUploadingBefore] = useState(false)
-  const [uploadingAfter,  setUploadingAfter]  = useState(false)
-  const [msg, setMsg]                 = useState('')
-  const [lightbox, setLightbox]       = useState<{ photos: { url: string }[]; idx: number } | null>(null)
-  const [dragIdx, setDragIdx]         = useState<number | null>(null)
-  const [dragOver, setDragOver]       = useState<number | null>(null)
+  const [uploadingAfter, setUploadingAfter]   = useState(false)
+  const [msg, setMsg]                         = useState('')
+  const [lightbox, setLightbox]               = useState<{ photos: { url: string }[]; idx: number } | null>(null)
+  const [dragIdx, setDragIdx]                 = useState<number | null>(null)
+  const [dragOver, setDragOver]               = useState<number | null>(null)
 
   const beforePhotos = localRecon.filter(p => p.type === 'before').sort((a, b) => a.sort_order - b.sort_order)
   const afterPhotos  = localRecon.filter(p => p.type === 'after').sort((a, b) => a.sort_order - b.sort_order)
 
-  // ── General photos upload
-async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
     setUploading(true); setMsg(`Uploading ${files.length} photo${files.length > 1 ? 's' : ''}...`)
@@ -136,29 +137,12 @@ async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
       if (dErr) { setMsg(`DB error: ${dErr.message}`); setUploading(false); return }
       added.push(row as TruckPhoto)
     }
-
-    // 🚛 Fire trigger only on FIRST photo upload
+    
+// 🚛 Add to alert queue only on FIRST photo upload
     if (local.length === 0 && added.length > 0) {
       await supabase.from('Inventory Data').update({ photo_url: added[0].url }).eq('id', truck.id)
-
-      const { data: truckData } = await supabase.from('Inventory Data').select('*').eq('id', truck.id).single()
-
-      if (truckData) {
-        await fetch('/api/send-truck-alert', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            make: truckData.make,
-            model: truckData.model,
-            year: truckData.year,
-            kilometers: truckData.kilometers,
-            horsepower: truckData.horsepower,
-            ratio: truckData.ratio,
-            photo_url: added[0].url,
-            truck_id: truck.id,
-          })
-        })
-      }
+      await supabase.from('alert_queue').insert([{ truck_id: truck.id, photo_url: added[0].url }])
+      onQueueUpdated()
     }
 
     const updated = [...local, ...added]
@@ -168,7 +152,7 @@ async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     setMsg(`✓ ${added.length} photo${added.length > 1 ? 's' : ''} added`)
     setTimeout(() => setMsg(''), 2500)
   }
-  // ── Recon photos upload
+
   async function handleReconFiles(e: React.ChangeEvent<HTMLInputElement>, type: 'before' | 'after') {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
@@ -226,16 +210,13 @@ async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     if (updated[0]) await supabase.from('Inventory Data').update({ photo_url: updated[0].url }).eq('id', truck.id)
   }
 
-  // ── Mini gallery grid for recon photos
   function ReconGallery({ photos: rPhotos, type }: { photos: ReconPhoto[]; type: 'before' | 'after' }) {
     const color    = type === 'before' ? '#ef4444' : '#22c55e'
     const label    = type === 'before' ? '📥 BEFORE RECON' : '📤 AFTER RECON'
     const isUp     = type === 'before' ? uploadingBefore : uploadingAfter
     const inputRef = type === 'before' ? beforeRef : afterRef
-
     return (
       <div style={{ flex: 1, minWidth: 0 }}>
-        {/* Section header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color, letterSpacing: '0.1em' }}>{label}</span>
           <button onClick={() => inputRef.current?.click()} disabled={isUp}
@@ -243,8 +224,6 @@ async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
             {isUp ? 'Uploading...' : '+ Add'}
           </button>
         </div>
-
-        {/* Grid */}
         {rPhotos.length === 0 ? (
           <div onClick={() => inputRef.current?.click()}
             style={{ border: `2px dashed ${color}44`, borderRadius: 10, aspectRatio: '4/3', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: 6, opacity: 0.7 }}>
@@ -272,14 +251,10 @@ async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 500, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
         <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, width: '100%', maxWidth: 640, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 32px 80px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: 0 }}>
-
-          {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>Photos</div>
             <button onClick={onClose} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '50%', width: 34, height: 34, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </div>
-
-          {/* Tabs */}
           <div style={{ display: 'flex', gap: 6, background: 'var(--hover)', borderRadius: 10, padding: 4, marginBottom: 20 }}>
             {([['gallery', '🖼 Gallery'], ['comparison', '↔ Before & After']] as const).map(([tab, label]) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
@@ -292,10 +267,8 @@ async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
             ))}
           </div>
 
-          {/* ── GALLERY TAB ── */}
           {activeTab === 'gallery' && (
             <>
-              {/* Action buttons */}
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
                 <button onClick={() => fileRef.current?.click()} disabled={uploading}
                   style={{ background: uploading ? 'var(--hover)' : 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: uploading ? 'var(--text3)' : '#000', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 800, cursor: uploading ? 'default' : 'pointer', minHeight: 44 }}>
@@ -311,10 +284,7 @@ async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
                 </button>
                 {msg && <div style={{ fontSize: 12, color: msg.startsWith('✓') ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>{msg}</div>}
               </div>
-
-              {/* Subtitle */}
               <div style={{ fontSize: 11, color: 'var(--text4)', marginBottom: 14 }}>Drag to reorder · tap to view full screen · use Before/After Recon buttons to add to the comparison view</div>
-
               {local.length === 0
                 ? <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text4)', fontSize: 13, fontStyle: 'italic' }}>No photos yet. Click "+ Add Photos" above.</div>
                 : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
@@ -333,16 +303,13 @@ async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
             </>
           )}
 
-          {/* ── COMPARISON TAB ── */}
           {activeTab === 'comparison' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ fontSize: 12, color: 'var(--text3)' }}>Compare the truck before and after reconditioning. Use the Gallery tab buttons to add photos to each side.</div>
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <ReconGallery photos={beforePhotos} type="before" />
                 <ReconGallery photos={afterPhotos}  type="after"  />
               </div>
-
               {beforePhotos.length === 0 && afterPhotos.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text4)', fontSize: 13, fontStyle: 'italic' }}>
                   No comparison photos yet. Go to the Gallery tab and use the 📥 Before Recon and 📤 After Recon buttons to add photos.
@@ -353,21 +320,20 @@ async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
         </div>
       </div>
 
-      {/* Hidden file inputs */}
       <input ref={fileRef}   type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFiles} />
       <input ref={beforeRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => handleReconFiles(e, 'before')} />
       <input ref={afterRef}  type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => handleReconFiles(e, 'after')} />
-
       {lightbox && <Lightbox photos={lightbox.photos} startIndex={lightbox.idx} onClose={() => setLightbox(null)} />}
     </>
   )
 }
 
 // ── PHOTO CELL ────────────────────────────────────────────────────────────────
-function PhotoCell({ truck, photos, reconPhotos, onPhotosChanged, onReconChanged }: {
+function PhotoCell({ truck, photos, reconPhotos, onPhotosChanged, onReconChanged, onQueueUpdated }: {
   truck: Truck; photos: TruckPhoto[]; reconPhotos: ReconPhoto[]
   onPhotosChanged: (p: TruckPhoto[]) => void
   onReconChanged:  (p: ReconPhoto[]) => void
+  onQueueUpdated:  () => void
 }) {
   const [showManager, setShowManager] = useState(false)
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null)
@@ -402,6 +368,7 @@ function PhotoCell({ truck, photos, reconPhotos, onPhotosChanged, onReconChanged
           onClose={() => setShowManager(false)}
           onChanged={onPhotosChanged}
           onReconChanged={onReconChanged}
+          onQueueUpdated={onQueueUpdated}
         />
       )}
       {lightboxIdx !== null && photos.length > 0 && (
@@ -440,6 +407,8 @@ export default function InventoryPage() {
   const [newTruck, setNewTruck] = useState({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', horsepower: '', ratio: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '' })
   const [editTruck, setEditTruck] = useState<Truck | null>(null)
   const [editForm,  setEditForm]  = useState<Partial<Truck>>({})
+  const [alertQueue,    setAlertQueue]    = useState(0)
+  const [sendingAlerts, setSendingAlerts] = useState(false)
 
   useEffect(() => {
     loadAll()
@@ -483,6 +452,9 @@ export default function InventoryPage() {
       rMap[p.truck_id].push(p)
     }
     setReconMap(rMap)
+
+    const { count } = await supabase.from('alert_queue').select('*', { count: 'exact', head: true })
+    setAlertQueue(count || 0)
     setLoading(false)
   }
 
@@ -493,7 +465,7 @@ export default function InventoryPage() {
     setReconMap(prev => ({ ...prev, [truckId]: newPhotos }))
   }
 
-async function addTruck() {
+  async function addTruck() {
     if (!newTruck.vin) return alert('VIN is required')
     const { error } = await supabase.from('Inventory Data').insert([{
       status: newTruck.status, bought_on: newTruck.bought_on, vin: newTruck.vin,
@@ -510,7 +482,8 @@ async function addTruck() {
     setShowAddModal(false)
     setNewTruck({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', horsepower: '', ratio: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '' })
     loadAll()
-  }  
+  }
+
   async function deleteTruck(id: string) {
     if (!confirm('Delete this truck?')) return
     await supabase.from('Inventory Data').delete().eq('id', id)
@@ -535,6 +508,16 @@ async function addTruck() {
   function handleSort(col: keyof Truck) {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortCol(col); setSortDir('asc') }
+  }
+
+  async function sendAlerts() {
+    if (!confirm(`Send email to all subscribers with ${alertQueue} truck${alertQueue > 1 ? 's' : ''}?`)) return
+    setSendingAlerts(true)
+    const res = await fetch('/api/send-alerts', { method: 'POST' })
+    const data = await res.json()
+    if (data.success) { alert(`✅ Email sent with ${data.trucksSent} truck${data.trucksSent > 1 ? 's' : ''}!`); setAlertQueue(0) }
+    else alert('Error: ' + data.error)
+    setSendingAlerts(false)
   }
 
   const filtered = trucks
@@ -580,8 +563,8 @@ async function addTruck() {
     { key: 'model',            label: 'Model',       sortKey: 'model',            filterable: true },
     { key: 'colour',           label: 'Colour',      sortKey: 'colour',           filterable: true },
     { key: 'kilometers',       label: 'KMs',         sortKey: 'kilometers' },
-    { key: 'horsepower',       label: 'Horsepower',          sortKey: 'horsepower' },
-    { key: 'ratio',            label: 'Ratio',        sortKey: 'ratio' },
+    { key: 'horsepower',       label: 'Horsepower',  sortKey: 'horsepower' },
+    { key: 'ratio',            label: 'Ratio',       sortKey: 'ratio' },
     { key: 'bought_from',      label: 'Bought From', sortKey: 'bought_from',      filterable: true },
     { key: 'purchase_price',   label: 'Purchase',    sortKey: 'purchase_price' },
     { key: 'recondition_cost', label: 'Recon',       sortKey: 'recondition_cost' },
@@ -618,7 +601,15 @@ async function addTruck() {
             <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.15em', fontWeight:700, marginBottom:4, opacity:0.7 }}>FLEET</div>
             <h1 style={{ fontSize: isMobile ? 22 : 28, fontWeight:800, color:'var(--text)', letterSpacing:'-0.03em' }}>Inventory</h1>
           </div>
-          <button onClick={() => setShowAddModal(true)} style={{ background:'linear-gradient(135deg,#EAB308,#d97706)', border:'none', color:'#000', borderRadius:99, padding: isMobile ? '10px 18px' : '9px 20px', fontSize: isMobile ? 14 : 13, fontWeight:800, cursor:'pointer', boxShadow:'0 4px 16px rgba(234,179,8,0.35)', minHeight:44 }}>+ Add</button>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            {alertQueue > 0 && (
+              <button onClick={sendAlerts} disabled={sendingAlerts}
+                style={{ background: sendingAlerts ? 'var(--hover)' : 'linear-gradient(135deg,#22c55e,#16a34a)', border:'none', color:'#000', borderRadius:99, padding:'9px 20px', fontSize:13, fontWeight:800, cursor: sendingAlerts ? 'default' : 'pointer', boxShadow:'0 4px 16px rgba(34,197,94,0.35)', minHeight:44 }}>
+                {sendingAlerts ? 'Sending...' : `📬 Send Alerts (${alertQueue})`}
+              </button>
+            )}
+            <button onClick={() => setShowAddModal(true)} style={{ background:'linear-gradient(135deg,#EAB308,#d97706)', border:'none', color:'#000', borderRadius:99, padding: isMobile ? '10px 18px' : '9px 20px', fontSize: isMobile ? 14 : 13, fontWeight:800, cursor:'pointer', boxShadow:'0 4px 16px rgba(234,179,8,0.35)', minHeight:44 }}>+ Add</button>
+          </div>
         </div>
 
         <div style={{ height:1, background:'linear-gradient(90deg,var(--gold),transparent)', marginBottom: isMobile ? 14 : 20 }} />
@@ -714,8 +705,8 @@ async function addTruck() {
             {filtered.length === 0
               ? <div style={{ textAlign:'center', padding:48, color:'var(--text4)' }}>No trucks found</div>
               : filtered.map(truck => {
-                const photos      = photoMap[truck.id]  || []
-                const reconPhotos = reconMap[truck.id]  || []
+                const photos      = photoMap[truck.id] || []
+                const reconPhotos = reconMap[truck.id] || []
                 const allIn  = (truck.purchase_price||0) + (truck.recondition_cost||0)
                 const profit = truck.sold_price != null ? truck.sold_price - allIn : null
                 const sc = statusColors[truck.status] || { bg:'rgba(255,255,255,0.04)', color:'#888', border:'rgba(255,255,255,0.1)' }
@@ -725,13 +716,17 @@ async function addTruck() {
                       <div onClick={e => e.stopPropagation()} style={{ flexShrink:0 }}>
                         <PhotoCell truck={truck} photos={photos} reconPhotos={reconPhotos}
                           onPhotosChanged={p => updatePhotosForTruck(truck.id, p)}
-                          onReconChanged={p => updateReconForTruck(truck.id, p)} />
+                          onReconChanged={p => updateReconForTruck(truck.id, p)}
+                          onQueueUpdated={async () => {
+                          const { count } = await supabase.from('alert_queue').select('*', { count: 'exact', head: true })
+                          setAlertQueue(count || 0)
+                      }} />
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
                           <div style={{ minWidth:0 }}>
                             <div style={{ fontSize: isMobile ? 16 : 18, fontWeight:700, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{truck.year} {truck.make} {truck.model}</div>
-                            <div style={{ fontSize:1, color:'var(--text3)', marginTop:3, fontFamily:'monospace' }}>{truck.vin}</div>
+                            <div style={{ fontSize:14, color:'var(--text3)', marginTop:3, fontFamily:'monospace' }}>{truck.vin}</div>
                           </div>
                           <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
                             <span style={{ background:sc.bg, color:sc.color, border:`1px solid ${sc.border}`, borderRadius:99, padding:'3px 10px', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>{truck.status}</span>
@@ -806,8 +801,8 @@ async function addTruck() {
                   {filtered.length === 0
                     ? <tr><td colSpan={cols.length+2} style={{ padding:48, textAlign:'center', color:'var(--text4)' }}>No trucks found</td></tr>
                     : filtered.map(truck => {
-                      const photos      = photoMap[truck.id]  || []
-                      const reconPhotos = reconMap[truck.id]  || []
+                      const photos      = photoMap[truck.id] || []
+                      const reconPhotos = reconMap[truck.id] || []
                       const allIn  = (truck.purchase_price||0) + (truck.recondition_cost||0)
                       const profit = truck.sold_price != null ? truck.sold_price - allIn : null
                       const sc = statusColors[truck.status] || { bg:'rgba(255,255,255,0.04)', color:'#888', border:'rgba(255,255,255,0.1)' }
@@ -819,7 +814,11 @@ async function addTruck() {
                           <td style={{ padding:'8px 12px' }} onClick={e => e.stopPropagation()}>
                             <PhotoCell truck={truck} photos={photos} reconPhotos={reconPhotos}
                               onPhotosChanged={p => updatePhotosForTruck(truck.id, p)}
-                              onReconChanged={p => updateReconForTruck(truck.id, p)} />
+                              onReconChanged={p => updateReconForTruck(truck.id, p)}
+                              onQueueUpdated={async () => {
+                              const { count } = await supabase.from('alert_queue').select('*', { count: 'exact', head: true })
+                              setAlertQueue(count || 0)
+                          }} />
                           </td>
                           <td style={{ padding:'10px 12px' }}>
                             <span style={{ background:sc.bg, color:sc.color, border:`1px solid ${sc.border}`, borderRadius:99, padding:'2px 8px', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>{truck.status}</span>
@@ -896,7 +895,7 @@ async function addTruck() {
                 <h2 style={{ fontSize:20, fontWeight:800, color:'var(--text)' }}>Add New Truck</h2>
                 <button onClick={() => setShowAddModal(false)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:18, width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
               </div>
-<div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Status</label><select style={{ ...IS, minHeight:44 }} value={newTruck.status} onChange={e => setNewTruck(p=>({...p,status:e.target.value}))}>{['Purchased','In Reconditioning','Ready to List','Listed','Deal Pending','Sold'].map(s=><option key={s}>{s}</option>)}</select></div>
                 <div><label style={LS}>Bought On</label><input type="date" style={{ ...IS, minHeight:44 }} value={newTruck.bought_on} onChange={e => setNewTruck(p=>({...p,bought_on:e.target.value}))} /></div>
               </div>
@@ -952,8 +951,8 @@ async function addTruck() {
                 <div><label style={LS}>Kilometers</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.kilometers||''} onChange={e => setEditForm(p=>({...p,kilometers:e.target.value as any}))} /></div>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-              <div><label style={LS}>Horsepower</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.horsepower||''} onChange={e => setEditForm(p=>({...p,horsepower:e.target.value as any}))} /></div>
-              <div><label style={LS}>Ratio</label><input style={{ ...IS, minHeight:44 }} value={editForm.ratio||''} onChange={e => setEditForm(p=>({...p,ratio:e.target.value}))} /></div>
+                <div><label style={LS}>Horsepower</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.horsepower||''} onChange={e => setEditForm(p=>({...p,horsepower:e.target.value as any}))} /></div>
+                <div><label style={LS}>Ratio</label><input style={{ ...IS, minHeight:44 }} value={editForm.ratio||''} onChange={e => setEditForm(p=>({...p,ratio:e.target.value}))} /></div>
               </div>
               <div style={{ marginBottom:12 }}><label style={LS}>Bought From</label><input style={{ ...IS, minHeight:44 }} value={editForm.bought_from||''} onChange={e => setEditForm(p=>({...p,bought_from:e.target.value}))} /></div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>

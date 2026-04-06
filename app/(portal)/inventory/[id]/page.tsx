@@ -160,8 +160,8 @@ export default function TruckDetailPage() {
     return () => window.removeEventListener('resize', check)
   }, [id])
 
-  async function fetchAll() {
-    setLoading(true)
+async function fetchAll(showLoader = true) {
+  if (showLoader) setLoading(true)
     const [{ data: t }, { data: p }, { data: l }, { data: i }, { data: o }, { data: of }, { data: d }] = await Promise.all([
       supabase.from('Inventory Data').select('*').eq('id', id).single(),
       supabase.from('parts').select('*').eq('truck_id', id).order('created_at'),
@@ -277,11 +277,13 @@ export default function TruckDetailPage() {
     setUploadingDoc(true)
     const path = `docs/${id}/${docCategory}/${Date.now()}-${file.name}`
     const { error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true })
-    if (!error) {
-      const { data } = supabase.storage.from('invoices').getPublicUrl(path)
-      await supabase.from('truck_documents').insert([{ truck_id: id, category: docCategory, name: file.name, url: data.publicUrl }])
-      fetchAll()
-    }
+  if (!error) {
+    const { data } = supabase.storage.from('invoices').getPublicUrl(path)
+    const { error: insertError } = await supabase.from('truck_documents').insert([{ truck_id: id, category: docCategory, name: file.name, url: data.publicUrl }])
+    if (!insertError) {
+      await fetchAll(false)
+  }
+}
     setUploadingDoc(false)
     if (docFileRef.current) docFileRef.current.value = ''
   }
@@ -291,7 +293,7 @@ export default function TruckDetailPage() {
     const path = url.split('/invoices/')[1]
     if (path) await supabase.storage.from('invoices').remove([path])
     await supabase.from('truck_documents').delete().eq('id', docId)
-    fetchAll()
+    await fetchAll(false)
   }
 
   if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'60vh', color:'var(--text3)' }}>Loading...</div>
