@@ -409,6 +409,8 @@ export default function InventoryPage() {
   const [editForm,  setEditForm]  = useState<Partial<Truck>>({})
   const [alertQueue,    setAlertQueue]    = useState(0)
   const [sendingAlerts, setSendingAlerts] = useState(false)
+  const [quickFilter,   setQuickFilter]   = useState('')
+  
 
   useEffect(() => {
     loadAll()
@@ -534,6 +536,12 @@ export default function InventoryPage() {
       if (soldTo && (!t.date_sold || t.date_sold > soldTo)) return false
       return true
     })
+        .filter(t => {
+      if (quickFilter === 'instock') return t.status !== 'Sold'
+      if (quickFilter === 'sold') return t.status === 'Sold'
+      if (quickFilter === 'pending') return t.payment_status === 'Unpaid'
+      return true
+    })
     .sort((a, b) => {
       const av = (a as any)[sortCol]; const bv = (b as any)[sortCol]
       if (av == null && bv == null) return 0
@@ -616,8 +624,9 @@ export default function InventoryPage() {
 
         {/* Stats */}
         <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
-          {[{ label:'Total', value:trucks.length, color:'var(--text2)' }, { label:'In Stock', value:inStock, color:'var(--gold)' }, { label:'Sold', value:sold, color:'var(--green)' }, { label:'Pending', value:pend, color:'var(--orange)' }].map(s => (
-            <div key={s.label} style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:99, padding:'5px 12px', fontSize:14, color:'var(--text2)' }}>
+          {[{ label:'Total', value:trucks.length, color:'var(--text2)', filter: '' }, { label:'In Stock', value:inStock, color:'var(--gold)', filter: 'instock' }, { label:'Sold', value:sold, color:'var(--green)', filter: 'sold' }, { label:'Pending', value:pend, color:'var(--orange)', filter: 'pending' }].map(s => (
+            <div key={s.label} onClick={() => setQuickFilter(qf => qf === s.filter ? '' : s.filter)}
+              style={{ background:'var(--card-bg)', border:`1px solid ${quickFilter === s.filter ? s.color : 'var(--card-border)'}`, borderRadius:99, padding:'5px 12px', fontSize:14, color:'var(--text2)', cursor:'pointer', transition:'all 0.15s' }}>
               {s.label} <span style={{ color:s.color, fontWeight:700 }}>{s.value}</span>
             </div>
           ))}
