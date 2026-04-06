@@ -53,8 +53,8 @@ export async function POST() {
 
     const count = queue.length
     const subject = count === 1
-      ? `🚛 New Truck Just Added — Aamir & Sons Trading`
-      : `🚛 ${count} New Trucks Just Added — Aamir & Sons Trading`
+      ? `New Truck Just Added — Aamir & Sons Trading`
+      : `${count} New Trucks Just Added — Aamir & Sons Trading`
 
     const htmlContent = `
       <div style="background:#0a0a0a;padding:40px 20px;font-family:Helvetica,sans-serif;">
