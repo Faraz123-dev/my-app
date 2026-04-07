@@ -8,6 +8,7 @@ import { useUser } from '@/lib/useUser'
 const navItems = [
   { label: 'Dashboard',         icon: '⊞',  href: '/dashboard' },
   { label: 'Inventory',         icon: '🚛', href: '/inventory' },
+  { label: 'Pipeline',             icon: '🎯', href: '/leads' },
   { label: 'Truck Acquisition', icon: '📋', href: '/truck-intake' },
   { label: 'Invoices',          icon: '🧾', href: '/invoices' },
   { label: 'Reports',           icon: '📊', href: '/reports' },
@@ -482,6 +483,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {[
+                  { label: 'Pipeline',      icon: '🎯', href: '/leads' },
                   { label: 'Invoices',   icon: '🧾', href: '/invoices' },
                   { label: 'Calculator', icon: '🧮', href: '/calculator' },
                   { label: 'Settings',   icon: '⚙️',  href: '/settings' },
