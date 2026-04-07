@@ -10,7 +10,7 @@ type Truck = {
   colour: string | null; kilometers: number | null; bought_from: string | null
   purchase_price: number | null; recondition_cost: number | null
   date_sold: string | null; sold_price: number | null; customer: string | null
-  payment_status: string | null; notes: string | null
+  payment_status: string | null; notes: string | null; photo_url: string | null
   listing_platform: string | null; listing_link: string | null
   listing_date: string | null; asking_price: number | null
   found_by: string | null; delivered_by: string | null; from_location: string | null
@@ -393,7 +393,7 @@ export default function TruckDetailPage() {
       }
     }
   }
-  
+
   async function saveDetails() {
   const payload = { 
     ...detailsForm, 
