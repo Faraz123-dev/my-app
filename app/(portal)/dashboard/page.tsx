@@ -8,10 +8,22 @@ type Truck = {
   make: string | null; model: string | null; year: number | null
   purchase_price: number | null; recondition_cost: number | null
   date_sold: string | null; sold_price: number | null; customer: string | null
-  payment_status: string | null; kilometers: number | null
+  payment_status: string | null; kilometers: number | null; found_by: string | null
+}
+
+type Commission = {
+  id: string; truck_id: string; person: string; amount: number; is_auto: boolean; paid: boolean
 }
 
 type TruckCosts = Record<string, number>
+
+const TEAM = ['Faiz', 'Faraz', 'Umar', 'Waleed']
+const TEAM_COLORS: Record<string, string> = {
+  Faiz:   '#EAB308',
+  Faraz:  '#38bdf8',
+  Umar:   '#a78bfa',
+  Waleed: '#f97316',
+}
 
 function getMonthKey(d: string | null) {
   if (!d) return null
@@ -35,15 +47,18 @@ function fmtKey(key: string) {
 }
 
 export default function DashboardPage() {
-  const [trucks,     setTrucks]     = useState<Truck[]>([])
-  const [truckCosts, setTruckCosts] = useState<TruckCosts>({})
-  const [loading,    setLoading]    = useState(true)
-  const [range,      setRange]      = useState<6 | 12 | 24>(12)
-  const [chartMode,  setChartMode]  = useState<'monthly' | 'quarterly' | 'ytd'>('monthly')
-  const [hovBar,     setHovBar]     = useState<number | null>(null)
-  const [tip,        setTip]        = useState<{ x: number; y: number; label: string; profit: number; revenue: number; count: number } | null>(null)
-  const [hovDonut,   setHovDonut]   = useState<string | null>(null)
-  const [drilldown,  setDrilldown]  = useState<{ title: string; trucks: any[] } | null>(null)
+  const [trucks,      setTrucks]      = useState<Truck[]>([])
+  const [truckCosts,  setTruckCosts]  = useState<TruckCosts>({})
+  const [commissions, setCommissions] = useState<Commission[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [range,       setRange]       = useState<6 | 12 | 24>(12)
+  const [chartMode,   setChartMode]   = useState<'monthly' | 'quarterly' | 'ytd'>('monthly')
+  const [hovBar,      setHovBar]      = useState<number | null>(null)
+  const [tip,         setTip]         = useState<{ x: number; y: number; label: string; profit: number; revenue: number; count: number } | null>(null)
+  const [hovDonut,    setHovDonut]    = useState<string | null>(null)
+  const [drilldown,   setDrilldown]   = useState<{ title: string; trucks: any[] } | null>(null)
+  const [commDrilldown, setCommDrilldown] = useState<{ person: string; items: (Commission & { truckLabel: string })[] } | null>(null)
+  const [togglingId,  setTogglingId]  = useState<string | null>(null)
   const chartRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { loadAll() }, [])
@@ -56,25 +71,28 @@ export default function DashboardPage() {
       { data: labor },
       { data: vendorInv },
       { data: otherCosts },
+      { data: comms },
     ] = await Promise.all([
-      supabase.from('Inventory Data').select('id,status,bought_on,vin,make,model,year,purchase_price,recondition_cost,date_sold,sold_price,customer,payment_status,kilometers'),
+      supabase.from('Inventory Data').select('id,status,bought_on,vin,make,model,year,purchase_price,recondition_cost,date_sold,sold_price,customer,payment_status,kilometers,found_by'),
       supabase.from('parts').select('truck_id,qty,unit_cost'),
       supabase.from('labor').select('truck_id,hours,rate'),
       supabase.from('vendor_invoices').select('truck_id,amount'),
       supabase.from('other_costs').select('truck_id,amount'),
+      supabase.from('commissions').select('*'),
     ])
     const costs: TruckCosts = {}
     const add = (tid: string, amt: number) => { costs[tid] = (costs[tid] || 0) + amt }
-    ;(parts || []).forEach((p: any)      => add(p.truck_id, (p.qty || 0) * (p.unit_cost || 0)))
-    ;(labor || []).forEach((l: any)      => add(l.truck_id, (l.hours || 0) * (l.rate || 0)))
-    ;(vendorInv || []).forEach((i: any)  => add(i.truck_id, i.amount || 0))
-    ;(otherCosts || []).forEach((o: any) => add(o.truck_id, o.amount || 0))
+    ;(parts || []).forEach((p: any)     => add(p.truck_id, (p.qty || 0) * (p.unit_cost || 0)))
+    ;(labor || []).forEach((l: any)     => add(l.truck_id, (l.hours || 0) * (l.rate || 0)))
+    ;(vendorInv || []).forEach((i: any) => add(i.truck_id, i.amount || 0))
+    ;(otherCosts || []).forEach((o: any)=> add(o.truck_id, o.amount || 0))
     setTrucks(t || [])
     setTruckCosts(costs)
+    setCommissions((comms || []) as Commission[])
     setLoading(false)
   }
 
-  const allIn = (t: Truck) => (t.purchase_price || 0) + (t.recondition_cost || 0) + (truckCosts[t.id] || 0)
+  const allIn      = (t: Truck) => (t.purchase_price || 0) + (t.recondition_cost || 0) + (truckCosts[t.id] || 0)
   const truckProfit = (t: Truck) => t.sold_price != null ? t.sold_price - allIn(t) : null
 
   // KPIs
@@ -97,9 +115,9 @@ export default function DashboardPage() {
 
   // Chart buckets
   type Bucket = { profit: number; count: number; revenue: number; trucks: Truck[] }
-  const byMonth: Record<string, Bucket> = {}
+  const byMonth: Record<string, Bucket>   = {}
   const byQuarter: Record<string, Bucket> = {}
-  const byYear: Record<string, Bucket> = {}
+  const byYear: Record<string, Bucket>    = {}
 
   trucks.filter(t => t.status === 'Sold' && t.date_sold).forEach(t => {
     const k = getMonthKey(t.date_sold)!
@@ -166,6 +184,35 @@ export default function DashboardPage() {
     const x2 = 70 + R * Math.cos(rad(a2)), y2 = 70 + R * Math.sin(rad(a2))
     return { ...seg, color: donutColors[idx], path: pct > 0 ? `M70 70 L${x1} ${y1} A${R} ${R} 0 ${pct > 0.5 ? 1 : 0} 1 ${x2} ${y2}Z` : '', pct }
   })
+
+  // ── COMMISSION DATA ──────────────────────────────────────────────────────
+  const truckMap = Object.fromEntries(trucks.map(t => [t.id, t]))
+
+  const commStats = TEAM.map(person => {
+    const rows = commissions.filter(c => c.person === person)
+    const total  = rows.reduce((s, c) => s + c.amount, 0)
+    const paid   = rows.filter(c => c.paid).reduce((s, c) => s + c.amount, 0)
+    const owing  = total - paid
+    const count  = rows.length
+    return { person, total, paid, owing, count, rows }
+  })
+
+  const totalCommOwing = commStats.reduce((s, c) => s + c.owing, 0)
+  const totalCommPaid  = commStats.reduce((s, c) => s + c.paid, 0)
+
+  async function togglePaid(commission: Commission) {
+    setTogglingId(commission.id)
+    await supabase.from('commissions').update({ paid: !commission.paid }).eq('id', commission.id)
+    setCommissions(prev => prev.map(c => c.id === commission.id ? { ...c, paid: !c.paid } : c))
+    setTogglingId(null)
+    // update drilldown if open
+    if (commDrilldown) {
+      setCommDrilldown(prev => prev ? {
+        ...prev,
+        items: prev.items.map(c => c.id === commission.id ? { ...c, paid: !c.paid } : c)
+      } : null)
+    }
+  }
 
   const card: React.CSSProperties = {
     background: 'var(--surface)',
@@ -328,12 +375,8 @@ export default function DashboardPage() {
                               _col2: `${(truckProfit(t) || 0) < 0 ? '-' : ''}$${Math.abs(Math.round(truckProfit(t) || 0)).toLocaleString()}`,
                             }))
                           })}>
-                          {isNewYear && (
-                            <div style={{ position: 'absolute', left: -4, top: 0, bottom: 0, width: 1, background: 'var(--gold)', opacity: 0.4 }} />
-                          )}
-                          {isNewYear && (
-                            <div style={{ position: 'absolute', left: -3, top: -16, fontSize: 9, color: 'var(--gold)', fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '0.05em' }}>{thisYear}</div>
-                          )}
+                          {isNewYear && <div style={{ position: 'absolute', left: -4, top: 0, bottom: 0, width: 1, background: 'var(--gold)', opacity: 0.4 }} />}
+                          {isNewYear && <div style={{ position: 'absolute', left: -3, top: -16, fontSize: 9, color: 'var(--gold)', fontWeight: 700, whiteSpace: 'nowrap', letterSpacing: '0.05em' }}>{thisYear}</div>}
                           <div style={{ width: hov ? '88%' : '70%', height: `${h}%`, minHeight: 3, borderRadius: neg ? '0 0 5px 5px' : '5px 5px 0 0', transition: 'all 0.15s', background: neg ? (hov ? '#ef4444' : 'var(--card-bg)') : (hov ? 'var(--gold)' : 'var(--gold-dim)'), boxShadow: hov ? (neg ? '0 0 12px #ef444466' : '0 0 12px rgba(234,179,8,0.4)') : 'none' }} />
                           {showLabel && (
                             <div style={{ position: 'absolute', bottom: -22, fontSize: 7.5, color: hov ? 'var(--text2)' : isNewYear ? 'var(--gold)' : 'var(--text4)', whiteSpace: 'nowrap', fontWeight: isNewYear ? 700 : 400 }}>
@@ -403,6 +446,109 @@ export default function DashboardPage() {
                   </span>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* ── COMMISSION WIDGET ── */}
+          <div style={{ ...card, padding: '20px 24px', marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', letterSpacing: '0.1em', marginBottom: 8 }}>COMMISSIONS</div>
+                <div style={{ display: 'flex', gap: 20 }}>
+                  <div>
+                    <div style={{ fontSize: 9, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 4 }}>TOTAL OWING</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: totalCommOwing > 0 ? 'var(--orange)' : 'var(--text4)' }}>
+                      ${Math.round(totalCommOwing).toLocaleString()}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 9, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 4 }}>TOTAL PAID</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--green)' }}>
+                      ${Math.round(totalCommPaid).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {commissions.length === 0 && (
+                <div style={{ fontSize: 12, color: 'var(--text4)', fontStyle: 'italic', alignSelf: 'center' }}>
+                  No commissions logged yet. Add them from individual truck pages.
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+              {commStats.map(({ person, total, paid, owing, count, rows }) => {
+                const color = TEAM_COLORS[person]
+                const paidPct = total > 0 ? (paid / total) * 100 : 0
+                return (
+                  <div key={person}
+                    onClick={() => {
+                      if (count === 0) return
+                      const items = rows.map(c => ({
+                        ...c,
+                        truckLabel: (() => {
+                          const t = truckMap[c.truck_id]
+                          return t ? `${t.year || ''} ${t.make || ''} ${t.model || ''}`.trim() || t.vin : c.truck_id
+                        })()
+                      }))
+                      setCommDrilldown({ person, items })
+                    }}
+                    style={{ background: 'var(--card-bg)', border: `1px solid ${owing > 0 ? color + '44' : 'var(--card-border)'}`, borderRadius: 12, padding: '16px', cursor: count > 0 ? 'pointer' : 'default', transition: 'all 0.15s', position: 'relative', overflow: 'hidden' }}
+                    onMouseEnter={e => { if (count > 0) e.currentTarget.style.borderColor = color }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = owing > 0 ? color + '44' : 'var(--card-border)' }}>
+
+                    {/* Color accent bar */}
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: color, opacity: total > 0 ? 1 : 0.2 }} />
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, marginTop: 6 }}>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', marginBottom: 2 }}>{person}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text4)' }}>
+                          {count === 0 ? 'No commissions' : `${count} commission${count !== 1 ? 's' : ''}`}
+                        </div>
+                      </div>
+                      {person === 'Faiz' && (
+                        <span style={{ background: color + '22', border: `1px solid ${color}44`, color, borderRadius: 99, padding: '2px 8px', fontSize: 9, fontWeight: 700, letterSpacing: '0.05em' }}>AUTO 30%</span>
+                      )}
+                    </div>
+
+                    {total > 0 ? (
+                      <>
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 9, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 4 }}>TOTAL EARNED</div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color }}>${Math.round(total).toLocaleString()}</div>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ height: 6, background: 'var(--hover)', borderRadius: 99, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${paidPct}%`, background: '#22c55e', borderRadius: 99, transition: 'width 0.4s ease' }} />
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <div style={{ background: 'var(--green-dim)', borderRadius: 8, padding: '8px 10px' }}>
+                            <div style={{ fontSize: 9, color: 'var(--green)', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 3 }}>PAID</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--green)' }}>${Math.round(paid).toLocaleString()}</div>
+                          </div>
+                          <div style={{ background: owing > 0 ? 'rgba(249,115,22,0.1)' : 'var(--hover)', borderRadius: 8, padding: '8px 10px' }}>
+                            <div style={{ fontSize: 9, color: owing > 0 ? 'var(--orange)' : 'var(--text4)', letterSpacing: '0.08em', fontWeight: 700, marginBottom: 3 }}>OWING</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: owing > 0 ? 'var(--orange)' : 'var(--text4)' }}>${Math.round(owing).toLocaleString()}</div>
+                          </div>
+                        </div>
+
+                        {count > 0 && (
+                          <div style={{ fontSize: 10, color: 'var(--text4)', marginTop: 10, textAlign: 'center' }}>Click to view details →</div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text4)', fontSize: 12, fontStyle: 'italic' }}>
+                        Nothing logged yet
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
 
@@ -476,7 +622,7 @@ export default function DashboardPage() {
         </>
       )}
 
-      {/* Drilldown Modal */}
+      {/* Truck Drilldown Modal */}
       {drilldown && (
         <div onClick={() => setDrilldown(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 620, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow)' }}>
@@ -510,6 +656,59 @@ export default function DashboardPage() {
                     <div style={{ fontSize: 12, color: 'var(--text4)' }}>→</div>
                   </div>
                 ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Commission Drilldown Modal */}
+      {commDrilldown && (
+        <div onClick={() => setCommDrilldown(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 560, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid var(--border2)' }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: 0, marginBottom: 2 }}>{commDrilldown.person}'s Commissions</h3>
+                <div style={{ fontSize: 11, color: 'var(--text4)' }}>
+                  {commDrilldown.person === 'Faiz' ? 'Auto — 30% of profit' : 'Manual entry'}
+                </div>
+              </div>
+              <button onClick={() => setCommDrilldown(null)} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', width: 30, height: 30, borderRadius: '50%', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            </div>
+
+            {/* Totals */}
+            <div style={{ display: 'flex', gap: 20, padding: '14px 24px', borderBottom: '1px solid var(--border2)', background: 'var(--card-bg)' }}>
+              {[
+                { label: 'TOTAL', val: commDrilldown.items.reduce((s, c) => s + c.amount, 0), color: TEAM_COLORS[commDrilldown.person] },
+                { label: 'PAID',  val: commDrilldown.items.filter(c => c.paid).reduce((s, c) => s + c.amount, 0), color: 'var(--green)' },
+                { label: 'OWING', val: commDrilldown.items.filter(c => !c.paid).reduce((s, c) => s + c.amount, 0), color: 'var(--orange)' },
+              ].map(s => (
+                <div key={s.label}>
+                  <div style={{ fontSize: 9, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 4 }}>{s.label}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>${Math.round(s.val).toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {commDrilldown.items.map(c => (
+                <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 24px', borderBottom: '1px solid var(--border2)' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.truckLabel}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text4)', marginTop: 2 }}>{c.is_auto ? 'Auto (30% of profit)' : 'Manual'}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0, minWidth: 80 }}>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: TEAM_COLORS[commDrilldown.person] }}>${Math.round(c.amount).toLocaleString()}</div>
+                  </div>
+                  <button
+                    onClick={() => togglePaid(c)}
+                    disabled={togglingId === c.id}
+                    style={{ background: c.paid ? 'var(--green-dim)' : 'var(--hover)', border: `1px solid ${c.paid ? 'var(--green)' : 'var(--border)'}`, color: c.paid ? 'var(--green)' : 'var(--text3)', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: 90, minHeight: 34 }}>
+                    {togglingId === c.id ? '...' : c.paid ? '✓ Paid' : 'Mark Paid'}
+                  </button>
+                  <div onClick={() => { window.location.href = `/inventory/${c.truck_id}`; setCommDrilldown(null) }}
+                    style={{ fontSize: 12, color: 'var(--text4)', cursor: 'pointer' }}>→</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

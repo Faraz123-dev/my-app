@@ -13,6 +13,7 @@ type Truck = {
   payment_status: string | null; notes: string | null
   listing_platform: string | null; listing_link: string | null
   listing_date: string | null; asking_price: number | null
+  found_by: string | null; delivered_by: string | null; from_location: string | null
 }
 type Part      = { id: string; part: string; category: string; qty: number; unit_cost: number; date: string | null; invoice_url: string | null }
 type Labor     = { id: string; tech: string; hours: number; rate: number; date: string | null; invoice_url: string | null }
@@ -20,9 +21,13 @@ type Invoice   = { id: string; vendor: string; description: string; amount: numb
 type OtherCost = { id: string; category: string; amount: number; date: string | null; notes: string | null; invoice_url: string | null }
 type Offer     = { id: string; amount: number; date: string | null; notes: string | null; accepted: boolean }
 type Doc       = { id: string; category: string; name: string; url: string; created_at: string }
+type Commission = { id: string; truck_id: string; person: string; amount: number; is_auto: boolean; paid: boolean }
+
+const TEAM = ['Faiz', 'Faraz', 'Umar', 'Waleed']
+const FAIZ_RATE = 0.30
 
 const STATUS_PIPELINE = ['Intake', 'Purchased', 'In Reconditioning', 'Ready to List', 'Listed', 'Deal Pending', 'Sold']
-const DOC_CATEGORIES  = ['Photos', 'Purchase Docs', 'Inspection & Safety', 'Repair Invoices', 'Sales Docs', 'Carfax & Lien Documents']
+const DOC_CATEGORIES = ['Purchase Docs', 'Inspection & Safety', 'Sales Docs', 'Carfax & Lien Documents']
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; border: string }> = {
   Purchased:           { bg: '#1a1a1a', color: '#888',    border: '#333'    },
@@ -112,21 +117,194 @@ function UploadButton({ table, rowId, currentUrl, onUploaded }: { table: string;
   )
 }
 
+// ── COMMISSION SECTION ────────────────────────────────────────────────────────
+function CommissionSection({ truck, profit, commissions, onChanged }: {
+  truck: Truck
+  profit: number | null
+  commissions: Commission[]
+  onChanged: () => void
+}) {
+  const [saving, setSaving] = useState<string | null>(null)
+  const [manualAmounts, setManualAmounts] = useState<Record<string, string>>({})
+
+  // Initialize manual amounts from DB
+  useEffect(() => {
+    const init: Record<string, string> = {}
+    for (const c of commissions) {
+      if (!c.is_auto) init[c.person] = String(c.amount)
+    }
+    setManualAmounts(init)
+  }, [commissions])
+
+  const faizCommission = profit != null ? profit * FAIZ_RATE : null
+  const faizRow = commissions.find(c => c.person === 'Faiz')
+  const manualPeople = TEAM.filter(p => p !== 'Faiz')
+
+  async function upsertFaiz() {
+    if (faizCommission == null) return
+    setSaving('Faiz')
+    const existing = commissions.find(c => c.person === 'Faiz')
+    if (existing) {
+      await supabase.from('commissions').update({ amount: faizCommission, is_auto: true }).eq('id', existing.id)
+    } else {
+      await supabase.from('commissions').insert([{ truck_id: truck.id, person: 'Faiz', amount: faizCommission, is_auto: true, paid: false }])
+    }
+    setSaving(null)
+    onChanged()
+  }
+
+  async function saveManual(person: string) {
+    const amt = parseFloat(manualAmounts[person] || '0') || 0
+    setSaving(person)
+    const existing = commissions.find(c => c.person === person)
+    if (existing) {
+      await supabase.from('commissions').update({ amount: amt, is_auto: false }).eq('id', existing.id)
+    } else {
+      await supabase.from('commissions').insert([{ truck_id: truck.id, person, amount: amt, is_auto: false, paid: false }])
+    }
+    setSaving(null)
+    onChanged()
+  }
+
+  async function togglePaid(commission: Commission) {
+    await supabase.from('commissions').update({ paid: !commission.paid }).eq('id', commission.id)
+    onChanged()
+  }
+
+  async function deleteCommission(id: string) {
+    await supabase.from('commissions').delete().eq('id', id)
+    onChanged()
+  }
+
+  const totalCommissions = commissions.reduce((s, c) => s + c.amount, 0)
+  const totalPaid = commissions.filter(c => c.paid).reduce((s, c) => s + c.amount, 0)
+
+  return (
+    <div style={SS}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', margin: 0, marginBottom: 4 }}>Commissions</h3>
+          {totalCommissions > 0 && (
+            <div style={{ fontSize: 11, color: 'var(--text3)' }}>
+              Total: <span style={{ color: 'var(--gold)', fontWeight: 700 }}>${totalCommissions.toLocaleString()}</span>
+              {totalPaid > 0 && <> · Paid: <span style={{ color: 'var(--green)', fontWeight: 700 }}>${totalPaid.toLocaleString()}</span></>}
+              {(totalCommissions - totalPaid) > 0 && <> · Owing: <span style={{ color: 'var(--orange)', fontWeight: 700 }}>${(totalCommissions - totalPaid).toLocaleString()}</span></>}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {profit == null && (
+        <div style={{ background: 'var(--hover)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--text3)', marginBottom: 14, fontStyle: 'italic' }}>
+          Profit not yet calculated — add a sold price to enable Faiz's auto-commission.
+        </div>
+      )}
+
+      {/* Faiz — auto 30% of profit */}
+      <div style={{ background: 'var(--hover)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>Faiz</div>
+            <div style={{ fontSize: 11, color: 'var(--text4)' }}>Auto · 30% of profit</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: faizCommission != null ? 'var(--gold)' : 'var(--text4)' }}>
+              {faizCommission != null ? `$${Math.round(faizCommission).toLocaleString()}` : '—'}
+            </div>
+            {faizRow && (
+              <div style={{ fontSize: 11, color: faizRow.paid ? 'var(--green)' : 'var(--orange)', fontWeight: 600, marginTop: 2 }}>
+                {faizRow.paid ? '✓ Paid' : '⏳ Owing'}
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {faizCommission != null && (
+            <button onClick={upsertFaiz} disabled={saving === 'Faiz'}
+              style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+              {saving === 'Faiz' ? '...' : faizRow ? '🔄 Recalculate' : '+ Add Commission'}
+            </button>
+          )}
+          {faizRow && (
+            <>
+              <button onClick={() => togglePaid(faizRow)}
+                style={{ background: faizRow.paid ? 'var(--green-dim)' : 'var(--hover)', border: `1px solid ${faizRow.paid ? 'var(--green)' : 'var(--border)'}`, color: faizRow.paid ? 'var(--green)' : 'var(--text3)', borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                {faizRow.paid ? '✓ Mark Unpaid' : 'Mark Paid'}
+              </button>
+              <button onClick={() => deleteCommission(faizRow.id)}
+                style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13, padding: '5px 8px' }}>🗑</button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Manual people */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {manualPeople.map(person => {
+          const row = commissions.find(c => c.person === person)
+          return (
+            <div key={person} style={{ background: 'var(--hover)', border: `1px solid ${row ? 'var(--border)' : 'var(--border2)'}`, borderRadius: 10, padding: '14px 16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>{person}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text4)' }}>Manual entry</div>
+                </div>
+                {row && (
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--gold)' }}>${row.amount.toLocaleString()}</div>
+                    <div style={{ fontSize: 11, color: row.paid ? 'var(--green)' : 'var(--orange)', fontWeight: 600, marginTop: 2 }}>
+                      {row.paid ? '✓ Paid' : '⏳ Owing'}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: 1, maxWidth: 160 }}>
+                  <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)', fontSize: 13 }}>$</span>
+                  <input type="number" placeholder="0"
+                    style={{ ...IS, paddingLeft: 24, minHeight: 36, fontSize: 13 }}
+                    value={manualAmounts[person] ?? (row?.amount ? String(row.amount) : '')}
+                    onChange={e => setManualAmounts(prev => ({ ...prev, [person]: e.target.value }))} />
+                </div>
+                <button onClick={() => saveManual(person)} disabled={saving === person}
+                  style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 36 }}>
+                  {saving === person ? '...' : row ? '🔄 Update' : '+ Add'}
+                </button>
+                {row && (
+                  <>
+                    <button onClick={() => togglePaid(row)}
+                      style={{ background: row.paid ? 'var(--green-dim)' : 'var(--hover)', border: `1px solid ${row.paid ? 'var(--green)' : 'var(--border)'}`, color: row.paid ? 'var(--green)' : 'var(--text3)', borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', minHeight: 36 }}>
+                      {row.paid ? '✓ Paid' : 'Mark Paid'}
+                    </button>
+                    <button onClick={() => deleteCommission(row.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, padding: '7px 4px' }}>🗑</button>
+                  </>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function TruckDetailPage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
   const [isMobile, setIsMobile] = useState(false)
 
-  const [truck,      setTruck]      = useState<Truck | null>(null)
-  const [parts,      setParts]      = useState<Part[]>([])
-  const [labors,     setLabors]     = useState<Labor[]>([])
-  const [invoices,   setInvoices]   = useState<Invoice[]>([])
-  const [otherCosts, setOtherCosts] = useState<OtherCost[]>([])
-  const [offers,     setOffers]     = useState<Offer[]>([])
-  const [docs,       setDocs]       = useState<Doc[]>([])
-  const [loading,    setLoading]    = useState(true)
-  const [activeTab,  setActiveTab]  = useState<'overview' | 'costs' | 'listings' | 'docs'>('overview')
+  const [truck,        setTruck]        = useState<Truck | null>(null)
+  const [parts,        setParts]        = useState<Part[]>([])
+  const [labors,       setLabors]       = useState<Labor[]>([])
+  const [invoices,     setInvoices]     = useState<Invoice[]>([])
+  const [otherCosts,   setOtherCosts]   = useState<OtherCost[]>([])
+  const [offers,       setOffers]       = useState<Offer[]>([])
+  const [docs,         setDocs]         = useState<Doc[]>([])
+  const [commissions,  setCommissions]  = useState<Commission[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [activeTab,    setActiveTab]    = useState<'overview' | 'costs' | 'listings' | 'docs'>('overview')
 
   const [editingDetails,   setEditingDetails]   = useState(false)
   const [editingNotes,     setEditingNotes]      = useState(false)
@@ -160,9 +338,9 @@ export default function TruckDetailPage() {
     return () => window.removeEventListener('resize', check)
   }, [id])
 
-async function fetchAll(showLoader = true) {
-  if (showLoader) setLoading(true)
-    const [{ data: t }, { data: p }, { data: l }, { data: i }, { data: o }, { data: of }, { data: d }] = await Promise.all([
+  async function fetchAll(showLoader = true) {
+    if (showLoader) setLoading(true)
+    const [{ data: t }, { data: p }, { data: l }, { data: i }, { data: o }, { data: of }, { data: d }, { data: com }] = await Promise.all([
       supabase.from('Inventory Data').select('*').eq('id', id).single(),
       supabase.from('parts').select('*').eq('truck_id', id).order('created_at'),
       supabase.from('labor').select('*').eq('truck_id', id).order('created_at'),
@@ -170,21 +348,18 @@ async function fetchAll(showLoader = true) {
       supabase.from('other_costs').select('*').eq('truck_id', id).order('created_at'),
       supabase.from('offers').select('*').eq('truck_id', id).order('created_at'),
       supabase.from('truck_documents').select('*').eq('truck_id', id).order('created_at'),
+      supabase.from('commissions').select('*').eq('truck_id', id),
     ])
     if (t) {
       setTruck(t)
-      setDetailsForm({
-        colour: t.colour, kilometers: t.kilometers, bought_from: t.bought_from,
-        purchase_price: t.purchase_price, recondition_cost: t.recondition_cost,
-        date_sold: t.date_sold, customer: t.customer, payment_status: t.payment_status,
-        sold_price: t.sold_price,
-      })
+      setDetailsForm({ colour: t.colour, kilometers: t.kilometers, bought_from: t.bought_from, purchase_price: t.purchase_price, recondition_cost: t.recondition_cost, date_sold: t.date_sold, customer: t.customer, payment_status: t.payment_status, sold_price: t.sold_price })
       setNotesForm({ notes: t.notes || '' })
       setSaleForm({ sold_price: t.sold_price?.toString() || '', date_sold: t.date_sold || '', customer: t.customer || '', payment_status: t.payment_status || 'N/A' })
       setListingForm({ listing_platform: t.listing_platform || '', listing_link: t.listing_link || '', listing_date: t.listing_date || '', asking_price: t.asking_price?.toString() || '' })
     }
     setParts(p || []); setLabors(l || []); setInvoices(i || [])
     setOtherCosts(o || []); setOffers(of || []); setDocs(d || [])
+    setCommissions((com || []) as Commission[])
     setLoading(false)
   }
 
@@ -194,16 +369,7 @@ async function fetchAll(showLoader = true) {
   }
 
   async function saveDetails() {
-    const payload = {
-      ...detailsForm,
-      kilometers:       detailsForm.kilometers       ? Number(detailsForm.kilometers)       : null,
-      purchase_price:   detailsForm.purchase_price   ? Number(detailsForm.purchase_price)   : null,
-      recondition_cost: detailsForm.recondition_cost ? Number(detailsForm.recondition_cost) : null,
-      sold_price:       detailsForm.sold_price       ? Number(detailsForm.sold_price)       : null,
-      date_sold:        detailsForm.date_sold   || null,
-      customer:         detailsForm.customer    || null,
-      payment_status:   detailsForm.payment_status || null,
-    }
+    const payload = { ...detailsForm, kilometers: detailsForm.kilometers ? Number(detailsForm.kilometers) : null, purchase_price: detailsForm.purchase_price ? Number(detailsForm.purchase_price) : null, recondition_cost: detailsForm.recondition_cost ? Number(detailsForm.recondition_cost) : null, sold_price: detailsForm.sold_price ? Number(detailsForm.sold_price) : null, date_sold: detailsForm.date_sold || null, customer: detailsForm.customer || null, payment_status: detailsForm.payment_status || null }
     await supabase.from('Inventory Data').update(payload).eq('id', id)
     setTruck(prev => prev ? { ...prev, ...payload } : prev)
     setEditingDetails(false)
@@ -218,25 +384,14 @@ async function fetchAll(showLoader = true) {
   async function saveSale() {
     const hasSoldPrice = saleForm.sold_price && parseFloat(saleForm.sold_price) > 0
     const autoPayment = hasSoldPrice && saleForm.payment_status === 'N/A' ? 'Unpaid' : saleForm.payment_status
-    const update: any = {
-      sold_price: parseFloat(saleForm.sold_price) || null,
-      date_sold: saleForm.date_sold || null,
-      customer: saleForm.customer || null,
-      payment_status: autoPayment,
-      status: hasSoldPrice ? 'Sold' : (truck?.status === 'Sold' ? 'Deal Pending' : (truck?.status ?? 'Purchased')),
-    }
+    const update: any = { sold_price: parseFloat(saleForm.sold_price) || null, date_sold: saleForm.date_sold || null, customer: saleForm.customer || null, payment_status: autoPayment, status: hasSoldPrice ? 'Sold' : (truck?.status === 'Sold' ? 'Deal Pending' : (truck?.status ?? 'Purchased')) }
     await supabase.from('Inventory Data').update(update).eq('id', id)
     setTruck(prev => prev ? { ...prev, ...update } : prev)
     setEditingSale(false)
   }
 
   async function saveListing() {
-    const update = {
-      listing_platform: listingForm.listing_platform || null,
-      listing_link:     listingForm.listing_link     || null,
-      listing_date:     listingForm.listing_date     || null,
-      asking_price:     parseFloat(listingForm.asking_price) || null,
-    }
+    const update = { listing_platform: listingForm.listing_platform || null, listing_link: listingForm.listing_link || null, listing_date: listingForm.listing_date || null, asking_price: parseFloat(listingForm.asking_price) || null }
     await supabase.from('Inventory Data').update(update).eq('id', id)
     setTruck(prev => prev ? { ...prev, ...update } : prev)
     setEditingListing(false)
@@ -277,13 +432,11 @@ async function fetchAll(showLoader = true) {
     setUploadingDoc(true)
     const path = `docs/${id}/${docCategory}/${Date.now()}-${file.name}`
     const { error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true })
-  if (!error) {
-    const { data } = supabase.storage.from('invoices').getPublicUrl(path)
-    const { error: insertError } = await supabase.from('truck_documents').insert([{ truck_id: id, category: docCategory, name: file.name, url: data.publicUrl }])
-    if (!insertError) {
+    if (!error) {
+      const { data } = supabase.storage.from('invoices').getPublicUrl(path)
+      await supabase.from('truck_documents').insert([{ truck_id: id, category: docCategory, name: file.name, url: data.publicUrl }])
       await fetchAll(false)
-  }
-}
+    }
     setUploadingDoc(false)
     if (docFileRef.current) docFileRef.current.value = ''
   }
@@ -304,8 +457,9 @@ async function fetchAll(showLoader = true) {
   const invoiceTotal = invoices.reduce((s, i) => s + i.amount, 0)
   const otherTotal   = otherCosts.reduce((s, o) => s + o.amount, 0)
   const reconTotal   = partsTotal + laborTotal + invoiceTotal + otherTotal
-  const allInCost    = (truck.purchase_price || 0) + reconTotal
-  const profit       = truck.sold_price != null ? truck.sold_price - allInCost : null
+  const allInCost = (truck.purchase_price || 0) + reconTotal
+  const totalCommissions = commissions.reduce((s, c) => s + c.amount, 0)
+  const profit = truck.sold_price != null ? truck.sold_price - allInCost : null
 
   const daysInInventory = truck.bought_on ? Math.floor((Date.now() - new Date(truck.bought_on).getTime()) / 86400000) : null
   const agingLabel = daysInInventory == null ? '' : daysInInventory <= 15 ? '0–15' : daysInInventory <= 30 ? '16–30' : daysInInventory <= 60 ? '31–60' : '60+'
@@ -329,7 +483,11 @@ async function fetchAll(showLoader = true) {
               <button onClick={() => router.push('/inventory')} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:16, width:36, height:36, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>←</button>
               <div style={{ minWidth:0 }}>
                 <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight:700, color:'var(--text)', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{truck.year} {truck.make} {truck.model}</h1>
-                <div style={{ fontSize:13, color:'var(--text)', marginTop:3, fontFamily:'monospace', letterSpacing:'0.05em' }}>{truck.vin}</div>
+                <div style={{ display:'flex', gap:10, alignItems:'center', marginTop:3, flexWrap:'wrap' }}>
+                  <div style={{ fontSize:13, color:'var(--text)', fontFamily:'monospace', letterSpacing:'0.05em' }}>{truck.vin}</div>
+                  {truck.found_by && <span style={{ fontSize:11, color:'var(--gold)', fontWeight:600, background:'var(--gold-dim)', borderRadius:99, padding:'1px 8px' }}>🔍 {truck.found_by}</span>}
+                  {truck.delivered_by && <span style={{ fontSize:11, color:'var(--text3)' }}>{truck.delivered_by}{truck.from_location ? ` · ${truck.from_location}` : ''}</span>}
+                </div>
               </div>
             </div>
             <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0, flexWrap:'wrap', justifyContent:'flex-end' }}>
@@ -343,13 +501,13 @@ async function fetchAll(showLoader = true) {
         </div>
 
         {/* Stat cards */}
-        <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5,1fr)', gap:10, marginBottom:14 }}>
-          {[
+        <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(7,1fr)', gap:10, marginBottom:14 }}>         {[
             { label:'PURCHASE',   value:`$${(truck.purchase_price||0).toLocaleString()}`, color:'var(--gold)' },
             { label:'RECON',      value:`$${reconTotal.toLocaleString()}`,                color:'var(--gold)' },
             { label:'ALL-IN',     value:`$${allInCost.toLocaleString()}`,                 color:'var(--gold)' },
-            { label:'SOLD PRICE', value: truck.sold_price != null ? `$${truck.sold_price.toLocaleString()}` : '—', color: truck.sold_price ? 'var(--gold)' : 'var(--text4)' },
-            { label:'PROFIT',     value: profit != null ? `${profit < 0 ? '-' : ''}$${Math.abs(profit).toLocaleString()}` : '—', color: profit == null ? 'var(--text4)' : profit >= 0 ? 'var(--green)' : 'var(--red)' },
+            { label:'GROSS PROFIT',      value: profit != null ? `${profit < 0 ? '-' : ''}$${Math.abs(profit).toLocaleString()}` : '—',                             color: profit == null ? 'var(--text4)' : profit >= 0 ? 'var(--green)' : 'var(--red)' },
+            { label:'COMMISSIONS',       value: totalCommissions > 0 ? `-$${Math.round(totalCommissions).toLocaleString()}` : '—',                                  color: totalCommissions > 0 ? 'var(--orange)' : 'var(--text4)' },
+            { label:'NET PROFIT',        value: profit != null ? `${(profit - totalCommissions) < 0 ? '-' : ''}$${Math.abs(Math.round(profit - totalCommissions)).toLocaleString()}` : '—', color: profit == null ? 'var(--text4)' : (profit - totalCommissions) >= 0 ? 'var(--green)' : 'var(--red)' },
           ].map(s => (
             <div key={s.label} style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:10, padding: isMobile ? '10px 12px' : '14px 16px', borderBottom:`2px solid ${s.color === 'var(--text4)' ? 'var(--border)' : s.color}` }}>
               <div style={{ fontSize:9, color:'var(--text4)', letterSpacing:'0.1em', marginBottom:6, fontWeight:600 }}>{s.label}</div>
@@ -358,7 +516,6 @@ async function fetchAll(showLoader = true) {
           ))}
         </div>
 
-        {/* Days + aging */}
         {daysInInventory != null && (
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, fontSize:13, color:'var(--text2)' }}>
             <span style={{ fontWeight:700, color: daysInInventory > 60 ? 'var(--red)' : daysInInventory > 30 ? 'var(--gold)' : 'var(--text2)' }}>{daysInInventory}d</span>
@@ -421,10 +578,17 @@ async function fetchAll(showLoader = true) {
                   <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.1em', fontWeight:600 }}>DETAILS</div>
                   <button onClick={() => setEditingDetails(true)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:12, padding:'5px 10px', borderRadius:6, minHeight:32 }}>✏ Edit</button>
                 </div>
-                {[{ label:'Colour', value: truck.colour }, { label:'KM', value: truck.kilometers?.toLocaleString() }, { label:'Bought From', value: truck.bought_from }].map(row => (
-                  <div key={row.label} style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:'1px solid var(--border2)' }}>
+                {[
+                  { label:'Colour', value: truck.colour },
+                  { label:'KM', value: truck.kilometers?.toLocaleString() },
+                  { label:'Bought From', value: truck.bought_from },
+                  { label:'Found By', value: truck.found_by },
+                  { label:'How Delivered', value: truck.delivered_by },
+                  { label:'From', value: truck.from_location },
+                ].map(row => (
+                  <div key={row.label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border2)' }}>
                     <span style={{ fontSize:13, color:'var(--text2)' }}>{row.label}</span>
-                    <span style={{ fontSize:13, color: row.value ? 'var(--text)' : 'var(--text4)', maxWidth:'60%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'right' }}>{row.value || '—'}</span>
+                    <span style={{ fontSize:13, color: row.value ? (row.label === 'Found By' ? 'var(--gold)' : 'var(--text)') : 'var(--text4)', maxWidth:'60%', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'right', fontWeight: row.label === 'Found By' ? 600 : 400 }}>{row.value || '—'}</span>
                   </div>
                 ))}
               </div>
@@ -490,21 +654,6 @@ async function fetchAll(showLoader = true) {
                   <UploadButton table="vendor_invoices" rowId={inv.id} currentUrl={inv.invoice_url} onUploaded={url => setInvoices(prev => prev.map(x => x.id===inv.id ? {...x,invoice_url:url} : x))} />
                 </div>
               )},
-              { title:'Other Costs', items: otherCosts, onAdd: () => setShowCostModal(true), render: (c: OtherCost) => (
-                <div key={c.id} className="cost-row" style={{ flexDirection:'column' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', width:'100%' }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:2 }}>{c.category}</div>
-                      <div style={{ fontSize:11, color:'var(--text3)' }}>{c.notes || 'No notes'} · {c.date || 'No date'}</div>
-                    </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0, marginLeft:12 }}>
-                      <span style={{ fontSize:15, fontWeight:700, color:'var(--gold)' }}>${c.amount.toLocaleString()}</span>
-                      <button onClick={() => deleteRow('other_costs', c.id)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:16, padding:4, minWidth:32, minHeight:32 }}>🗑</button>
-                    </div>
-                  </div>
-                  <UploadButton table="other_costs" rowId={c.id} currentUrl={c.invoice_url} onUploaded={url => setOtherCosts(prev => prev.map(x => x.id===c.id ? {...x,invoice_url:url} : x))} />
-                </div>
-              )},
             ].map(section => (
               <div key={section.title} style={SS}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
@@ -516,6 +665,39 @@ async function fetchAll(showLoader = true) {
                   : (section.items as any[]).map(item => section.render(item))}
               </div>
             ))}
+
+            {/* ── COMMISSIONS (after vendor invoices) ── */}
+            <CommissionSection
+              truck={truck}
+              profit={profit}
+              commissions={commissions}
+              onChanged={() => fetchAll(false)}
+            />
+
+            {/* Other Costs */}
+            <div style={SS}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                <h3 style={{ fontSize:15, fontWeight:700, color:'var(--text)', margin:0 }}>Other Costs</h3>
+                <button onClick={() => setShowCostModal(true)} style={{ background:'linear-gradient(135deg,#EAB308,#d97706)', border:'none', color:'#000', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:800, cursor:'pointer', minHeight:36 }}>+ Add</button>
+              </div>
+              {otherCosts.length === 0
+                ? <div style={{ textAlign:'center', padding:'20px 0', color:'var(--text4)', fontSize:13 }}>Nothing added yet</div>
+                : otherCosts.map(c => (
+                  <div key={c.id} className="cost-row" style={{ flexDirection:'column' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', width:'100%' }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:2 }}>{c.category}</div>
+                        <div style={{ fontSize:11, color:'var(--text3)' }}>{c.notes || 'No notes'} · {c.date || 'No date'}</div>
+                      </div>
+                      <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0, marginLeft:12 }}>
+                        <span style={{ fontSize:15, fontWeight:700, color:'var(--gold)' }}>${c.amount.toLocaleString()}</span>
+                        <button onClick={() => deleteRow('other_costs', c.id)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:16, padding:4, minWidth:32, minHeight:32 }}>🗑</button>
+                      </div>
+                    </div>
+                    <UploadButton table="other_costs" rowId={c.id} currentUrl={c.invoice_url} onUploaded={url => setOtherCosts(prev => prev.map(x => x.id===c.id ? {...x,invoice_url:url} : x))} />
+                  </div>
+                ))}
+            </div>
 
             {/* Sticky cost bar */}
             <div style={{ position:'fixed', bottom: isMobile ? 64 : 0, left:0, right:0, background:'var(--surface)', borderTop:'1px solid var(--gold)', padding: isMobile ? '10px 16px' : '12px 28px', zIndex:40, overflowX:'auto' }}>
@@ -626,7 +808,7 @@ async function fetchAll(showLoader = true) {
                 <input ref={docFileRef} type="file" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" style={{ display:'none' }} onChange={handleDocUpload} />
               </div>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)', gap:12 }}>
+            <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2,1fr)', gap:12 }}>
               {DOC_CATEGORIES.map(cat => {
                 const catDocs = docsByCategory[cat] || []
                 return (
@@ -667,24 +849,21 @@ async function fetchAll(showLoader = true) {
       {/* ── MODALS ── */}
       {editingDetails && (
         <Modal title="Edit Truck Details" onClose={() => setEditingDetails(false)} onSave={saveDetails}>
-          <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.12em', fontWeight:700, marginBottom:10 }}>VEHICLE</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
             <div><label style={LS}>Colour</label><input style={IS} placeholder="White" value={detailsForm.colour||''} onChange={e=>setDetailsForm((p:any)=>({...p,colour:e.target.value}))} /></div>
-            <div><label style={LS}>Kilometers</label><input style={IS} type="number" placeholder="450000" value={detailsForm.kilometers||''} onChange={e=>setDetailsForm((p:any)=>({...p,kilometers:e.target.value}))} /></div>
+            <div><label style={LS}>Kilometers</label><input style={IS} type="number" value={detailsForm.kilometers||''} onChange={e=>setDetailsForm((p:any)=>({...p,kilometers:e.target.value}))} /></div>
           </div>
-          <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.12em', fontWeight:700, marginBottom:10 }}>PURCHASE</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-            <div><label style={LS}>Purchase Price ($)</label><input style={IS} type="number" placeholder="35000" value={detailsForm.purchase_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,purchase_price:e.target.value}))} /></div>
-            <div><label style={LS}>Recondition Cost ($)</label><input style={IS} type="number" placeholder="0" value={detailsForm.recondition_cost||''} onChange={e=>setDetailsForm((p:any)=>({...p,recondition_cost:e.target.value}))} /></div>
+            <div><label style={LS}>Purchase Price ($)</label><input style={IS} type="number" value={detailsForm.purchase_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,purchase_price:e.target.value}))} /></div>
+            <div><label style={LS}>Recondition Cost ($)</label><input style={IS} type="number" value={detailsForm.recondition_cost||''} onChange={e=>setDetailsForm((p:any)=>({...p,recondition_cost:e.target.value}))} /></div>
           </div>
-          <div style={{ marginBottom:14 }}><label style={LS}>Bought From</label><input style={IS} placeholder="e.g. Ryder Trucks" value={detailsForm.bought_from||''} onChange={e=>setDetailsForm((p:any)=>({...p,bought_from:e.target.value}))} /></div>
-          <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.12em', fontWeight:700, marginBottom:10 }}>SALE</div>
+          <div style={{ marginBottom:14 }}><label style={LS}>Bought From</label><input style={IS} value={detailsForm.bought_from||''} onChange={e=>setDetailsForm((p:any)=>({...p,bought_from:e.target.value}))} /></div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-            <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" placeholder="80000" value={detailsForm.sold_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,sold_price:e.target.value}))} /></div>
+            <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" value={detailsForm.sold_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,sold_price:e.target.value}))} /></div>
             <div><label style={LS}>Date Sold</label><input style={IS} type="date" value={detailsForm.date_sold||''} onChange={e=>setDetailsForm((p:any)=>({...p,date_sold:e.target.value}))} /></div>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <div><label style={LS}>Customer</label><input style={IS} placeholder="Customer name" value={detailsForm.customer||''} onChange={e=>setDetailsForm((p:any)=>({...p,customer:e.target.value}))} /></div>
+            <div><label style={LS}>Customer</label><input style={IS} value={detailsForm.customer||''} onChange={e=>setDetailsForm((p:any)=>({...p,customer:e.target.value}))} /></div>
             <div><label style={LS}>Payment Status</label>
               <select style={{ ...IS, cursor:'pointer' }} value={detailsForm.payment_status||'N/A'} onChange={e=>setDetailsForm((p:any)=>({...p,payment_status:e.target.value}))}>
                 {['N/A','Paid','Unpaid'].map(s=><option key={s}>{s}</option>)}
@@ -703,10 +882,10 @@ async function fetchAll(showLoader = true) {
       {editingSale && (
         <Modal title="Edit Sale Details" onClose={() => setEditingSale(false)} onSave={saveSale}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-            <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" placeholder="80000" value={saleForm.sold_price} onChange={e=>setSaleForm(p=>({...p,sold_price:e.target.value}))} /></div>
+            <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" value={saleForm.sold_price} onChange={e=>setSaleForm(p=>({...p,sold_price:e.target.value}))} /></div>
             <div><label style={LS}>Date Sold</label><input style={IS} type="date" value={saleForm.date_sold} onChange={e=>setSaleForm(p=>({...p,date_sold:e.target.value}))} /></div>
           </div>
-          <div style={{ marginBottom:14 }}><label style={LS}>Customer</label><input style={IS} placeholder="Customer name" value={saleForm.customer} onChange={e=>setSaleForm(p=>({...p,customer:e.target.value}))} /></div>
+          <div style={{ marginBottom:14 }}><label style={LS}>Customer</label><input style={IS} value={saleForm.customer} onChange={e=>setSaleForm(p=>({...p,customer:e.target.value}))} /></div>
           <div><label style={LS}>Payment Status</label>
             <select style={IS} value={saleForm.payment_status} onChange={e=>setSaleForm(p=>({...p,payment_status:e.target.value}))}>
               {['N/A','Paid','Unpaid'].map(s=><option key={s}>{s}</option>)}
@@ -726,7 +905,7 @@ async function fetchAll(showLoader = true) {
           <div style={{ marginBottom:14 }}><label style={LS}>Listing Link</label><input style={IS} placeholder="https://..." value={listingForm.listing_link} onChange={e=>setListingForm(p=>({...p,listing_link:e.target.value}))} /></div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             <div><label style={LS}>Date Listed</label><input style={IS} type="date" value={listingForm.listing_date} onChange={e=>setListingForm(p=>({...p,listing_date:e.target.value}))} /></div>
-            <div><label style={LS}>Asking Price ($)</label><input style={IS} type="number" placeholder="75000" value={listingForm.asking_price} onChange={e=>setListingForm(p=>({...p,asking_price:e.target.value}))} /></div>
+            <div><label style={LS}>Asking Price ($)</label><input style={IS} type="number" value={listingForm.asking_price} onChange={e=>setListingForm(p=>({...p,asking_price:e.target.value}))} /></div>
           </div>
         </Modal>
       )}
@@ -737,7 +916,7 @@ async function fetchAll(showLoader = true) {
           <div style={{ marginBottom:14 }}><label style={LS}>Category</label><input style={IS} placeholder="e.g. Engine" value={newPart.category} onChange={e=>setNewPart(p=>({...p,category:e.target.value}))} /></div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
             <div><label style={LS}>Qty</label><input style={IS} type="number" value={newPart.qty} onChange={e=>setNewPart(p=>({...p,qty:e.target.value}))} /></div>
-            <div><label style={LS}>Unit Cost ($)</label><input style={IS} type="number" placeholder="0" value={newPart.unit_cost} onChange={e=>setNewPart(p=>({...p,unit_cost:e.target.value}))} /></div>
+            <div><label style={LS}>Unit Cost ($)</label><input style={IS} type="number" value={newPart.unit_cost} onChange={e=>setNewPart(p=>({...p,unit_cost:e.target.value}))} /></div>
             <div><label style={LS}>Date</label><input style={IS} type="date" value={newPart.date} onChange={e=>setNewPart(p=>({...p,date:e.target.value}))} /></div>
           </div>
         </Modal>
@@ -745,10 +924,10 @@ async function fetchAll(showLoader = true) {
 
       {showLaborModal && (
         <Modal title="Add Labor" onClose={() => setShowLaborModal(false)} onSave={addLabor}>
-          <div style={{ marginBottom:14 }}><label style={LS}>Technician</label><input style={IS} placeholder="e.g. Mike" value={newLabor.tech} onChange={e=>setNewLabor(p=>({...p,tech:e.target.value}))} /></div>
+          <div style={{ marginBottom:14 }}><label style={LS}>Technician</label><input style={IS} value={newLabor.tech} onChange={e=>setNewLabor(p=>({...p,tech:e.target.value}))} /></div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
-            <div><label style={LS}>Hours</label><input style={IS} type="number" placeholder="0" value={newLabor.hours} onChange={e=>setNewLabor(p=>({...p,hours:e.target.value}))} /></div>
-            <div><label style={LS}>Rate ($/hr)</label><input style={IS} type="number" placeholder="90" value={newLabor.rate} onChange={e=>setNewLabor(p=>({...p,rate:e.target.value}))} /></div>
+            <div><label style={LS}>Hours</label><input style={IS} type="number" value={newLabor.hours} onChange={e=>setNewLabor(p=>({...p,hours:e.target.value}))} /></div>
+            <div><label style={LS}>Rate ($/hr)</label><input style={IS} type="number" value={newLabor.rate} onChange={e=>setNewLabor(p=>({...p,rate:e.target.value}))} /></div>
             <div><label style={LS}>Date</label><input style={IS} type="date" value={newLabor.date} onChange={e=>setNewLabor(p=>({...p,date:e.target.value}))} /></div>
           </div>
         </Modal>
@@ -756,10 +935,10 @@ async function fetchAll(showLoader = true) {
 
       {showInvoiceModal && (
         <Modal title="Add Vendor Invoice" onClose={() => setShowInvoiceModal(false)} onSave={addInvoice}>
-          <div style={{ marginBottom:14 }}><label style={LS}>Vendor</label><input style={IS} placeholder="e.g. Petro-Canada" value={newInvoice.vendor} onChange={e=>setNewInvoice(p=>({...p,vendor:e.target.value}))} /></div>
-          <div style={{ marginBottom:14 }}><label style={LS}>Description</label><input style={IS} placeholder="e.g. Oil change" value={newInvoice.description} onChange={e=>setNewInvoice(p=>({...p,description:e.target.value}))} /></div>
+          <div style={{ marginBottom:14 }}><label style={LS}>Vendor</label><input style={IS} value={newInvoice.vendor} onChange={e=>setNewInvoice(p=>({...p,vendor:e.target.value}))} /></div>
+          <div style={{ marginBottom:14 }}><label style={LS}>Description</label><input style={IS} value={newInvoice.description} onChange={e=>setNewInvoice(p=>({...p,description:e.target.value}))} /></div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
-            <div><label style={LS}>Amount ($)</label><input style={IS} type="number" placeholder="0" value={newInvoice.amount} onChange={e=>setNewInvoice(p=>({...p,amount:e.target.value}))} /></div>
+            <div><label style={LS}>Amount ($)</label><input style={IS} type="number" value={newInvoice.amount} onChange={e=>setNewInvoice(p=>({...p,amount:e.target.value}))} /></div>
             <div><label style={LS}>Status</label><select style={IS} value={newInvoice.status} onChange={e=>setNewInvoice(p=>({...p,status:e.target.value}))}><option>Unpaid</option><option>Paid</option></select></div>
             <div><label style={LS}>Date</label><input style={IS} type="date" value={newInvoice.date} onChange={e=>setNewInvoice(p=>({...p,date:e.target.value}))} /></div>
           </div>
@@ -770,20 +949,20 @@ async function fetchAll(showLoader = true) {
         <Modal title="Add Other Cost" onClose={() => setShowCostModal(false)} onSave={addCost}>
           <div style={{ marginBottom:14 }}><label style={LS}>Category</label><input style={IS} placeholder="e.g. Transport, Towing" value={newCost.category} onChange={e=>setNewCost(p=>({...p,category:e.target.value}))} /></div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
-            <div><label style={LS}>Amount ($)</label><input style={IS} type="number" placeholder="0" value={newCost.amount} onChange={e=>setNewCost(p=>({...p,amount:e.target.value}))} /></div>
+            <div><label style={LS}>Amount ($)</label><input style={IS} type="number" value={newCost.amount} onChange={e=>setNewCost(p=>({...p,amount:e.target.value}))} /></div>
             <div><label style={LS}>Date</label><input style={IS} type="date" value={newCost.date} onChange={e=>setNewCost(p=>({...p,date:e.target.value}))} /></div>
           </div>
-          <div><label style={LS}>Notes</label><input style={IS} placeholder="Optional notes" value={newCost.notes} onChange={e=>setNewCost(p=>({...p,notes:e.target.value}))} /></div>
+          <div><label style={LS}>Notes</label><input style={IS} value={newCost.notes} onChange={e=>setNewCost(p=>({...p,notes:e.target.value}))} /></div>
         </Modal>
       )}
 
       {showOfferModal && (
         <Modal title="Log Offer" onClose={() => setShowOfferModal(false)} onSave={addOffer}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
-            <div><label style={LS}>Amount ($)</label><input style={IS} type="number" placeholder="0" value={newOffer.amount} onChange={e=>setNewOffer(p=>({...p,amount:e.target.value}))} /></div>
+            <div><label style={LS}>Amount ($)</label><input style={IS} type="number" value={newOffer.amount} onChange={e=>setNewOffer(p=>({...p,amount:e.target.value}))} /></div>
             <div><label style={LS}>Date</label><input style={IS} type="date" value={newOffer.date} onChange={e=>setNewOffer(p=>({...p,date:e.target.value}))} /></div>
           </div>
-          <div style={{ marginBottom:14 }}><label style={LS}>Notes</label><input style={IS} placeholder="Optional notes" value={newOffer.notes} onChange={e=>setNewOffer(p=>({...p,notes:e.target.value}))} /></div>
+          <div style={{ marginBottom:14 }}><label style={LS}>Notes</label><input style={IS} value={newOffer.notes} onChange={e=>setNewOffer(p=>({...p,notes:e.target.value}))} /></div>
           <div style={{ display:'flex', alignItems:'center', gap:12, cursor:'pointer', padding:'10px 0', minHeight:44 }} onClick={() => setNewOffer(p=>({...p,accepted:!p.accepted}))}>
             <div style={{ width:22, height:22, borderRadius:6, border:`2px solid ${newOffer.accepted ? 'var(--gold)' : 'var(--border)'}`, background: newOffer.accepted ? 'var(--gold)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
               {newOffer.accepted && <span style={{ color:'#000', fontSize:13, fontWeight:800 }}>✓</span>}
