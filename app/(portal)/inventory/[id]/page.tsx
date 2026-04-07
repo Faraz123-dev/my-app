@@ -393,13 +393,14 @@ export default function TruckDetailPage() {
         .eq('truck_id', id)
         .single()
       
-      if (!existing) {
+    if (!existing) {
         await supabase.from('alert_queue').insert([{ 
           truck_id: id, 
           photo_url: truck?.photo_url || null 
         }])
       }
     }
+  }
 
   async function saveDetails() {
   const payload = { 
