@@ -387,12 +387,19 @@ export default function TruckDetailPage() {
 
     // Queue alert when status changes to Listed or Ready to List
     if (status === 'Listed' || status === 'Ready to List') {
-      const photoUrl = truck?.photo_url
-      if (photoUrl) {
-        await supabase.from('alert_queue').insert([{ truck_id: id, photo_url: photoUrl }])
+      const { data: existing } = await supabase
+        .from('alert_queue')
+        .select('id')
+        .eq('truck_id', id)
+        .single()
+      
+      if (!existing) {
+        await supabase.from('alert_queue').insert([{ 
+          truck_id: id, 
+          photo_url: truck?.photo_url || null 
+        }])
       }
     }
-  }
 
   async function saveDetails() {
   const payload = { 
