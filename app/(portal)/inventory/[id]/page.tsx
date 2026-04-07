@@ -384,8 +384,16 @@ export default function TruckDetailPage() {
   async function updateStatus(status: string) {
     await supabase.from('Inventory Data').update({ status }).eq('id', id)
     setTruck(prev => prev ? { ...prev, status } : prev)
-  }
 
+    // Queue alert when status changes to Listed or Ready to List
+    if (status === 'Listed' || status === 'Ready to List') {
+      const photoUrl = truck?.photo_url
+      if (photoUrl) {
+        await supabase.from('alert_queue').insert([{ truck_id: id, photo_url: photoUrl }])
+      }
+    }
+  }
+  
   async function saveDetails() {
   const payload = { 
     ...detailsForm, 
