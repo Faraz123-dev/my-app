@@ -26,7 +26,7 @@ export async function POST() {
 
     const truckCards = queue.map((item: any) => {
       const t = truckMap[item.truck_id]
-      const truckUrl = `https://aamirandsonstrading.com/inventory/${item.truck_id}`
+      const truckUrl = `https://aamirandsonstrading.com/inventory`
       return `
         <div style="background:#161616;border-radius:12px;overflow:hidden;border:1px solid #2a2a2a;margin-bottom:24px;">
           <div style="background:linear-gradient(90deg,#c9a84c,#e8c96a,#c9a84c);height:3px;"></div>
