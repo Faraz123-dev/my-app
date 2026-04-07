@@ -110,8 +110,8 @@ function UploadButton({ table, rowId, currentUrl, onUploaded }: { table: string;
     <div style={{ marginTop: 8 }}>
       {currentUrl && (
         <a href={currentUrl} target="_blank" rel="noreferrer"
-          style={{ display: 'inline-block', marginBottom: 6, background: 'var(--green-dim)', border: '1px solid var(--green)', color: 'var(--green)', borderRadius: 99, padding: '3px 10px', fontSize: 11, fontWeight: 600, textDecoration: 'none' }}>
-          📄 View
+          style={{ display: 'inline-block', marginBottom: 8, background: 'var(--green-dim)', border: '1px solid var(--green)', color: 'var(--green)', borderRadius: 99, padding: '5px 14px', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>
+          📄 View Invoice
         </a>
       )}
       <div
@@ -119,8 +119,8 @@ function UploadButton({ table, rowId, currentUrl, onUploaded }: { table: string;
         onDragLeave={() => setDragging(false)}
         onDrop={e => { e.preventDefault(); setDragging(false); const file = e.dataTransfer.files[0]; if (file) handleFile(file) }}
         onClick={() => fileRef.current?.click()}
-        style={{ border: `2px dashed ${dragging ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 8, padding: '8px 14px', cursor: 'pointer', textAlign: 'center', transition: 'border-color 0.15s', background: dragging ? 'var(--gold-dim)' : 'transparent' }}>
-        <div style={{ fontSize: 11, color: uploading ? 'var(--text4)' : dragging ? 'var(--gold)' : 'var(--text3)', fontWeight: 500 }}>
+        style={{ border: `2px dashed ${dragging ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 10, padding: '12px 16px', cursor: 'pointer', textAlign: 'center', transition: 'border-color 0.15s', background: dragging ? 'var(--gold-dim)' : 'transparent' }}>
+        <div style={{ fontSize: 13, color: uploading ? 'var(--text4)' : dragging ? 'var(--gold)' : 'var(--text2)', fontWeight: 500 }}>
           {uploading ? 'Uploading...' : currentUrl ? '🔄 Drop to replace or click to browse' : '📎 Drop file or click to upload'}
         </div>
       </div>
@@ -221,7 +221,7 @@ function CommissionSection({ truck, profit, commissions, onChanged }: {
             <div style={{ fontSize: 11, color: 'var(--text4)' }}>Auto · 30% of profit</div>          </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: faizCommission != null ? 'var(--gold)' : 'var(--text4)' }}>
-              {faizCommission != null ? `$${Math.round(faizCommission).toLocaleString()}` : '—'}
+              {faizCommission != null ? `$${faizCommission.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
             </div>
             {faizRow && (
               <div style={{ fontSize: 11, color: faizRow.paid ? 'var(--green)' : 'var(--orange)', fontWeight: 600, marginTop: 2 }}>
@@ -263,7 +263,7 @@ function CommissionSection({ truck, profit, commissions, onChanged }: {
                 </div>
                 {row && (
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--gold)' }}>${row.amount.toLocaleString()}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--gold)' }}>${row.amount.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     <div style={{ fontSize: 11, color: row.paid ? 'var(--green)' : 'var(--orange)', fontWeight: 600, marginTop: 2 }}>
                       {row.paid ? '✓ Paid' : '⏳ Owing'}
                     </div>
@@ -364,7 +364,13 @@ export default function TruckDetailPage() {
     ])
     if (t) {
       setTruck(t)
-      setDetailsForm({ colour: t.colour, kilometers: t.kilometers, bought_from: t.bought_from, purchase_price: t.purchase_price, recondition_cost: t.recondition_cost, date_sold: t.date_sold, customer: t.customer, payment_status: t.payment_status, sold_price: t.sold_price })
+      setDetailsForm({ 
+        colour: t.colour, kilometers: t.kilometers, bought_from: t.bought_from, 
+        purchase_price: t.purchase_price, recondition_cost: t.recondition_cost, 
+        date_sold: t.date_sold, customer: t.customer, payment_status: t.payment_status, 
+        sold_price: t.sold_price, horsepower: t.horsepower, ratio: t.ratio,
+        found_by: t.found_by, delivered_by: t.delivered_by, from_location: t.from_location
+      })
       setNotesForm({ notes: t.notes || '' })
       setSaleForm({ sold_price: t.sold_price?.toString() || '', date_sold: t.date_sold || '', customer: t.customer || '', payment_status: t.payment_status || 'N/A' })
       setListingForm({ listing_platform: t.listing_platform || '', listing_link: t.listing_link || '', listing_date: t.listing_date || '', asking_price: t.asking_price?.toString() || '' })
@@ -381,7 +387,19 @@ export default function TruckDetailPage() {
   }
 
   async function saveDetails() {
-    const payload = { ...detailsForm, kilometers: detailsForm.kilometers ? Number(detailsForm.kilometers) : null, purchase_price: detailsForm.purchase_price ? Number(detailsForm.purchase_price) : null, recondition_cost: detailsForm.recondition_cost ? Number(detailsForm.recondition_cost) : null, sold_price: detailsForm.sold_price ? Number(detailsForm.sold_price) : null, date_sold: detailsForm.date_sold || null, customer: detailsForm.customer || null, payment_status: detailsForm.payment_status || null }
+  const payload = { 
+    ...detailsForm, 
+    kilometers: detailsForm.kilometers ? Number(detailsForm.kilometers) : null, 
+    purchase_price: detailsForm.purchase_price ? Number(detailsForm.purchase_price) : null, 
+    recondition_cost: detailsForm.recondition_cost ? Number(detailsForm.recondition_cost) : null, 
+    sold_price: detailsForm.sold_price ? Number(detailsForm.sold_price) : null, 
+    horsepower: detailsForm.horsepower ? Number(detailsForm.horsepower) : null,
+    date_sold: detailsForm.date_sold || null, customer: detailsForm.customer || null, 
+    payment_status: detailsForm.payment_status || null,
+    found_by: detailsForm.found_by || null,
+    delivered_by: detailsForm.delivered_by || null,
+    from_location: detailsForm.from_location || null,
+  }
     await supabase.from('Inventory Data').update(payload).eq('id', id)
     setTruck(prev => prev ? { ...prev, ...payload } : prev)
     setEditingDetails(false)
@@ -487,7 +505,9 @@ export default function TruckDetailPage() {
   const reconTotal   = partsTotal + laborTotal + invoiceTotal + otherTotal
   const allInCost = (truck.purchase_price || 0) + reconTotal
   const totalCommissions = commissions.reduce((s, c) => s + c.amount, 0)
-  const profit = truck.sold_price != null ? truck.sold_price - allInCost : null
+  const grossProfit = truck.sold_price != null ? truck.sold_price - allInCost : null
+  const netProfit = grossProfit != null ? grossProfit - totalCommissions : null
+  const profit = grossProfit
 
   const daysInInventory = truck.bought_on ? Math.floor((Date.now() - new Date(truck.bought_on).getTime()) / 86400000) : null
   const agingLabel = daysInInventory == null ? '' : daysInInventory <= 15 ? '0–15' : daysInInventory <= 30 ? '16–30' : daysInInventory <= 60 ? '31–60' : '60+'
@@ -533,9 +553,9 @@ export default function TruckDetailPage() {
             { label:'PURCHASE',   value:`$${(truck.purchase_price||0).toLocaleString()}`, color:'var(--gold)' },
             { label:'RECON',      value:`$${reconTotal.toLocaleString()}`,                color:'var(--gold)' },
             { label:'ALL-IN',     value:`$${allInCost.toLocaleString()}`,                 color:'var(--gold)' },
-            { label:'GROSS PROFIT',      value: profit != null ? `${profit < 0 ? '-' : ''}$${Math.abs(profit).toLocaleString()}` : '—',                             color: profit == null ? 'var(--text4)' : profit >= 0 ? 'var(--green)' : 'var(--red)' },
-            { label:'COMMISSIONS',       value: totalCommissions > 0 ? `-$${Math.round(totalCommissions).toLocaleString()}` : '—',                                  color: totalCommissions > 0 ? 'var(--orange)' : 'var(--text4)' },
-            { label:'NET PROFIT',        value: profit != null ? `${(profit - totalCommissions) < 0 ? '-' : ''}$${Math.abs(Math.round(profit - totalCommissions)).toLocaleString()}` : '—', color: profit == null ? 'var(--text4)' : (profit - totalCommissions) >= 0 ? 'var(--green)' : 'var(--red)' },
+            { label:'GROSS PROFIT', value: grossProfit != null ? `${grossProfit < 0 ? '-' : ''}$${Math.abs(grossProfit).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—', color: grossProfit == null ? 'var(--text4)' : grossProfit >= 0 ? 'var(--green)' : 'var(--red)' },
+            { label:'COMMISSIONS',  value: totalCommissions > 0 ? `-$${totalCommissions.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—', color: totalCommissions > 0 ? 'var(--orange)' : 'var(--text4)' },
+            { label:'NET PROFIT',   value: netProfit != null ? `${netProfit < 0 ? '-' : ''}$${Math.abs(netProfit).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—', color: netProfit == null ? 'var(--text4)' : netProfit >= 0 ? 'var(--green)' : 'var(--red)' },
           ].map(s => (
             <div key={s.label} style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:10, padding: isMobile ? '10px 12px' : '14px 16px', borderBottom:`2px solid ${s.color === 'var(--text4)' ? 'var(--border)' : s.color}` }}>
               <div style={{ fontSize:9, color:'var(--text4)', letterSpacing:'0.1em', marginBottom:6, fontWeight:600 }}>{s.label}</div>
@@ -604,7 +624,7 @@ export default function TruckDetailPage() {
               <div style={SS}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                   <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.1em', fontWeight:600 }}>DETAILS</div>
-                  <button onClick={() => setEditingDetails(true)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:12, padding:'5px 10px', borderRadius:6, minHeight:32 }}>✏ Edit</button>
+                  <button onClick={() => setEditingDetails(true)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'#fff', cursor:'pointer', fontSize:12, padding:'5px 10px', borderRadius:6, minHeight:32 }}>✏ Edit</button>
                 </div>
                 {[
                   { label:'Colour', value: truck.colour },
@@ -625,7 +645,7 @@ export default function TruckDetailPage() {
             <div style={SS}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                 <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.1em', fontWeight:600 }}>NOTES</div>
-                <button onClick={() => setEditingNotes(true)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:12, padding:'5px 10px', borderRadius:6, minHeight:32 }}>✏ Edit</button>
+               <button onClick={() => setEditingNotes(true)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'#fff', cursor:'pointer', fontSize:12, padding:'5px 10px', borderRadius:6, minHeight:32 }}>✏ Edit</button>
               </div>
               <div style={{ fontSize:14, color: truck.notes ? 'var(--text)' : 'var(--text4)', fontStyle: truck.notes ? 'normal' : 'italic', lineHeight:1.6 }}>{truck.notes || 'No notes added.'}</div>
             </div>
@@ -670,8 +690,8 @@ export default function TruckDetailPage() {
                 <div key={inv.id} className="cost-row" style={{ flexDirection:'column' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', width:'100%' }}>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:14, fontWeight:600, color:'var(--text)', marginBottom:2 }}>{inv.vendor}</div>
-                      <div style={{ fontSize:11, color:'var(--text3)' }}>{inv.description} · {inv.date || 'No date'}</div>
+                      <div style={{ fontSize:16, fontWeight:700, color:'#fff', marginBottom:2 }}>{inv.vendor}{inv.description ? ` — ${inv.description}` : ''}</div>
+                      <div style={{ fontSize:13, color:'var(--text2)' }}>{inv.date || 'No date'}</div>  
                       <span style={{ background: inv.status==='Paid' ? 'var(--green-dim)' : 'var(--red-dim)', color: inv.status==='Paid' ? 'var(--green)' : 'var(--red)', borderRadius:99, padding:'2px 8px', fontSize:10, fontWeight:600, display:'inline-block', marginTop:4 }}>{inv.status}</span>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0, marginLeft:12 }}>
@@ -874,32 +894,55 @@ export default function TruckDetailPage() {
         )}
       </main>
 
-      {/* ── MODALS ── */}
-      {editingDetails && (
-        <Modal title="Edit Truck Details" onClose={() => setEditingDetails(false)} onSave={saveDetails}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-            <div><label style={LS}>Colour</label><input style={IS} placeholder="White" value={detailsForm.colour||''} onChange={e=>setDetailsForm((p:any)=>({...p,colour:e.target.value}))} /></div>
-            <div><label style={LS}>Kilometers</label><input style={IS} type="number" value={detailsForm.kilometers||''} onChange={e=>setDetailsForm((p:any)=>({...p,kilometers:e.target.value}))} /></div>
-          </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-            <div><label style={LS}>Purchase Price ($)</label><input style={IS} type="number" value={detailsForm.purchase_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,purchase_price:e.target.value}))} /></div>
-            <div><label style={LS}>Recondition Cost ($)</label><input style={IS} type="number" value={detailsForm.recondition_cost||''} onChange={e=>setDetailsForm((p:any)=>({...p,recondition_cost:e.target.value}))} /></div>
-          </div>
-          <div style={{ marginBottom:14 }}><label style={LS}>Bought From</label><input style={IS} value={detailsForm.bought_from||''} onChange={e=>setDetailsForm((p:any)=>({...p,bought_from:e.target.value}))} /></div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-            <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" value={detailsForm.sold_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,sold_price:e.target.value}))} /></div>
-            <div><label style={LS}>Date Sold</label><input style={IS} type="date" value={detailsForm.date_sold||''} onChange={e=>setDetailsForm((p:any)=>({...p,date_sold:e.target.value}))} /></div>
-          </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <div><label style={LS}>Customer</label><input style={IS} value={detailsForm.customer||''} onChange={e=>setDetailsForm((p:any)=>({...p,customer:e.target.value}))} /></div>
-            <div><label style={LS}>Payment Status</label>
-              <select style={{ ...IS, cursor:'pointer' }} value={detailsForm.payment_status||'N/A'} onChange={e=>setDetailsForm((p:any)=>({...p,payment_status:e.target.value}))}>
-                {['N/A','Paid','Unpaid'].map(s=><option key={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
-        </Modal>
-      )}
+{editingDetails && (
+  <Modal title="Edit Truck Details" onClose={() => setEditingDetails(false)} onSave={saveDetails}>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+      <div><label style={LS}>Colour</label><input style={IS} placeholder="White" value={detailsForm.colour||''} onChange={e=>setDetailsForm((p:any)=>({...p,colour:e.target.value}))} /></div>
+      <div><label style={LS}>Kilometers</label><input style={IS} type="number" value={detailsForm.kilometers||''} onChange={e=>setDetailsForm((p:any)=>({...p,kilometers:e.target.value}))} /></div>
+    </div>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+      <div><label style={LS}>Horsepower</label><input style={IS} type="number" placeholder="400" value={detailsForm.horsepower||''} onChange={e=>setDetailsForm((p:any)=>({...p,horsepower:e.target.value}))} /></div>
+      <div><label style={LS}>Ratio</label><input style={IS} placeholder="3.55" value={detailsForm.ratio||''} onChange={e=>setDetailsForm((p:any)=>({...p,ratio:e.target.value}))} /></div>
+    </div>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+      <div><label style={LS}>Purchase Price ($)</label><input style={IS} type="number" value={detailsForm.purchase_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,purchase_price:e.target.value}))} /></div>
+      <div><label style={LS}>Recondition Cost ($)</label><input style={IS} type="number" value={detailsForm.recondition_cost||''} onChange={e=>setDetailsForm((p:any)=>({...p,recondition_cost:e.target.value}))} /></div>
+    </div>
+    <div style={{ marginBottom:14 }}><label style={LS}>Bought From</label><input style={IS} value={detailsForm.bought_from||''} onChange={e=>setDetailsForm((p:any)=>({...p,bought_from:e.target.value}))} /></div>
+    <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
+    <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.12em', fontWeight:700, marginBottom:12 }}>ACQUISITION DETAILS</div>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+      <div>
+        <label style={LS}>Found By</label>
+        <select style={{ ...IS, cursor:'pointer' }} value={detailsForm.found_by||''} onChange={e=>setDetailsForm((p:any)=>({...p,found_by:e.target.value}))}>
+          <option value="">— Select —</option>
+          {TEAM.map(m=><option key={m}>{m}</option>)}
+        </select>
+      </div>
+      <div>
+        <label style={LS}>How Delivered</label>
+        <select style={{ ...IS, cursor:'pointer' }} value={detailsForm.delivered_by||''} onChange={e=>setDetailsForm((p:any)=>({...p,delivered_by:e.target.value}))}>
+          <option value="">— Select —</option>
+          {['Delivered','Towed','Driven In'].map(m=><option key={m}>{m}</option>)}
+        </select>
+      </div>
+    </div>
+    <div style={{ marginBottom:14 }}><label style={LS}>From (Location)</label><input style={IS} placeholder="e.g. Hamilton, ON" value={detailsForm.from_location||''} onChange={e=>setDetailsForm((p:any)=>({...p,from_location:e.target.value}))} /></div>
+    <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+      <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" value={detailsForm.sold_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,sold_price:e.target.value}))} /></div>
+      <div><label style={LS}>Date Sold</label><input style={IS} type="date" value={detailsForm.date_sold||''} onChange={e=>setDetailsForm((p:any)=>({...p,date_sold:e.target.value}))} /></div>
+    </div>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+      <div><label style={LS}>Customer</label><input style={IS} value={detailsForm.customer||''} onChange={e=>setDetailsForm((p:any)=>({...p,customer:e.target.value}))} /></div>
+      <div><label style={LS}>Payment Status</label>
+        <select style={{ ...IS, cursor:'pointer' }} value={detailsForm.payment_status||'N/A'} onChange={e=>setDetailsForm((p:any)=>({...p,payment_status:e.target.value}))}>
+          {['N/A','Paid','Unpaid'].map(s=><option key={s}>{s}</option>)}
+        </select>
+      </div>
+    </div>
+  </Modal>
+)}
 
       {editingNotes && (
         <Modal title="Edit Notes" onClose={() => setEditingNotes(false)} onSave={saveNotes}>

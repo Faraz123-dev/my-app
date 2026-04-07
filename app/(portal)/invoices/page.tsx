@@ -246,8 +246,8 @@ export default function InvoicesPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <span style={{ fontSize: 18 }}>🚛</span>
                       <div>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{truckName}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, fontFamily: 'monospace' }}>{first.truck_vin || truckId}</div>
+                        <div style={{ fontSize: 17, fontWeight: 800, color: '#fff' }}>{truckName}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 3, fontFamily: 'monospace' }}>{first.truck_vin || truckId}</div>
                       </div>
                       <button onClick={e => { e.stopPropagation(); window.location.href = `/inventory/${truckId}` }}
                         style={{ background: 'var(--blue-dim)', border: '1px solid var(--blue)', color: 'var(--blue)', borderRadius: 99, padding: '3px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', marginLeft: 4 }}>
@@ -277,8 +277,9 @@ export default function InvoicesPage() {
                             style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: idx < truckInvoices.length - 1 ? '1px solid var(--border2)' : 'none', transition: 'background 0.15s' }}>
                             {/* Vendor + description */}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{inv.vendor}</div>
-                              {inv.description && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{inv.description}</div>}
+                              <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>
+                                {inv.vendor}{inv.description ? ` — ${inv.description}` : ''}
+                              </div>
                             </div>
                             {/* Amount */}
                             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--gold)', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>

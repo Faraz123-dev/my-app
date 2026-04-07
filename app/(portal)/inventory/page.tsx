@@ -12,6 +12,7 @@ type Truck = {
   payment_status: string | null; notes: string | null; photo_url: string | null
   horsepower: number | null; ratio: string | null
   delivered_by: string | null; from_location: string | null; found_by: string | null
+  stock_number: string | null
 }
 type TruckPhoto = { id: string; truck_id: string; url: string; sort_order: number }
 type ReconPhoto = { id: string; truck_id: string; url: string; type: 'before' | 'after'; sort_order: number }
@@ -37,7 +38,6 @@ const fmt = (d: string | null) => {
   return new Date(y, m - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// ── LIGHTBOX ──────────────────────────────────────────────────────────────────
 function Lightbox({ photos, startIndex, onClose }: { photos: { url: string }[]; startIndex: number; onClose: () => void }) {
   const [idx, setIdx] = useState(startIndex)
   const touchStartX = useRef<number | null>(null)
@@ -94,7 +94,6 @@ function Lightbox({ photos, startIndex, onClose }: { photos: { url: string }[]; 
   )
 }
 
-// ── PHOTO MANAGER ─────────────────────────────────────────────────────────────
 function PhotoManager({ truck, photos, reconPhotos, onClose, onChanged, onReconChanged, onQueueUpdated }: {
   truck: Truck; photos: TruckPhoto[]; reconPhotos: ReconPhoto[]
   onClose: () => void; onChanged: (p: TruckPhoto[]) => void
@@ -312,7 +311,6 @@ function PhotoManager({ truck, photos, reconPhotos, onClose, onChanged, onReconC
   )
 }
 
-// ── PHOTO CELL ────────────────────────────────────────────────────────────────
 function PhotoCell({ truck, photos, reconPhotos, onPhotosChanged, onReconChanged, onQueueUpdated }: {
   truck: Truck; photos: TruckPhoto[]; reconPhotos: ReconPhoto[]
   onPhotosChanged: (p: TruckPhoto[]) => void; onReconChanged: (p: ReconPhoto[]) => void; onQueueUpdated: () => void
@@ -385,7 +383,7 @@ export default function InventoryPage() {
     status: 'Purchased', bought_on: new Date().toISOString().split('T')[0],
     vin: '', year: '', make: '', model: '', colour: '', kilometers: '',
     horsepower: '', ratio: '', bought_from: '', purchase_price: '',
-    recondition_cost: '0', notes: '',
+    recondition_cost: '0', notes: '', stock_number: '',
     delivered_by: '', from_location: '', found_by: '',
   })
   const [editTruck,     setEditTruck]     = useState<Truck | null>(null)
@@ -457,10 +455,11 @@ export default function InventoryPage() {
       delivered_by: newTruck.delivered_by || null,
       from_location: newTruck.from_location || null,
       found_by: newTruck.found_by || null,
+      stock_number: newTruck.stock_number || null,
     }])
     if (error) return alert('Error: ' + error.message)
     setShowAddModal(false)
-    setNewTruck({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', horsepower: '', ratio: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '', delivered_by: '', from_location: '', found_by: '' })
+    setNewTruck({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', horsepower: '', ratio: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '', stock_number: '', delivered_by: '', from_location: '', found_by: '' })
     loadAll()
   }
 
@@ -473,12 +472,12 @@ export default function InventoryPage() {
   function openEdit(truck: Truck, e: React.MouseEvent) {
     e.stopPropagation()
     setEditTruck(truck)
-    setEditForm({ status: truck.status, bought_on: truck.bought_on, vin: truck.vin, year: truck.year, make: truck.make, model: truck.model, colour: truck.colour, kilometers: truck.kilometers, bought_from: truck.bought_from, purchase_price: truck.purchase_price, recondition_cost: truck.recondition_cost, sold_price: truck.sold_price, date_sold: truck.date_sold, customer: truck.customer, payment_status: truck.payment_status, notes: truck.notes })
+    setEditForm({ status: truck.status, bought_on: truck.bought_on, vin: truck.vin, year: truck.year, make: truck.make, model: truck.model, colour: truck.colour, kilometers: truck.kilometers, bought_from: truck.bought_from, purchase_price: truck.purchase_price, recondition_cost: truck.recondition_cost, sold_price: truck.sold_price, date_sold: truck.date_sold, customer: truck.customer, payment_status: truck.payment_status, notes: truck.notes, stock_number: truck.stock_number })
   }
 
   async function saveEdit() {
     if (!editTruck) return
-    const payload = { ...editForm, year: editForm.year ? Number(editForm.year) : null, kilometers: editForm.kilometers ? Number(editForm.kilometers) : null, purchase_price: editForm.purchase_price ? Number(editForm.purchase_price) : null, recondition_cost: editForm.recondition_cost ? Number(editForm.recondition_cost) : null, sold_price: editForm.sold_price ? Number(editForm.sold_price) : null, date_sold: editForm.date_sold || null, customer: editForm.customer || null, bought_from: editForm.bought_from || null, colour: editForm.colour || null, notes: editForm.notes || null }
+    const payload = { ...editForm, year: editForm.year ? Number(editForm.year) : null, kilometers: editForm.kilometers ? Number(editForm.kilometers) : null, purchase_price: editForm.purchase_price ? Number(editForm.purchase_price) : null, recondition_cost: editForm.recondition_cost ? Number(editForm.recondition_cost) : null, sold_price: editForm.sold_price ? Number(editForm.sold_price) : null, date_sold: editForm.date_sold || null, customer: editForm.customer || null, bought_from: editForm.bought_from || null, colour: editForm.colour || null, notes: editForm.notes || null, stock_number: editForm.stock_number || null }
     const { error } = await supabase.from('Inventory Data').update(payload).eq('id', editTruck.id)
     if (error) { alert('Error: ' + error.message); return }
     setTrucks(prev => prev.map(t => t.id === editTruck.id ? { ...t, ...payload } : t))
@@ -500,21 +499,10 @@ export default function InventoryPage() {
     setSendingAlerts(false)
   }
 
-  // ── STOCK NUMBER MAP: sorted by bought_on asc, then id asc ─────────────────
-  const stockMap = useMemo(() => {
-    const sorted = [...trucks].sort((a, b) => {
-      const d = (a.bought_on || '').localeCompare(b.bought_on || '')
-      return d !== 0 ? d : a.id.localeCompare(b.id)
-    })
-    const map: Record<string, string> = {}
-    sorted.forEach((t, i) => { map[t.id] = `A&S-${String(i + 1).padStart(6, '0')}` })
-    return map
-  }, [trucks])
-
   const filtered = trucks
     .filter(t => {
       const q = search.toLowerCase()
-      if (q && ![t.vin, t.make, t.model, t.customer, t.bought_from].some(v => v?.toLowerCase().includes(q))) return false
+      if (q && ![t.vin, t.make, t.model, t.customer, t.bought_from, t.stock_number].some(v => v?.toLowerCase().includes(q))) return false
       for (const [col, val] of Object.entries(colFilters)) {
         if (!val) continue; const tv = (t as any)[col]
         if (tv == null || String(tv) !== val) return false
@@ -593,7 +581,6 @@ export default function InventoryPage() {
 
       <main style={{ padding: isMobile ? '16px' : '24px 20px', background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)', fontFamily: 'system-ui,sans-serif' }}>
 
-        {/* Header */}
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: isMobile ? 14 : 20 }}>
           <div>
             <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.15em', fontWeight:700, marginBottom:4, opacity:0.7 }}>FLEET</div>
@@ -612,7 +599,6 @@ export default function InventoryPage() {
 
         <div style={{ height:1, background:'linear-gradient(90deg,var(--gold),transparent)', marginBottom: isMobile ? 14 : 20 }} />
 
-        {/* Stats */}
         <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap', alignItems:'center' }}>
           {[{ label:'Total', value:trucks.length, color:'var(--text2)', filter: '' }, { label:'In Stock', value:inStock, color:'var(--gold)', filter: 'instock' }, { label:'Sold', value:sold, color:'var(--green)', filter: 'sold' }, { label:'Pending', value:pend, color:'var(--orange)', filter: 'pending' }].map(s => (
             <div key={s.label} onClick={() => setQuickFilter(qf => qf === s.filter ? '' : s.filter)}
@@ -636,11 +622,10 @@ export default function InventoryPage() {
           )}
         </div>
 
-        {/* Search + Date filter toggle */}
         <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
           <div style={{ position:'relative', flex:1, minWidth: isMobile ? '100%' : 200 }}>
             <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--text3)', fontSize:15 }}>🔍</span>
-            <input style={{ ...IS, paddingLeft:36, minHeight:44 }} placeholder="Search VIN, Make, Model, Customer..." value={search} onChange={e => setSearch(e.target.value)} />
+            <input style={{ ...IS, paddingLeft:36, minHeight:44 }} placeholder="Search VIN, Make, Model, Stock #..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <button onClick={() => setShowDateFilters(p => !p)} style={{ background: showDateFilters ? 'var(--gold-dim)' : 'var(--card-bg)', border:`1px solid ${showDateFilters ? 'var(--gold)' : 'var(--card-border)'}`, color: showDateFilters ? 'var(--gold)' : 'var(--text2)', borderRadius:8, padding:'10px 14px', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', minHeight:44 }}>
             📅 {isMobile ? '' : 'Date Filters '}{(boughtFrom||boughtTo||soldFrom||soldTo) ? '●' : ''}
@@ -680,7 +665,6 @@ export default function InventoryPage() {
           <div style={{ textAlign:'center', padding:60, color:'var(--red)' }}>Error: {error}</div>
         ) : (viewMode === 'cards' || isMobile) ? (
 
-          /* ── CARD VIEW ── */
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {filtered.length === 0
               ? <div style={{ textAlign:'center', padding:48, color:'var(--text4)' }}>No trucks found</div>
@@ -702,11 +686,12 @@ export default function InventoryPage() {
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
                           <div style={{ minWidth:0 }}>
-                            {/* Stock number badge + truck title */}
                             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:2 }}>
-                              <span style={{ fontSize:10, fontFamily:'monospace', fontWeight:800, color:'var(--gold)', background:'var(--gold-dim)', border:'1px solid var(--gold)', borderRadius:6, padding:'2px 7px', flexShrink:0, letterSpacing:'0.05em' }}>
-                                {stockMap[truck.id]}
-                              </span>
+                              {truck.stock_number && (
+                                <span style={{ fontSize:10, fontFamily:'monospace', fontWeight:800, color:'var(--gold)', background:'var(--gold-dim)', border:'1px solid var(--gold)', borderRadius:6, padding:'2px 7px', flexShrink:0, letterSpacing:'0.05em' }}>
+                                  {truck.stock_number}
+                                </span>
+                              )}
                               <span style={{ fontSize: isMobile ? 16 : 18, fontWeight:700, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                                 {truck.year} {truck.make} {truck.model}
                               </span>
@@ -758,13 +743,11 @@ export default function InventoryPage() {
 
         ) : (
 
-          /* ── TABLE VIEW ── */
           <div style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:14, overflow:'hidden' }}>
             <div style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:15 }}>
                 <thead>
                   <tr style={{ borderBottom:'1px solid var(--border)' }}>
-                    {/* Stock # column — before Photo */}
                     <th style={{ padding:'12px 12px', textAlign:'left', color:'var(--text)', fontWeight:600, fontSize:14, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>STOCK #</th>
                     <th style={{ padding:'12px 12px', textAlign:'left', color:'var(--text)', fontWeight:600, fontSize:14, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>PHOTO</th>
                     {cols.map(col => {
@@ -796,9 +779,8 @@ export default function InventoryPage() {
                           style={{ borderBottom:'1px solid var(--border2)', cursor:'pointer', transition:'background 0.15s' }}
                           onMouseEnter={e => (e.currentTarget.style.background='var(--hover)')}
                           onMouseLeave={e => (e.currentTarget.style.background='transparent')}>
-                          {/* Stock # cell */}
                           <td style={{ padding:'10px 12px', fontFamily:'monospace', fontSize:13, fontWeight:700, color:'var(--gold)', whiteSpace:'nowrap' }}>
-                            {stockMap[truck.id]}
+                            {truck.stock_number || '—'}
                           </td>
                           <td style={{ padding:'8px 12px' }} onClick={e => e.stopPropagation()}>
                             <PhotoCell truck={truck} photos={photos} reconPhotos={reconPhotos}
@@ -852,7 +834,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* Filter popup */}
         {filterPopup && (
           <div ref={popupRef} style={{ position:'fixed', left:filterPopup.x, top:filterPopup.y, zIndex:300, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, boxShadow:'0 12px 40px rgba(0,0,0,0.5)', minWidth:180, maxWidth:240, overflow:'hidden' }}>
             <div style={{ padding:'10px 12px', borderBottom:'1px solid var(--border2)' }}>
@@ -873,7 +854,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* ── ADD MODAL ── */}
         {showAddModal && (
           <div onClick={() => setShowAddModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(8px)', padding: isMobile ? 0 : 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width:'100%', maxWidth: isMobile ? '100%' : 580, maxHeight:'92vh', overflowY:'auto' }}>
@@ -882,8 +862,10 @@ export default function InventoryPage() {
                 <h2 style={{ fontSize:20, fontWeight:800, color:'var(--text)' }}>Add New Truck</h2>
                 <button onClick={() => setShowAddModal(false)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:18, width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
               </div>
-
-              {/* Status + Date */}
+              <div style={{ marginBottom:14 }}>
+                <label style={LS}>Stock Number</label>
+                <input style={{ ...IS, minHeight:44, fontFamily:'monospace' }} placeholder="e.g. A&S-000001" value={newTruck.stock_number} onChange={e => setNewTruck(p=>({...p,stock_number:e.target.value}))} />
+              </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Status</label>
                   <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={newTruck.status} onChange={e => setNewTruck(p=>({...p,status:e.target.value}))}>
@@ -892,37 +874,23 @@ export default function InventoryPage() {
                 </div>
                 <div><label style={LS}>Bought On</label><input type="date" style={{ ...IS, minHeight:44 }} value={newTruck.bought_on} onChange={e => setNewTruck(p=>({...p,bought_on:e.target.value}))} /></div>
               </div>
-
-              {/* VIN */}
               <div style={{ marginBottom:14 }}><label style={LS}>VIN *</label><input style={{ ...IS, minHeight:44, fontFamily:'monospace' }} placeholder="17-CHARACTER VIN" value={newTruck.vin} onChange={e => setNewTruck(p=>({...p,vin:e.target.value}))} maxLength={17} /></div>
-
-              {/* Year / Make / Model */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14 }}>
                 {([['Year','year','2020'],['Make','make','Freightliner'],['Model','model','Cascadia']] as const).map(([l,k,ph]) => (
                   <div key={k}><label style={LS}>{l}</label><input style={{ ...IS, minHeight:44 }} placeholder={ph} value={(newTruck as any)[k]} onChange={e => setNewTruck(prev=>({...prev,[k]:e.target.value}))} /></div>
                 ))}
               </div>
-
-              {/* Colour + KMs */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Colour</label><input style={{ ...IS, minHeight:44 }} placeholder="White" value={newTruck.colour} onChange={e => setNewTruck(p=>({...p,colour:e.target.value}))} /></div>
                 <div><label style={LS}>KMs</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="450000" value={newTruck.kilometers} onChange={e => setNewTruck(p=>({...p,kilometers:e.target.value}))} /></div>
               </div>
-
-              {/* HP + Ratio */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Horsepower</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="400" value={newTruck.horsepower} onChange={e => setNewTruck(p=>({...p,horsepower:e.target.value}))} /></div>
                 <div><label style={LS}>Ratio</label><input style={{ ...IS, minHeight:44 }} placeholder="3.55" value={newTruck.ratio} onChange={e => setNewTruck(p=>({...p,ratio:e.target.value}))} /></div>
               </div>
-
-              {/* Bought From */}
               <div style={{ marginBottom:14 }}><label style={LS}>Bought From</label><input style={{ ...IS, minHeight:44 }} placeholder="e.g. Lussicam Inc." value={newTruck.bought_from} onChange={e => setNewTruck(p=>({...p,bought_from:e.target.value}))} /></div>
-
-              {/* ── NEW FIELDS ── */}
               <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
               <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.12em', fontWeight:700, marginBottom:12 }}>ACQUISITION DETAILS</div>
-
-              {/* Delivery method + From location */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div>
                   <label style={LS}>How Was It Brought In?</label>
@@ -933,8 +901,6 @@ export default function InventoryPage() {
                 </div>
                 <div><label style={LS}>From (Location)</label><input style={{ ...IS, minHeight:44 }} placeholder="e.g. Hamilton, ON" value={newTruck.from_location} onChange={e => setNewTruck(p=>({...p,from_location:e.target.value}))} /></div>
               </div>
-
-              {/* Found By */}
               <div style={{ marginBottom:14 }}>
                 <label style={LS}>Found By</label>
                 <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={newTruck.found_by} onChange={e => setNewTruck(p=>({...p,found_by:e.target.value}))}>
@@ -942,18 +908,12 @@ export default function InventoryPage() {
                   {TEAM.map(m => <option key={m}>{m}</option>)}
                 </select>
               </div>
-
               <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
-
-              {/* Purchase + Recon */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Purchase Price ($)</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="35000" value={newTruck.purchase_price} onChange={e => setNewTruck(p=>({...p,purchase_price:e.target.value}))} /></div>
                 <div><label style={LS}>Recondition ($)</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="0" value={newTruck.recondition_cost} onChange={e => setNewTruck(p=>({...p,recondition_cost:e.target.value}))} /></div>
               </div>
-
-              {/* Notes */}
               <div style={{ marginBottom:20 }}><label style={LS}>Notes</label><textarea style={{ ...IS, height:70, resize:'vertical' }} placeholder="Any purchase notes..." value={newTruck.notes} onChange={e => setNewTruck(p=>({...p,notes:e.target.value}))} /></div>
-
               <div style={{ display:'flex', gap:10 }}>
                 <button onClick={() => setShowAddModal(false)} style={{ flex:1, background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', borderRadius:12, padding:'14px', fontSize:14, cursor:'pointer', fontWeight:500, minHeight:50 }}>Cancel</button>
                 <button onClick={addTruck} style={{ flex:2, background:'linear-gradient(135deg,#EAB308,#d97706)', border:'none', color:'#000', borderRadius:12, padding:'14px', fontSize:14, fontWeight:800, cursor:'pointer', minHeight:50 }}>Add Truck</button>
@@ -962,7 +922,6 @@ export default function InventoryPage() {
           </div>
         )}
 
-        {/* EDIT MODAL */}
         {editTruck && (
           <div onClick={() => setEditTruck(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(10px)', padding: isMobile ? 0 : 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width:'100%', maxWidth: isMobile ? '100%' : 560, maxHeight:'92vh', overflowY:'auto' }}>
@@ -970,9 +929,13 @@ export default function InventoryPage() {
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22 }}>
                 <div>
                   <h2 style={{ fontSize:18, fontWeight:800, color:'var(--text)', margin:0 }}>Edit Truck</h2>
-                  <div style={{ fontSize:11, fontFamily:'monospace', color:'var(--gold)', fontWeight:700, marginTop:4 }}>{stockMap[editTruck.id]}</div>
+                  {editTruck.stock_number && <div style={{ fontSize:11, fontFamily:'monospace', color:'var(--gold)', fontWeight:700, marginTop:4 }}>{editTruck.stock_number}</div>}
                 </div>
                 <button onClick={() => setEditTruck(null)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:16, width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label style={LS}>Stock Number</label>
+                <input style={{ ...IS, minHeight:44, fontFamily:'monospace' }} value={editForm.stock_number||''} onChange={e => setEditForm(p=>({...p,stock_number:e.target.value}))} />
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Status</label><select style={{ ...IS, minHeight:44 }} value={editForm.status||''} onChange={e => setEditForm(p=>({...p,status:e.target.value}))}>{['Intake','Purchased','In Reconditioning','Ready to List','Listed','Deal Pending','Sold'].map(s=><option key={s}>{s}</option>)}</select></div>
