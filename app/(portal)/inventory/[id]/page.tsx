@@ -17,13 +17,13 @@ type Truck = {
 }
 type Part      = { id: string; part: string; category: string; qty: number; unit_cost: number; date: string | null; invoice_url: string | null }
 type Labor     = { id: string; tech: string; hours: number; rate: number; date: string | null; invoice_url: string | null }
-type Invoice   = { id: string; vendor: string; description: string; amount: number; status: string; date: string | null; invoice_url: string | null }
+type Invoice = { id: string; vendor: string; description: string; amount: number; qty: number; status: string; date: string | null; invoice_url: string | null }
 type OtherCost = { id: string; category: string; amount: number; date: string | null; notes: string | null; invoice_url: string | null }
 type Offer     = { id: string; amount: number; date: string | null; notes: string | null; accepted: boolean }
 type Doc       = { id: string; category: string; name: string; url: string; created_at: string }
 type Commission = { id: string; truck_id: string; person: string; amount: number; is_auto: boolean; paid: boolean }
 
-const TEAM = ['Faiz', 'Faraz', 'Umar', 'Waleed']
+const TEAM = ['Faiz Aamir', 'Faraz Aamir', 'Umar Aamir', 'Waleed Aamir']
 const FAIZ_RATE = 0.30
 
 const STATUS_PIPELINE = ['Intake', 'Purchased', 'In Reconditioning', 'Ready to List', 'Listed', 'Deal Pending', 'Sold']
@@ -92,9 +92,9 @@ function PreviewModal({ url, name, onClose }: { url: string; name: string; onClo
 function UploadButton({ table, rowId, currentUrl, onUploaded }: { table: string; rowId: string; currentUrl: string | null; onUploaded: (url: string) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
-  const [preview, setPreview] = useState<string | null>(null)
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; if (!file) return
+  const [dragging, setDragging] = useState(false)
+
+  async function handleFile(file: File) {
     setUploading(true)
     const path = `${table}/${rowId}-${Date.now()}.${file.name.split('.').pop()}`
     const { error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true })
@@ -105,14 +105,27 @@ function UploadButton({ table, rowId, currentUrl, onUploaded }: { table: string;
     }
     setUploading(false)
   }
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-      {currentUrl && <button onClick={() => setPreview(currentUrl)} style={{ background: 'var(--green-dim)', border: '1px solid var(--green)', color: 'var(--green)', borderRadius: 99, padding: '3px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>📄 View</button>}
-      <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ background: uploading ? 'var(--hover)' : 'var(--blue-dim)', border: '1px solid var(--blue)', color: uploading ? 'var(--text3)' : 'var(--blue)', borderRadius: 99, padding: '3px 10px', fontSize: 11, cursor: uploading ? 'default' : 'pointer', fontWeight: 600 }}>
-        {uploading ? '...' : currentUrl ? '🔄 Replace' : '📎 Upload'}
-      </button>
-      <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={handleFile} />
-      {preview && <PreviewModal url={preview} name="Invoice" onClose={() => setPreview(null)} />}
+    <div style={{ marginTop: 8 }}>
+      {currentUrl && (
+        <a href={currentUrl} target="_blank" rel="noreferrer"
+          style={{ display: 'inline-block', marginBottom: 6, background: 'var(--green-dim)', border: '1px solid var(--green)', color: 'var(--green)', borderRadius: 99, padding: '3px 10px', fontSize: 11, fontWeight: 600, textDecoration: 'none' }}>
+          📄 View
+        </a>
+      )}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={e => { e.preventDefault(); setDragging(false); const file = e.dataTransfer.files[0]; if (file) handleFile(file) }}
+        onClick={() => fileRef.current?.click()}
+        style={{ border: `2px dashed ${dragging ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 8, padding: '8px 14px', cursor: 'pointer', textAlign: 'center', transition: 'border-color 0.15s', background: dragging ? 'var(--gold-dim)' : 'transparent' }}>
+        <div style={{ fontSize: 11, color: uploading ? 'var(--text4)' : dragging ? 'var(--gold)' : 'var(--text3)', fontWeight: 500 }}>
+          {uploading ? 'Uploading...' : currentUrl ? '🔄 Drop to replace or click to browse' : '📎 Drop file or click to upload'}
+        </div>
+      </div>
+      <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }}
+        onChange={e => { const file = e.target.files?.[0]; if (file) handleFile(file) }} />
     </div>
   )
 }
@@ -136,18 +149,18 @@ function CommissionSection({ truck, profit, commissions, onChanged }: {
     setManualAmounts(init)
   }, [commissions])
 
-  const faizCommission = profit != null ? profit * FAIZ_RATE : null
-  const faizRow = commissions.find(c => c.person === 'Faiz')
-  const manualPeople = TEAM.filter(p => p !== 'Faiz')
+    const faizCommission = profit != null ? profit * FAIZ_RATE : null
+    const faizRow = commissions.find(c => c.person === 'Faiz Aamir')
+    const manualPeople = TEAM.filter(p => p !== 'Faiz Aamir')
 
   async function upsertFaiz() {
     if (faizCommission == null) return
-    setSaving('Faiz')
-    const existing = commissions.find(c => c.person === 'Faiz')
+    setSaving('Faiz Aamir')
+    const existing = commissions.find(c => c.person === 'Faiz Aamir')
     if (existing) {
       await supabase.from('commissions').update({ amount: faizCommission, is_auto: true }).eq('id', existing.id)
     } else {
-      await supabase.from('commissions').insert([{ truck_id: truck.id, person: 'Faiz', amount: faizCommission, is_auto: true, paid: false }])
+      await supabase.from('commissions').insert([{ truck_id: truck.id, person: 'Faiz Aamir', amount: faizCommission, is_auto: true, paid: false }])
     }
     setSaving(null)
     onChanged()
@@ -204,9 +217,8 @@ function CommissionSection({ truck, profit, commissions, onChanged }: {
       <div style={{ background: 'var(--hover)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>Faiz</div>
-            <div style={{ fontSize: 11, color: 'var(--text4)' }}>Auto · 30% of profit</div>
-          </div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>Faiz Aamir</div>
+            <div style={{ fontSize: 11, color: 'var(--text4)' }}>Auto · 30% of profit</div>          </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: faizCommission != null ? 'var(--gold)' : 'var(--text4)' }}>
               {faizCommission != null ? `$${Math.round(faizCommission).toLocaleString()}` : '—'}
@@ -220,9 +232,9 @@ function CommissionSection({ truck, profit, commissions, onChanged }: {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {faizCommission != null && (
-            <button onClick={upsertFaiz} disabled={saving === 'Faiz'}
+            <button onClick={upsertFaiz} disabled={saving === 'Faiz Aamir'}
               style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 8, padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-              {saving === 'Faiz' ? '...' : faizRow ? '🔄 Recalculate' : '+ Add Commission'}
+              {saving === 'Faiz Aamir' ? '...' : faizRow ? '🔄 Recalculate' : '+ Add Commission'}
             </button>
           )}
           {faizRow && (
@@ -322,7 +334,7 @@ export default function TruckDetailPage() {
   const [listingForm, setListingForm] = useState({ listing_platform: '', listing_link: '', listing_date: '', asking_price: '' })
   const [newPart,     setNewPart]     = useState({ part: '', category: '', qty: '1', unit_cost: '', date: '' })
   const [newLabor,    setNewLabor]    = useState({ tech: '', hours: '', rate: '', date: '' })
-  const [newInvoice,  setNewInvoice]  = useState({ vendor: '', description: '', amount: '', status: 'Unpaid', date: '' })
+  const [newInvoice, setNewInvoice] = useState({ vendor: '', description: '', amount: '', qty: '1', status: 'Unpaid', date: '' })
   const [newCost,     setNewCost]     = useState({ category: '', amount: '', date: '', notes: '' })
   const [newOffer,    setNewOffer]    = useState({ amount: '', date: '', notes: '', accepted: false })
 
@@ -405,10 +417,26 @@ export default function TruckDetailPage() {
     await supabase.from('labor').insert([{ truck_id: id, tech: newLabor.tech, hours: parseFloat(newLabor.hours)||0, rate: parseFloat(newLabor.rate)||0, date: newLabor.date||null }])
     setShowLaborModal(false); setNewLabor({ tech:'', hours:'', rate:'', date:'' }); fetchAll()
   }
-  async function addInvoice() {
-    await supabase.from('vendor_invoices').insert([{ truck_id: id, vendor: newInvoice.vendor, description: newInvoice.description, amount: parseFloat(newInvoice.amount)||0, status: newInvoice.status, date: newInvoice.date||null }])
-    setShowInvoiceModal(false); setNewInvoice({ vendor:'', description:'', amount:'', status:'Unpaid', date:'' }); fetchAll()
-  }
+    async function addInvoice() {
+      const qty = parseInt(newInvoice.qty) || 1
+      const { data: inserted, error } = await supabase.from('vendor_invoices').insert([{
+        truck_id: id, vendor: newInvoice.vendor, description: newInvoice.description,
+        amount: parseFloat(newInvoice.amount)||0, qty, status: newInvoice.status, date: newInvoice.date||null
+      }]).select().single()
+        if (error) return
+        const file = (newInvoice as any)._file
+        if (file && inserted) {
+          const path = `vendor_invoices/${inserted.id}-${Date.now()}.${file.name.split('.').pop()}`
+          const { error: sErr } = await supabase.storage.from('invoices').upload(path, file, { upsert: true })
+          if (!sErr) {
+            const { data } = supabase.storage.from('invoices').getPublicUrl(path)
+            await supabase.from('vendor_invoices').update({ invoice_url: data.publicUrl }).eq('id', inserted.id)
+          }
+        }
+        setShowInvoiceModal(false)
+        setNewInvoice({ vendor:'', description:'', amount:'', qty:'1', status:'Unpaid', date:'' })
+        fetchAll()
+      }
   async function addCost() {
     await supabase.from('other_costs').insert([{ truck_id: id, category: newCost.category, amount: parseFloat(newCost.amount)||0, date: newCost.date||null, notes: newCost.notes||null }])
     setShowCostModal(false); setNewCost({ category:'', amount:'', date:'', notes:'' }); fetchAll()
@@ -933,17 +961,42 @@ export default function TruckDetailPage() {
         </Modal>
       )}
 
-      {showInvoiceModal && (
-        <Modal title="Add Vendor Invoice" onClose={() => setShowInvoiceModal(false)} onSave={addInvoice}>
-          <div style={{ marginBottom:14 }}><label style={LS}>Vendor</label><input style={IS} value={newInvoice.vendor} onChange={e=>setNewInvoice(p=>({...p,vendor:e.target.value}))} /></div>
-          <div style={{ marginBottom:14 }}><label style={LS}>Description</label><input style={IS} value={newInvoice.description} onChange={e=>setNewInvoice(p=>({...p,description:e.target.value}))} /></div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
-            <div><label style={LS}>Amount ($)</label><input style={IS} type="number" value={newInvoice.amount} onChange={e=>setNewInvoice(p=>({...p,amount:e.target.value}))} /></div>
-            <div><label style={LS}>Status</label><select style={IS} value={newInvoice.status} onChange={e=>setNewInvoice(p=>({...p,status:e.target.value}))}><option>Unpaid</option><option>Paid</option></select></div>
-            <div><label style={LS}>Date</label><input style={IS} type="date" value={newInvoice.date} onChange={e=>setNewInvoice(p=>({...p,date:e.target.value}))} /></div>
-          </div>
-        </Modal>
-      )}
+{showInvoiceModal && (
+  <Modal title="Add Vendor Invoice" onClose={() => setShowInvoiceModal(false)} onSave={addInvoice}>
+    <div style={{ marginBottom:14 }}><label style={LS}>Vendor</label><input style={IS} value={newInvoice.vendor} onChange={e=>setNewInvoice(p=>({...p,vendor:e.target.value}))} /></div>
+    <div style={{ marginBottom:14 }}><label style={LS}>Description</label><input style={IS} value={newInvoice.description} onChange={e=>setNewInvoice(p=>({...p,description:e.target.value}))} /></div>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+      <div><label style={LS}>Amount ($)</label><input style={IS} type="number" value={newInvoice.amount} onChange={e=>setNewInvoice(p=>({...p,amount:e.target.value}))} /></div>
+      <div><label style={LS}>Qty</label><input style={IS} type="number" placeholder="1" value={newInvoice.qty} onChange={e=>setNewInvoice(p=>({...p,qty:e.target.value}))} /></div>
+    </div>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
+      <div><label style={LS}>Status</label><select style={IS} value={newInvoice.status} onChange={e=>setNewInvoice(p=>({...p,status:e.target.value}))}><option>Unpaid</option><option>Paid</option></select></div>
+      <div><label style={LS}>Date</label><input style={IS} type="date" value={newInvoice.date} onChange={e=>setNewInvoice(p=>({...p,date:e.target.value}))} /></div>
+    </div>
+
+    {/* Drag & drop PDF upload */}
+    <label style={LS}>Invoice File (optional)</label>
+    <div
+      onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--gold)' }}
+      onDragLeave={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
+      onDrop={e => {
+        e.preventDefault()
+        e.currentTarget.style.borderColor = 'var(--border)'
+        const file = e.dataTransfer.files[0]
+        if (file) setNewInvoice(p => ({ ...p, _file: file } as any))
+      }}
+      onClick={() => (document.getElementById('inv-file-input') as HTMLInputElement)?.click()}
+      style={{ border: '2px dashed var(--border)', borderRadius: 10, padding: '20px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s', marginBottom: 4 }}>
+      <div style={{ fontSize: 24, marginBottom: 6 }}>📄</div>
+      <div style={{ fontSize: 13, color: 'var(--text3)' }}>
+        {(newInvoice as any)._file ? (newInvoice as any)._file.name : 'Drag & drop PDF here or click to browse'}
+      </div>
+      {(newInvoice as any)._file && <div style={{ fontSize: 11, color: 'var(--green)', marginTop: 4 }}>✓ File ready to upload</div>}
+    </div>
+    <input id="inv-file-input" type="file" accept="image/*,application/pdf" style={{ display: 'none' }}
+      onChange={e => { const file = e.target.files?.[0]; if (file) setNewInvoice(p => ({ ...p, _file: file } as any)) }} />
+  </Modal>
+)}
 
       {showCostModal && (
         <Modal title="Add Other Cost" onClose={() => setShowCostModal(false)} onSave={addCost}>
@@ -956,21 +1009,21 @@ export default function TruckDetailPage() {
         </Modal>
       )}
 
-      {showOfferModal && (
-        <Modal title="Log Offer" onClose={() => setShowOfferModal(false)} onSave={addOffer}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
-            <div><label style={LS}>Amount ($)</label><input style={IS} type="number" value={newOffer.amount} onChange={e=>setNewOffer(p=>({...p,amount:e.target.value}))} /></div>
-            <div><label style={LS}>Date</label><input style={IS} type="date" value={newOffer.date} onChange={e=>setNewOffer(p=>({...p,date:e.target.value}))} /></div>
-          </div>
-          <div style={{ marginBottom:14 }}><label style={LS}>Notes</label><input style={IS} value={newOffer.notes} onChange={e=>setNewOffer(p=>({...p,notes:e.target.value}))} /></div>
-          <div style={{ display:'flex', alignItems:'center', gap:12, cursor:'pointer', padding:'10px 0', minHeight:44 }} onClick={() => setNewOffer(p=>({...p,accepted:!p.accepted}))}>
-            <div style={{ width:22, height:22, borderRadius:6, border:`2px solid ${newOffer.accepted ? 'var(--gold)' : 'var(--border)'}`, background: newOffer.accepted ? 'var(--gold)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              {newOffer.accepted && <span style={{ color:'#000', fontSize:13, fontWeight:800 }}>✓</span>}
-            </div>
-            <span style={{ fontSize:14, color:'var(--text2)' }}>Accepted offer</span>
-          </div>
-        </Modal>
-      )}
+  {showOfferModal && (
+    <Modal title="Log Offer" onClose={() => setShowOfferModal(false)} onSave={addOffer}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
+        <div><label style={LS}>Amount ($)</label><input style={IS} type="number" value={newOffer.amount} onChange={e=>setNewOffer(p=>({...p,amount:e.target.value}))} /></div>
+        <div><label style={LS}>Date</label><input style={IS} type="date" value={newOffer.date} onChange={e=>setNewOffer(p=>({...p,date:e.target.value}))} /></div>
+      </div>
+      <div style={{ marginBottom:14 }}><label style={LS}>Notes</label><input style={IS} value={newOffer.notes} onChange={e=>setNewOffer(p=>({...p,notes:e.target.value}))} /></div>
+      <div style={{ display:'flex', alignItems:'center', gap:12, cursor:'pointer', padding:'10px 0', minHeight:44 }} onClick={() => setNewOffer(p=>({...p,accepted:!p.accepted}))}>
+        <div style={{ width:22, height:22, borderRadius:6, border:`2px solid ${newOffer.accepted ? 'var(--gold)' : 'var(--border)'}`, background: newOffer.accepted ? 'var(--gold)' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          {newOffer.accepted && <span style={{ color:'#000', fontSize:13, fontWeight:800 }}>✓</span>}
+        </div>
+        <span style={{ fontSize:14, color:'var(--text2)' }}>Accepted offer</span>
+      </div>
+    </Modal>
+  )}
 
       {previewDoc && <PreviewModal url={previewDoc.url} name={previewDoc.name} onClose={() => setPreviewDoc(null)} />}
     </>

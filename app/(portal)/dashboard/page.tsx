@@ -17,12 +17,12 @@ type Commission = {
 
 type TruckCosts = Record<string, number>
 
-const TEAM = ['Faiz', 'Faraz', 'Umar', 'Waleed']
+const TEAM = ['Faiz Aamir', 'Faraz Aamir', 'Umar Aamir', 'Waleed Aamir']
 const TEAM_COLORS: Record<string, string> = {
-  Faiz:   '#EAB308',
-  Faraz:  '#38bdf8',
-  Umar:   '#a78bfa',
-  Waleed: '#f97316',
+  'Faiz Aamir':   '#EAB308',
+  'Faraz Aamir':  '#38bdf8',
+  'Umar Aamir':   '#a78bfa',
+  'Waleed Aamir': '#f97316',
 }
 
 function getMonthKey(d: string | null) {

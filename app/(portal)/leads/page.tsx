@@ -73,7 +73,7 @@ const IS: React.CSSProperties = {
   outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui,sans-serif',
 }
 const LS: React.CSSProperties = {
-  fontSize: 13, color: 'var(--text2)', marginBottom: 6, display: 'block', fontWeight: 500,
+  fontSize: 13, color: 'var(--text)', marginBottom: 6, display: 'block', fontWeight: 500,
 }
 const SEC: React.CSSProperties = {
   fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10,
@@ -188,7 +188,7 @@ function LeadForm({ f, setF, onSubmit, onCancel, submitLabel }: {
       </div>
 
       <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={onCancel} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '14px', fontSize: 14, cursor: 'pointer', fontWeight: 500, minHeight: 50 }}>Cancel</button>
+        <button onClick={onCancel} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 12, padding: '14px', fontSize: 14, cursor: 'pointer', fontWeight: 500, minHeight: 50 }}>Cancel</button>
         <button onClick={onSubmit} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 800, cursor: 'pointer', minHeight: 50 }}>{submitLabel}</button>
       </div>
     </div>
@@ -424,12 +424,12 @@ export default function LeadsPage() {
         {/* Stats */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
           {[
-            { label: 'Total',    value: counts.total,    color: 'var(--text2)',  filter: '' },
+            { label: 'Total',    value: counts.total,    color: 'var(--text)',  filter: '' },
             { label: 'Offer Sent',     value: counts.sent,     color: 'var(--gold)',   filter: 'Offer Sent' },
             { label: 'Accepted', value: counts.accepted, color: 'var(--green)',  filter: 'Offer Accepted' },
           ].map(s => (
             <div key={s.label} onClick={() => setQuickFilter(qf => qf === s.filter ? '' : s.filter)}
-              style={{ background: 'var(--card-bg)', border: `1px solid ${quickFilter === s.filter ? s.color : 'var(--card-border)'}`, borderRadius: 99, padding: '5px 12px', fontSize: 14, color: 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s' }}>
+              style={{ background: 'var(--card-bg)', border: `1px solid ${quickFilter === s.filter ? s.color : 'var(--card-border)'}`, borderRadius: 99, padding: '5px 12px', fontSize: 14, color: 'var(--text)', cursor: 'pointer', transition: 'all 0.15s' }}>
               {s.label} <span style={{ color: s.color, fontWeight: 700 }}>{s.value}</span>
             </div>
           ))}
@@ -437,7 +437,7 @@ export default function LeadsPage() {
 
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: 16 }}>
-          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)', fontSize: 15 }}>🔍</span>
+          <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text2)', fontSize: 15 }}>🔍</span>
           <input style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '10px 14px 10px 36px', color: 'var(--text)', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', minHeight: 44 }}
             placeholder="Search company, contact, make, model, VIN..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
@@ -466,7 +466,7 @@ export default function LeadsPage() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                     <div>
                       <div style={{ fontSize: 16, fontWeight: 700 }}>{lead.year} {lead.make} {lead.model || '—'}</div>
-                      <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>{lead.company || '—'}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text2)', marginTop: 2 }}>{lead.company || '—'}</div>
                       {lead.vin && <div style={{ fontSize: 11, color: 'var(--text4)', fontFamily: 'monospace', marginTop: 2 }}>{lead.vin}</div>}
                     </div>
                     <span style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, borderRadius: 99, padding: '3px 10px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{lead.status}</span>
@@ -485,13 +485,13 @@ export default function LeadsPage() {
                   </div>
                   {isExpanded && (
                     <div style={{ borderTop: '1px solid var(--border2)', paddingTop: 12 }}>
-                      {lead.contact_name && <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 4 }}>👤 {lead.contact_name}</div>}
-                      {lead.phone && <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 4 }}>📞 {lead.phone}</div>}
-                      {lead.kilometers && <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 4 }}>🚛 {lead.kilometers.toLocaleString()} km · {lead.units || 1} unit{(lead.units || 1) > 1 ? 's' : ''}</div>}
-                      {lead.horsepower && <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 4 }}>⚡ {lead.horsepower} HP {lead.ratio ? `· ${lead.ratio} ratio` : ''}</div>}
+                      {lead.contact_name && <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>👤 {lead.contact_name}</div>}
+                      {lead.phone && <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>📞 {lead.phone}</div>}
+                      {lead.kilometers && <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 4 }}>🚛 {lead.kilometers.toLocaleString()} km · {lead.units || 1} unit{(lead.units || 1) > 1 ? 's' : ''}</div>}
+                      {lead.horsepower && <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 4 }}>⚡ {lead.horsepower} HP {lead.ratio ? `· ${lead.ratio} ratio` : ''}</div>}
                       {lead.towing_cost && <div style={{ fontSize: 13, color: 'var(--orange)', marginBottom: 4 }}>🚚 Towing: ${lead.towing_cost.toLocaleString()}</div>}
-                      {lead.recondition_cost ? <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 4 }}>🔧 Est. Recon: ${lead.recondition_cost.toLocaleString()}</div> : null}
-                      {lead.notes && <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 8, fontStyle: 'italic' }}>"{lead.notes}"</div>}
+                      {lead.recondition_cost ? <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 4 }}>🔧 Est. Recon: ${lead.recondition_cost.toLocaleString()}</div> : null}
+                      {lead.notes && <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 8, fontStyle: 'italic' }}>"{lead.notes}"</div>}
 
                       {/* Status toggle */}
                       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
@@ -513,7 +513,7 @@ export default function LeadsPage() {
                       )}
 
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={e => openEdit(lead, e)} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 8, padding: '8px', fontSize: 13, cursor: 'pointer' }}>✏️ Edit</button>
+                        <button onClick={e => openEdit(lead, e)} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 8, padding: '8px', fontSize: 13, cursor: 'pointer' }}>✏️ Edit</button>
                         <button onClick={e => { e.stopPropagation(); deleteLead(lead.id) }} style={{ flex: 1, background: 'var(--red-dim)', border: '1px solid var(--red)', color: 'var(--red)', borderRadius: 8, padding: '8px', fontSize: 13, cursor: 'pointer' }}>🗑 Delete</button>
                       </div>
                     </div>
@@ -528,7 +528,7 @@ export default function LeadsPage() {
           /* ── TABLE VIEW ── */
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, overflow: 'hidden' }}>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {['Status', 'Company', 'Contact', 'Truck', 'VIN', 'KMs', 'Units', 'HP', 'Ratio', 'Asking', 'Offer', 'Towing', 'Recon', 'All-In', 'Date', ''].map(h => (
@@ -553,22 +553,22 @@ export default function LeadsPage() {
                           {isPromoting && <span style={{ fontSize: 10, color: 'var(--text4)', marginLeft: 6 }}>Adding...</span>}
                         </td>
                         <td style={{ padding: '10px 14px', color: 'var(--text)', fontWeight: 600, whiteSpace: 'nowrap' }}>{lead.company || '—'}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '10px 14px', color: 'var(--text)', whiteSpace: 'nowrap' }}>
                           <div>{lead.contact_name || '—'}</div>
-                          {lead.phone && <div style={{ fontSize: 11, color: 'var(--text3)' }}>{lead.phone}</div>}
+                          {lead.phone && <div style={{ fontSize: 11, color: 'var(--text2)' }}>{lead.phone}</div>}
                         </td>
                         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: 'var(--text)' }}>{lead.year} {lead.make} {lead.model}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text3)', fontFamily: 'monospace', fontSize: 12, whiteSpace: 'nowrap' }}>{lead.vin || '—'}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{lead.kilometers ? lead.kilometers.toLocaleString() : '—'}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text2)', textAlign: 'center' }}>{lead.units || 1}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text2)' }}>{lead.horsepower || '—'}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text2)' }}>{lead.ratio || '—'}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{lead.asking_price ? `$${lead.asking_price.toLocaleString()}` : '—'}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text2)', fontFamily: 'monospace', fontSize: 12, whiteSpace: 'nowrap' }}>{lead.vin || '—'}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{lead.kilometers ? lead.kilometers.toLocaleString() : '—'}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text)', textAlign: 'center' }}>{lead.units || 1}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text)' }}>{lead.horsepower || '—'}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text)' }}>{lead.ratio || '—'}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{lead.asking_price ? `$${lead.asking_price.toLocaleString()}` : '—'}</td>
                         <td style={{ padding: '10px 14px', color: 'var(--gold)', fontWeight: 700, whiteSpace: 'nowrap' }}>{lead.offer_price ? `$${lead.offer_price.toLocaleString()}` : '—'}</td>
                         <td style={{ padding: '10px 14px', color: 'var(--orange)', whiteSpace: 'nowrap' }}>{lead.towing_cost ? `$${lead.towing_cost.toLocaleString()}` : '—'}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{lead.recondition_cost ? `$${lead.recondition_cost.toLocaleString()}` : '—'}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{lead.recondition_cost ? `$${lead.recondition_cost.toLocaleString()}` : '—'}</td>
                         <td style={{ padding: '10px 14px', color: lead.status === 'Offer Accepted' ? 'var(--green)' : 'var(--text)', fontWeight: 700, whiteSpace: 'nowrap' }}>{allIn > 0 ? `$${allIn.toLocaleString()}` : '—'}</td>
-                        <td style={{ padding: '10px 14px', color: 'var(--text3)', whiteSpace: 'nowrap', fontSize: 12 }}>{fmt(lead.created_at)}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text2)', whiteSpace: 'nowrap', fontSize: 12 }}>{fmt(lead.created_at)}</td>
                         <td style={{ padding: '10px 14px' }}>
                           <div style={{ display: 'flex', gap: 4 }}>
                             <button onClick={e => openEdit(lead, e)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13, padding: 4 }}>✏️</button>
@@ -581,7 +581,7 @@ export default function LeadsPage() {
                 </tbody>
               </table>
             </div>
-            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border2)', fontSize: 13, color: 'var(--text3)' }}>
+            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border2)', fontSize: 13, color: 'var(--text2)' }}>
               Showing {filtered.length} of {leads.length} leads
             </div>
           </div>
@@ -594,7 +594,7 @@ export default function LeadsPage() {
               {isMobile && <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 99, margin: '0 auto 20px' }} />}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0 }}>New Lead</h2>
-                <button onClick={() => setShowAdd(false)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                <button onClick={() => setShowAdd(false)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
               <LeadForm f={form} setF={setForm} onSubmit={addLead} onCancel={() => setShowAdd(false)} submitLabel="Add Lead" />
             </div>
@@ -608,7 +608,7 @@ export default function LeadsPage() {
               {isMobile && <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 99, margin: '0 auto 20px' }} />}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Edit Lead</h2>
-                <button onClick={() => setEditLead(null)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                <button onClick={() => setEditLead(null)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
               <LeadForm f={editForm} setF={setEditForm} onSubmit={saveLead} onCancel={() => setEditLead(null)} submitLabel="Save Changes" />
             </div>

@@ -18,7 +18,7 @@ type ReconPhoto = { id: string; truck_id: string; url: string; type: 'before' | 
 type SortDir = 'asc' | 'desc'
 type PhotoTab = 'gallery' | 'comparison'
 
-const TEAM = ['Faiz', 'Faraz', 'Umar', 'Waleed']
+const TEAM = ['Aamir Javaid','Faiz Aamir', 'Faraz Aamir', 'Umar Aamir', 'Waleed Aamir']
 const DELIVERY_METHODS = ['Delivered', 'Towed', 'Driven In']
 
 const statusColors: Record<string, { bg: string; color: string; border: string }> = {

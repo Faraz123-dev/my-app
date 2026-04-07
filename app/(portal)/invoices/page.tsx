@@ -19,7 +19,6 @@ const statusStyle = (s: string) => {
 function UploadCell({ invoice, onUploaded }: { invoice: Invoice; onUploaded: (url: string) => void }) {
   const ref = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
-  const [preview, setPreview] = useState(false)
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return
     setUploading(true)
@@ -35,15 +34,10 @@ function UploadCell({ invoice, onUploaded }: { invoice: Invoice; onUploaded: (ur
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
       {invoice.invoice_url && (
-        <>
-          <button onClick={() => setPreview(true)} style={{ background: 'var(--green-dim)', border: '1px solid var(--green)', color: 'var(--green)', borderRadius: 99, padding: '3px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>📄 View</button>
-          {preview && (
-            <div onClick={() => setPreview(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-              <button onClick={() => setPreview(false)} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: '50%', width: 36, height: 36, fontSize: 18, cursor: 'pointer' }}>×</button>
-              <img src={invoice.invoice_url!} alt="Invoice" style={{ maxWidth: '90vw', maxHeight: '85vh', borderRadius: 12, objectFit: 'contain' }} />
-            </div>
-          )}
-        </>
+        <a href={invoice.invoice_url} target="_blank" rel="noreferrer"
+          style={{ background: 'var(--green-dim)', border: '1px solid var(--green)', color: 'var(--green)', borderRadius: 99, padding: '3px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 600, textDecoration: 'none' }}>
+          📄 View
+        </a>
       )}
       <button onClick={() => ref.current?.click()} disabled={uploading}
         style={{ background: 'var(--blue-dim)', border: '1px solid var(--blue)', color: 'var(--blue)', borderRadius: 99, padding: '3px 10px', fontSize: 11, cursor: uploading ? 'default' : 'pointer', fontWeight: 600 }}>
@@ -55,15 +49,15 @@ function UploadCell({ invoice, onUploaded }: { invoice: Invoice; onUploaded: (ur
 }
 
 export default function InvoicesPage() {
-  const [invoices,  setInvoices]  = useState<Invoice[]>([])
-  const [trucks,    setTrucks]    = useState<Truck[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [search,    setSearch]    = useState('')
-  const [filter,    setFilter]    = useState('All')
-  const [showModal, setShowModal] = useState(false)
-  const [editInv,   setEditInv]   = useState<Invoice | null>(null)
-  const [viewMode,  setViewMode]  = useState<'cards' | 'table'>('table')
-  const [saving,    setSaving]    = useState(false)
+  const [invoices,     setInvoices]     = useState<Invoice[]>([])
+  const [trucks,       setTrucks]       = useState<Truck[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [search,       setSearch]       = useState('')
+  const [filter,       setFilter]       = useState('All')
+  const [showModal,    setShowModal]    = useState(false)
+  const [editInv,      setEditInv]      = useState<Invoice | null>(null)
+  const [saving,       setSaving]       = useState(false)
+  const [expandedTrucks, setExpandedTrucks] = useState<Set<string>>(new Set())
   const emptyForm = { truck_id: '', vendor: '', description: '', amount: '', status: 'Unpaid', date: new Date().toISOString().split('T')[0] }
   const [form, setForm] = useState(emptyForm)
 
@@ -79,12 +73,16 @@ export default function InvoicesPage() {
     ;(tr || []).forEach((t: Truck) => { truckMap[t.id] = t })
     const joined = (inv || []).map((i: Invoice) => ({
       ...i,
-      truck_year: truckMap[i.truck_id]?.year,
-      truck_make: truckMap[i.truck_id]?.make,
+      truck_year:  truckMap[i.truck_id]?.year,
+      truck_make:  truckMap[i.truck_id]?.make,
       truck_model: truckMap[i.truck_id]?.model,
-      truck_vin: truckMap[i.truck_id]?.vin,
+      truck_vin:   truckMap[i.truck_id]?.vin,
     }))
-    setInvoices(joined); setTrucks(tr || [])
+    setInvoices(joined)
+    setTrucks(tr || [])
+    // expand all by default
+    const ids = new Set((tr || []).map((t: Truck) => t.id))
+    setExpandedTrucks(ids)
     setLoading(false)
   }
 
@@ -92,7 +90,10 @@ export default function InvoicesPage() {
     if (!form.vendor || !form.amount) return alert('Vendor and amount are required.')
     if (!form.truck_id) return alert('Please link this invoice to a truck.')
     setSaving(true)
-    const { error } = await supabase.from('vendor_invoices').insert([{ truck_id: form.truck_id, vendor: form.vendor, description: form.description, amount: parseFloat(form.amount), status: form.status, date: form.date || null }])
+    const { error } = await supabase.from('vendor_invoices').insert([{
+      truck_id: form.truck_id, vendor: form.vendor, description: form.description,
+      amount: parseFloat(form.amount), status: form.status, date: form.date || null,
+    }])
     setSaving(false)
     if (error) { alert('Error: ' + error.message); return }
     setShowModal(false); setForm(emptyForm); loadAll()
@@ -101,7 +102,10 @@ export default function InvoicesPage() {
   async function saveEdit() {
     if (!editInv) return
     setSaving(true)
-    const { error } = await supabase.from('vendor_invoices').update({ vendor: editInv.vendor, description: editInv.description, amount: editInv.amount, status: editInv.status, date: editInv.date }).eq('id', editInv.id)
+    const { error } = await supabase.from('vendor_invoices').update({
+      vendor: editInv.vendor, description: editInv.description,
+      amount: editInv.amount, status: editInv.status, date: editInv.date,
+    }).eq('id', editInv.id)
     setSaving(false)
     if (error) { alert('Error: ' + error.message); return }
     setInvoices(prev => prev.map(i => i.id === editInv.id ? { ...i, ...editInv } : i))
@@ -120,36 +124,37 @@ export default function InvoicesPage() {
     setInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, status: next } : i))
   }
 
+  function toggleTruck(truckId: string) {
+    setExpandedTrucks(prev => {
+      const next = new Set(prev)
+      if (next.has(truckId)) next.delete(truckId)
+      else next.add(truckId)
+      return next
+    })
+  }
+
   const filtered = invoices.filter(i => {
     const q = search.toLowerCase()
     return (!q || [i.vendor, i.description, i.truck_make, i.truck_model, i.truck_vin].some(v => v?.toLowerCase().includes(q)))
       && (filter === 'All' || i.status === filter)
   })
 
+  // Group by truck_id
+  const grouped: Record<string, Invoice[]> = {}
+  filtered.forEach(inv => {
+    if (!grouped[inv.truck_id]) grouped[inv.truck_id] = []
+    grouped[inv.truck_id].push(inv)
+  })
+  const groupedEntries = Object.entries(grouped)
+
   const totalAmt   = invoices.reduce((s, i) => s + i.amount, 0)
   const unpaidAmt  = invoices.filter(i => i.status === 'Unpaid').reduce((s, i) => s + i.amount, 0)
   const overdueAmt = invoices.filter(i => i.status === 'Overdue').reduce((s, i) => s + i.amount, 0)
   const paidAmt    = invoices.filter(i => i.status === 'Paid').reduce((s, i) => s + i.amount, 0)
 
-  const IS = { width: '100%', background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '10px 14px', color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box' as const, fontFamily: 'system-ui,sans-serif' }
-  const LS = { fontSize: 12, color: 'var(--text2)', marginBottom: 6, display: 'block' as const, fontWeight: 500 }
+  const IS: React.CSSProperties = { width: '100%', background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '10px 14px', color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box', fontFamily: 'system-ui,sans-serif' }
+  const LS: React.CSSProperties = { fontSize: 12, color: 'var(--text2)', marginBottom: 6, display: 'block', fontWeight: 500 }
   const truckLabel = (t: Truck) => `${t.year || ''} ${t.make || ''} ${t.model || ''} — ${t.vin}`.trim()
-
-  const ModalShell = ({ title, onClose, onSave, children }: any) => (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(10px)', padding: 20 }}>
-      <div onClick={(e: any) => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0 }}>{title}</h2>
-          <button onClick={onClose} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', width: 32, height: 32, borderRadius: '50%', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-        </div>
-        {children}
-        <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
-          <button onClick={onClose} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '13px', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
-          <button onClick={onSave} disabled={saving} style={{ flex: 2, background: saving ? 'var(--hover)' : 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: saving ? 'var(--text3)' : '#000', borderRadius: 12, padding: '13px', fontSize: 13, fontWeight: 800, cursor: saving ? 'default' : 'pointer', boxShadow: saving ? 'none' : '0 4px 16px var(--gold-glow)' }}>{saving ? 'Saving...' : 'Save'}</button>
-        </div>
-      </div>
-    </div>
-  )
 
   return (
     <>
@@ -157,24 +162,28 @@ export default function InvoicesPage() {
         @keyframes spin { to { transform: rotate(360deg) } }
         .inv-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
         @media(max-width:768px){ .inv-stats{grid-template-columns:1fr 1fr!important} }
+        .inv-row:hover { background: var(--hover); }
       `}</style>
+
       <main style={{ padding: '24px 20px', background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)', fontFamily: 'system-ui,sans-serif' }}>
 
+        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 6, opacity: 0.7 }}>FINANCE</div>
             <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>Vendor Invoices</h1>
           </div>
-          <button onClick={() => setShowModal(true)} style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 99, padding: '9px 20px', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 16px var(--gold-glow)' }}>+ Add Invoice</button>
+          <button onClick={() => setShowModal(true)} style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 99, padding: '9px 20px', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 16px rgba(234,179,8,0.35)' }}>+ Add Invoice</button>
         </div>
         <div style={{ height: 1, background: 'linear-gradient(90deg,var(--gold),transparent)', marginBottom: 20 }} />
 
+        {/* Stats */}
         <div className="inv-stats">
           {[
-            { label: 'TOTAL INVOICES', val: String(invoices.length),           sub: `$${totalAmt.toLocaleString()} total`,   color: 'var(--text)',  icon: '📄' },
-            { label: 'UNPAID',         val: `$${unpaidAmt.toLocaleString()}`,   sub: `${invoices.filter(i=>i.status==='Unpaid').length} invoices`,   color: 'var(--gold)',  icon: '💳' },
-            { label: 'OVERDUE',        val: `$${overdueAmt.toLocaleString()}`,  sub: `${invoices.filter(i=>i.status==='Overdue').length} invoices`,  color: 'var(--red)',   icon: '⚠️' },
-            { label: 'PAID',           val: `$${paidAmt.toLocaleString()}`,     sub: `${invoices.filter(i=>i.status==='Paid').length} settled`,      color: 'var(--green)', icon: '✅' },
+            { label: 'TOTAL INVOICES', val: String(invoices.length),          sub: `$${totalAmt.toLocaleString()} total`,                                color: 'var(--text)',  icon: '📄' },
+            { label: 'UNPAID',         val: `$${unpaidAmt.toLocaleString()}`,  sub: `${invoices.filter(i=>i.status==='Unpaid').length} invoices`,          color: 'var(--gold)',  icon: '💳' },
+            { label: 'OVERDUE',        val: `$${overdueAmt.toLocaleString()}`, sub: `${invoices.filter(i=>i.status==='Overdue').length} invoices`,         color: 'var(--red)',   icon: '⚠️' },
+            { label: 'PAID',           val: `$${paidAmt.toLocaleString()}`,    sub: `${invoices.filter(i=>i.status==='Paid').length} settled`,             color: 'var(--green)', icon: '✅' },
           ].map(c => (
             <div key={c.label} className="gcard" style={{ padding: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -187,6 +196,7 @@ export default function InvoicesPage() {
           ))}
         </div>
 
+        {/* Search + filters */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
             <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)', fontSize: 13 }}>🔍</span>
@@ -195,94 +205,115 @@ export default function InvoicesPage() {
           <select style={{ ...IS, width: 'auto', cursor: 'pointer' }} value={filter} onChange={e => setFilter(e.target.value)}>
             {['All', 'Unpaid', 'Paid', 'Overdue'].map(s => <option key={s}>{s}</option>)}
           </select>
-          <div style={{ display: 'flex', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 8, overflow: 'hidden' }}>
-            {(['cards', 'table'] as const).map(m => (
-              <button key={m} onClick={() => setViewMode(m)} style={{ padding: '6px 12px', fontSize: 12, cursor: 'pointer', border: 'none', background: viewMode === m ? 'var(--gold)' : 'transparent', color: viewMode === m ? '#000' : 'var(--text3)', fontWeight: viewMode === m ? 700 : 400, transition: 'all 0.15s' }}>{m === 'cards' ? '▦' : '☰'}</button>
-            ))}
-          </div>
+          <button onClick={() => setExpandedTrucks(new Set(Object.keys(grouped)))}
+            style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', color: 'var(--text3)', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
+            Expand All
+          </button>
+          <button onClick={() => setExpandedTrucks(new Set())}
+            style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', color: 'var(--text3)', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', fontWeight: 500 }}>
+            Collapse All
+          </button>
         </div>
 
+        {/* Content */}
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
             <div style={{ width: 36, height: 36, border: '2px solid transparent', borderTopColor: 'var(--gold)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
           </div>
-        ) : viewMode === 'cards' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {filtered.length === 0
-              ? <div style={{ textAlign: 'center', padding: 60, color: 'var(--text4)' }}><div style={{ fontSize: 32, marginBottom: 12 }}>📥</div><div>No invoices found.</div></div>
-              : filtered.map(inv => {
-                const sc = statusStyle(inv.status)
-                return (
-                  <div key={inv.id} className="gcard" style={{ padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{inv.vendor}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{inv.description || '—'}</div>
-                        {inv.truck_make && <div onClick={() => window.location.href=`/inventory/${inv.truck_id}`} style={{ fontSize: 11, color: 'var(--blue)', marginTop: 4, cursor: 'pointer', fontWeight: 600 }}>🚛 {inv.truck_year} {inv.truck_make} {inv.truck_model}</div>}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                        <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--gold)' }}>${inv.amount.toLocaleString()}</span>
-                        <button onClick={() => setEditInv(inv)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13 }} onMouseEnter={e=>(e.currentTarget.style.color='var(--gold)')} onMouseLeave={e=>(e.currentTarget.style.color='var(--text4)')}>✏️</button>
-                        <button onClick={() => deleteInvoice(inv.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14 }} onMouseEnter={e=>(e.currentTarget.style.color='var(--red)')} onMouseLeave={e=>(e.currentTarget.style.color='var(--text4)')}>🗑</button>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-                      <button onClick={() => toggleStatus(inv)} style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.color}`, borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }} title="Click to cycle">{inv.status}</button>
-                      {inv.date && <span style={{ fontSize: 11, color: 'var(--text3)' }}>{inv.date}</span>}
-                    </div>
-                    <UploadCell invoice={inv} onUploaded={url => setInvoices(prev => prev.map(i => i.id===inv.id ? {...i,invoice_url:url} : i))} />
-                  </div>
-                )
-              })}
+        ) : groupedEntries.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 60, color: 'var(--text4)' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📥</div>
+            <div>No invoices found.</div>
           </div>
         ) : (
-          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow-card)' }}>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Vendor','Description','Linked Truck','Amount','Date','Status','Invoice File',''].map(h => (
-                      <th key={h} style={{ padding: '11px 14px', textAlign: 'left', color: 'var(--text4)', fontWeight: 600, fontSize: 10, letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0
-                    ? <tr><td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--text4)' }}>No invoices found.</td></tr>
-                    : filtered.map(inv => {
-                      const sc = statusStyle(inv.status)
-                      return (
-                        <tr key={inv.id} style={{ borderBottom: '1px solid var(--border2)', transition: 'background 0.15s' }}
-                          onMouseEnter={e=>(e.currentTarget.style.background='var(--hover)')}
-                          onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
-                          <td style={{ padding: '10px 14px', color: 'var(--text)', fontWeight: 600, whiteSpace: 'nowrap' }}>{inv.vendor}</td>
-                          <td style={{ padding: '10px 14px', color: 'var(--text2)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.description || '—'}</td>
-                          <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                            {inv.truck_make
-                              ? <span onClick={() => window.location.href=`/inventory/${inv.truck_id}`} style={{ color: 'var(--blue)', cursor: 'pointer', fontWeight: 600, fontSize: 11 }}>🚛 {inv.truck_year} {inv.truck_make} {inv.truck_model}</span>
-                              : <span style={{ color: 'var(--text4)' }}>—</span>}
-                          </td>
-                          <td style={{ padding: '10px 14px', color: 'var(--gold)', fontWeight: 700, whiteSpace: 'nowrap' }}>${inv.amount.toLocaleString()}</td>
-                          <td style={{ padding: '10px 14px', color: 'var(--text3)', whiteSpace: 'nowrap' }}>{inv.date || '—'}</td>
-                          <td style={{ padding: '10px 14px' }}>
-                            <button onClick={() => toggleStatus(inv)} style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.color}`, borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }} title="Click to cycle">{inv.status}</button>
-                          </td>
-                          <td style={{ padding: '10px 14px' }}>
-                            <UploadCell invoice={inv} onUploaded={url => setInvoices(prev => prev.map(i => i.id===inv.id ? {...i,invoice_url:url} : i))} />
-                          </td>
-                          <td style={{ padding: '10px 14px' }}>
-                            <div style={{ display: 'flex', gap: 10 }}>
-                              <button onClick={() => setEditInv(inv)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13 }} onMouseEnter={e=>(e.currentTarget.style.color='var(--gold)')} onMouseLeave={e=>(e.currentTarget.style.color='var(--text4)')}>✏️</button>
-                              <button onClick={() => deleteInvoice(inv.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14 }} onMouseEnter={e=>(e.currentTarget.style.color='var(--red)')} onMouseLeave={e=>(e.currentTarget.style.color='var(--text4)')}>🗑</button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {groupedEntries.map(([truckId, truckInvoices]) => {
+              const first = truckInvoices[0]
+              const isExpanded = expandedTrucks.has(truckId)
+              const truckTotal = truckInvoices.reduce((s, i) => s + i.amount, 0)
+              const unpaidCount = truckInvoices.filter(i => i.status === 'Unpaid').length
+              const overdueCount = truckInvoices.filter(i => i.status === 'Overdue').length
+              const truckName = first.truck_make
+                ? `${first.truck_year || ''} ${first.truck_make} ${first.truck_model || ''}`.trim()
+                : `Truck — ${truckId.slice(0, 8)}`
+
+              return (
+                <div key={truckId} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, overflow: 'hidden' }}>
+
+                  {/* Truck header — click to expand/collapse */}
+                  <div onClick={() => toggleTruck(truckId)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', cursor: 'pointer', borderBottom: isExpanded ? '1px solid var(--border2)' : 'none', background: isExpanded ? 'var(--hover)' : 'transparent', transition: 'background 0.15s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: 18 }}>🚛</span>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{truckName}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, fontFamily: 'monospace' }}>{first.truck_vin || truckId}</div>
+                      </div>
+                      <button onClick={e => { e.stopPropagation(); window.location.href = `/inventory/${truckId}` }}
+                        style={{ background: 'var(--blue-dim)', border: '1px solid var(--blue)', color: 'var(--blue)', borderRadius: 99, padding: '3px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', marginLeft: 4 }}>
+                        View Truck →
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--gold)' }}>${truckTotal.toLocaleString()}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                          {truckInvoices.length} invoice{truckInvoices.length !== 1 ? 's' : ''}
+                          {unpaidCount > 0 && <span style={{ color: 'var(--orange)', marginLeft: 6 }}>· {unpaidCount} unpaid</span>}
+                          {overdueCount > 0 && <span style={{ color: 'var(--red)', marginLeft: 6 }}>· {overdueCount} overdue</span>}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 14, color: 'var(--text3)', transition: 'transform 0.2s', display: 'inline-block', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▼</span>
+                    </div>
+                  </div>
+
+                  {/* Invoice rows */}
+                  {isExpanded && (
+                    <div>
+                      {truckInvoices.map((inv, idx) => {
+                        const sc = statusStyle(inv.status)
+                        return (
+                          <div key={inv.id} className="inv-row"
+                            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: idx < truckInvoices.length - 1 ? '1px solid var(--border2)' : 'none', transition: 'background 0.15s' }}>
+                            {/* Vendor + description */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{inv.vendor}</div>
+                              {inv.description && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{inv.description}</div>}
                             </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                </tbody>
-              </table>
+                            {/* Amount */}
+                            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--gold)', flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
+                              ${inv.amount.toLocaleString()}
+                            </div>
+                            {/* Date */}
+                            <div style={{ fontSize: 12, color: 'var(--text3)', flexShrink: 0, minWidth: 90 }}>
+                              {inv.date || '—'}
+                            </div>
+                            {/* Status */}
+                            <button onClick={() => toggleStatus(inv)}
+                              style={{ background: sc.bg, color: sc.color, border: `1px solid ${sc.color}`, borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+                              title="Click to cycle">
+                              {inv.status}
+                            </button>
+                            {/* Upload */}
+                            <div style={{ flexShrink: 0 }}>
+                              <UploadCell invoice={inv} onUploaded={url => setInvoices(prev => prev.map(i => i.id===inv.id ? {...i,invoice_url:url} : i))} />
+                            </div>
+                            {/* Actions */}
+                            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                              <button onClick={() => setEditInv(inv)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13, padding: 4 }} onMouseEnter={e=>(e.currentTarget.style.color='var(--gold)')} onMouseLeave={e=>(e.currentTarget.style.color='var(--text4)')}>✏️</button>
+                              <button onClick={() => deleteInvoice(inv.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, padding: 4 }} onMouseEnter={e=>(e.currentTarget.style.color='var(--red)')} onMouseLeave={e=>(e.currentTarget.style.color='var(--text4)')}>🗑</button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            <div style={{ textAlign: 'center', padding: '8px 0', fontSize: 12, color: 'var(--text4)' }}>
+              {filtered.length} invoice{filtered.length !== 1 ? 's' : ''} across {groupedEntries.length} truck{groupedEntries.length !== 1 ? 's' : ''}
             </div>
-            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border2)', fontSize: 12, color: 'var(--text3)' }}>Showing {filtered.length} of {invoices.length} invoices</div>
           </div>
         )}
 
@@ -316,7 +347,7 @@ export default function InvoicesPage() {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setShowModal(false)} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '13px', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
-                <button onClick={saveInvoice} disabled={saving} style={{ flex: 2, background: saving ? 'var(--hover)' : 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: saving ? 'var(--text3)' : '#000', borderRadius: 12, padding: '13px', fontSize: 13, fontWeight: 800, cursor: saving ? 'default' : 'pointer', boxShadow: saving ? 'none' : '0 4px 16px var(--gold-glow)' }}>{saving ? 'Saving...' : 'Add Invoice'}</button>
+                <button onClick={saveInvoice} disabled={saving} style={{ flex: 2, background: saving ? 'var(--hover)' : 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: saving ? 'var(--text3)' : '#000', borderRadius: 12, padding: '13px', fontSize: 13, fontWeight: 800, cursor: saving ? 'default' : 'pointer' }}>{saving ? 'Saving...' : 'Add Invoice'}</button>
               </div>
             </div>
           </div>
@@ -345,7 +376,7 @@ export default function InvoicesPage() {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setEditInv(null)} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '13px', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
-                <button onClick={saveEdit} disabled={saving} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '13px', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 16px var(--gold-glow)' }}>{saving ? 'Saving...' : 'Save Changes'}</button>
+                <button onClick={saveEdit} disabled={saving} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '13px', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{saving ? 'Saving...' : 'Save Changes'}</button>
               </div>
             </div>
           </div>
