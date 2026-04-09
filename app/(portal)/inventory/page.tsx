@@ -12,7 +12,7 @@ type Truck = {
   payment_status: string | null; notes: string | null; photo_url: string | null
   horsepower: number | null; ratio: string | null
   delivered_by: string | null; from_location: string | null; found_by: string | null
-  stock_number: string | null
+  stock_number: string | null; asking_price: number | null
 }
 type TruckPhoto = { id: string; truck_id: string; url: string; sort_order: number }
 type ReconPhoto = { id: string; truck_id: string; url: string; type: 'before' | 'after'; sort_order: number }
@@ -34,8 +34,9 @@ const statusColors: Record<string, { bg: string; color: string; border: string }
 
 const fmt = (d: string | null) => {
   if (!d) return '—'
-  const [y, m, day] = d.split('-').map(Number)
-  return new Date(y, m - 1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const date = new Date(d)
+  if (isNaN(date.getTime())) return d
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
 function Lightbox({ photos, startIndex, onClose }: { photos: { url: string }[]; startIndex: number; onClose: () => void }) {
@@ -384,7 +385,7 @@ export default function InventoryPage() {
     vin: '', year: '', make: '', model: '', colour: '', kilometers: '',
     horsepower: '', ratio: '', bought_from: '', purchase_price: '',
     recondition_cost: '0', notes: '', stock_number: '',
-    delivered_by: '', from_location: '', found_by: '',
+    delivered_by: '', from_location: '', found_by: '', asking_price: '',
   })
   const [editTruck,     setEditTruck]     = useState<Truck | null>(null)
   const [editForm,      setEditForm]      = useState<Partial<Truck>>({})
@@ -440,8 +441,27 @@ export default function InventoryPage() {
   function updatePhotosForTruck(truckId: string, newPhotos: TruckPhoto[]) { setPhotoMap(prev => ({ ...prev, [truckId]: newPhotos })) }
   function updateReconForTruck(truckId: string, newPhotos: ReconPhoto[]) { setReconMap(prev => ({ ...prev, [truckId]: newPhotos })) }
 
+  async function generateStockNumber(): Promise<string> {
+    const { data } = await supabase
+      .from('Inventory Data')
+      .select('stock_number')
+      .not('stock_number', 'is', null)
+      .order('stock_number', { ascending: false })
+      .limit(1)
+    const last = data?.[0]?.stock_number
+    if (last && /^A&S-\d{6}$/.test(last)) {
+      const num = parseInt(last.replace('A&S-', '')) + 1
+      return `A&S-${String(num).padStart(6, '0')}`
+    }
+    // fallback: count all trucks
+    const { count } = await supabase.from('Inventory Data').select('*', { count: 'exact', head: true })
+    return `A&S-${String((count || 0) + 1).padStart(6, '0')}`
+  }
+
   async function addTruck() {
     if (!newTruck.vin) return alert('VIN is required')
+    let stockNum = newTruck.stock_number || null
+    if (!stockNum) stockNum = await generateStockNumber()
     const { error } = await supabase.from('Inventory Data').insert([{
       status: newTruck.status, bought_on: newTruck.bought_on, vin: newTruck.vin,
       year: parseInt(newTruck.year) || null, make: newTruck.make || null,
@@ -455,11 +475,12 @@ export default function InventoryPage() {
       delivered_by: newTruck.delivered_by || null,
       from_location: newTruck.from_location || null,
       found_by: newTruck.found_by || null,
-      stock_number: newTruck.stock_number || null,
+      stock_number: stockNum,
+      asking_price: parseFloat(newTruck.asking_price) || null,
     }])
     if (error) return alert('Error: ' + error.message)
     setShowAddModal(false)
-    setNewTruck({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', horsepower: '', ratio: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '', stock_number: '', delivered_by: '', from_location: '', found_by: '' })
+    setNewTruck({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', horsepower: '', ratio: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '', stock_number: '', delivered_by: '', from_location: '', found_by: '', asking_price: '' })
     loadAll()
   }
 
@@ -472,12 +493,43 @@ export default function InventoryPage() {
   function openEdit(truck: Truck, e: React.MouseEvent) {
     e.stopPropagation()
     setEditTruck(truck)
-    setEditForm({ status: truck.status, bought_on: truck.bought_on, vin: truck.vin, year: truck.year, make: truck.make, model: truck.model, colour: truck.colour, kilometers: truck.kilometers, bought_from: truck.bought_from, purchase_price: truck.purchase_price, recondition_cost: truck.recondition_cost, sold_price: truck.sold_price, date_sold: truck.date_sold, customer: truck.customer, payment_status: truck.payment_status, notes: truck.notes, stock_number: truck.stock_number })
+    setEditForm({
+      status: truck.status, bought_on: truck.bought_on, vin: truck.vin,
+      year: truck.year, make: truck.make, model: truck.model,
+      colour: truck.colour, kilometers: truck.kilometers,
+      bought_from: truck.bought_from, purchase_price: truck.purchase_price,
+      recondition_cost: truck.recondition_cost, sold_price: truck.sold_price,
+      date_sold: truck.date_sold, customer: truck.customer,
+      payment_status: truck.payment_status, notes: truck.notes,
+      stock_number: truck.stock_number, horsepower: truck.horsepower,
+      ratio: truck.ratio, found_by: truck.found_by,
+      delivered_by: truck.delivered_by, from_location: truck.from_location,
+      asking_price: truck.asking_price,
+    })
   }
 
   async function saveEdit() {
     if (!editTruck) return
-    const payload = { ...editForm, year: editForm.year ? Number(editForm.year) : null, kilometers: editForm.kilometers ? Number(editForm.kilometers) : null, purchase_price: editForm.purchase_price ? Number(editForm.purchase_price) : null, recondition_cost: editForm.recondition_cost ? Number(editForm.recondition_cost) : null, sold_price: editForm.sold_price ? Number(editForm.sold_price) : null, date_sold: editForm.date_sold || null, customer: editForm.customer || null, bought_from: editForm.bought_from || null, colour: editForm.colour || null, notes: editForm.notes || null, stock_number: editForm.stock_number || null }
+    const payload = {
+      ...editForm,
+      year: editForm.year ? Number(editForm.year) : null,
+      kilometers: editForm.kilometers ? Number(editForm.kilometers) : null,
+      purchase_price: editForm.purchase_price ? Number(editForm.purchase_price) : null,
+      recondition_cost: editForm.recondition_cost ? Number(editForm.recondition_cost) : null,
+      sold_price: editForm.sold_price ? Number(editForm.sold_price) : null,
+      horsepower: editForm.horsepower ? Number(editForm.horsepower) : null,
+      asking_price: editForm.asking_price ? Number(editForm.asking_price) : null,
+      date_sold: editForm.date_sold || null,
+      customer: editForm.customer || null,
+      bought_from: editForm.bought_from || null,
+      colour: editForm.colour || null,
+      notes: editForm.notes || null,
+      stock_number: editForm.stock_number || null,
+      ratio: editForm.ratio || null,
+      found_by: editForm.found_by || null,
+      delivered_by: editForm.delivered_by || null,
+      from_location: editForm.from_location || null,
+    }
     const { error } = await supabase.from('Inventory Data').update(payload).eq('id', editTruck.id)
     if (error) { alert('Error: ' + error.message); return }
     setTrucks(prev => prev.map(t => t.id === editTruck.id ? { ...t, ...payload } : t))
@@ -540,26 +592,29 @@ export default function InventoryPage() {
 
   type Col = { key: keyof Truck | 'allIn' | 'profit'; label: string; sortKey?: keyof Truck; filterable?: boolean }
   const cols: Col[] = [
-    { key: 'status',           label: 'Status',      sortKey: 'status',           filterable: true },
-    { key: 'bought_on',        label: 'Bought On',   sortKey: 'bought_on' },
-    { key: 'vin',              label: 'VIN',         sortKey: 'vin' },
-    { key: 'year',             label: 'Year',        sortKey: 'year',             filterable: true },
-    { key: 'make',             label: 'Make',        sortKey: 'make',             filterable: true },
-    { key: 'model',            label: 'Model',       sortKey: 'model',            filterable: true },
-    { key: 'colour',           label: 'Colour',      sortKey: 'colour',           filterable: true },
-    { key: 'kilometers',       label: 'KMs',         sortKey: 'kilometers' },
-    { key: 'horsepower',       label: 'Horsepower',  sortKey: 'horsepower' },
-    { key: 'ratio',            label: 'Ratio',       sortKey: 'ratio' },
-    { key: 'found_by',         label: 'Found By',    sortKey: 'found_by',         filterable: true },
-    { key: 'bought_from',      label: 'Bought From', sortKey: 'bought_from',      filterable: true },
-    { key: 'purchase_price',   label: 'Purchase',    sortKey: 'purchase_price' },
-    { key: 'recondition_cost', label: 'Recon',       sortKey: 'recondition_cost' },
+    { key: 'status',           label: 'Status',        sortKey: 'status',           filterable: true },
+    { key: 'bought_on',        label: 'Bought On',     sortKey: 'bought_on' },
+    { key: 'vin',              label: 'VIN',           sortKey: 'vin' },
+    { key: 'year',             label: 'Year',          sortKey: 'year',             filterable: true },
+    { key: 'make',             label: 'Make',          sortKey: 'make',             filterable: true },
+    { key: 'model',            label: 'Model',         sortKey: 'model',            filterable: true },
+    { key: 'colour',           label: 'Colour',        sortKey: 'colour',           filterable: true },
+    { key: 'kilometers',       label: 'KMs',           sortKey: 'kilometers' },
+    { key: 'horsepower',       label: 'Horsepower',    sortKey: 'horsepower' },
+    { key: 'ratio',            label: 'Ratio',         sortKey: 'ratio' },
+    { key: 'found_by',         label: 'Found By',      sortKey: 'found_by',         filterable: true },
+    { key: 'delivered_by',     label: 'Brought In',    sortKey: 'delivered_by',     filterable: true },
+    { key: 'from_location',    label: 'From',          sortKey: 'from_location' },
+    { key: 'bought_from',      label: 'Bought From',   sortKey: 'bought_from',      filterable: true },
+    { key: 'purchase_price',   label: 'Purchase',      sortKey: 'purchase_price' },
+    { key: 'recondition_cost', label: 'Recon',         sortKey: 'recondition_cost' },
     { key: 'allIn',            label: 'All-In' },
-    { key: 'date_sold',        label: 'Date Sold',   sortKey: 'date_sold' },
-    { key: 'customer',         label: 'Customer',    sortKey: 'customer',         filterable: true },
-    { key: 'sold_price',       label: 'Sold Price',  sortKey: 'sold_price' },
+    { key: 'asking_price',     label: 'Asking Price',  sortKey: 'asking_price' },
+    { key: 'date_sold',        label: 'Date Sold',     sortKey: 'date_sold' },
+    { key: 'customer',         label: 'Customer',      sortKey: 'customer',         filterable: true },
+    { key: 'sold_price',       label: 'Sold Price',    sortKey: 'sold_price' },
     { key: 'profit',           label: 'Profit' },
-    { key: 'payment_status',   label: 'Payment',     sortKey: 'payment_status',   filterable: true },
+    { key: 'payment_status',   label: 'Payment',       sortKey: 'payment_status',   filterable: true },
   ]
 
   const popupValues = filterPopup
@@ -725,6 +780,7 @@ export default function InventoryPage() {
                       {truck.bought_on && <span style={{ fontSize:11, color:'var(--text3)' }}>📅 {fmt(truck.bought_on)}</span>}
                       {truck.found_by && <span style={{ fontSize:11, color:'var(--gold)', fontWeight:600 }}>🔍 {truck.found_by}</span>}
                       {truck.customer && <span style={{ fontSize:11, color:'var(--text2)', fontWeight:500 }}>→ {truck.customer}</span>}
+                      {truck.asking_price && <span style={{ fontSize:11, color:'var(--blue)', fontWeight:600 }}>Ask: ${truck.asking_price.toLocaleString()}</span>}
                       {truck.payment_status && truck.payment_status !== 'N/A' && (
                         <span style={{ background: truck.payment_status==='Paid' ? 'var(--green-dim)' : 'var(--red-dim)', color: truck.payment_status==='Paid' ? 'var(--green)' : 'var(--red)', borderRadius:99, padding:'2px 8px', fontSize:10, fontWeight:600 }}>{truck.payment_status}</span>
                       )}
@@ -801,10 +857,13 @@ export default function InventoryPage() {
                           <td style={TD}>{truck.horsepower ? truck.horsepower.toLocaleString() : '—'}</td>
                           <td style={TD}>{truck.ratio || '—'}</td>
                           <td style={{ ...TD, color:'var(--gold)', fontWeight:600 }}>{truck.found_by || '—'}</td>
+                          <td style={TD}>{truck.delivered_by || '—'}</td>
+                          <td style={TD}>{truck.from_location || '—'}</td>
                           <td style={TD}>{truck.bought_from || '—'}</td>
                           <td style={TD}>${(truck.purchase_price||0).toLocaleString()}</td>
                           <td style={TD}>${(truck.recondition_cost||0).toLocaleString()}</td>
                           <td style={TD}>${allIn.toLocaleString()}</td>
+                          <td style={{ ...TD, color:'var(--blue)', fontWeight:600 }}>{truck.asking_price ? `$${truck.asking_price.toLocaleString()}` : '—'}</td>
                           <td style={TD}>{truck.date_sold ? fmt(truck.date_sold) : '—'}</td>
                           <td style={TD}>{truck.customer || '—'}</td>
                           <td style={TD}>{truck.sold_price != null ? `$${truck.sold_price.toLocaleString()}` : '—'}</td>
@@ -854,6 +913,7 @@ export default function InventoryPage() {
           </div>
         )}
 
+        {/* ── ADD MODAL ── */}
         {showAddModal && (
           <div onClick={() => setShowAddModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(8px)', padding: isMobile ? 0 : 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width:'100%', maxWidth: isMobile ? '100%' : 580, maxHeight:'92vh', overflowY:'auto' }}>
@@ -863,7 +923,7 @@ export default function InventoryPage() {
                 <button onClick={() => setShowAddModal(false)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:18, width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
               </div>
               <div style={{ marginBottom:14 }}>
-                <label style={LS}>Stock Number</label>
+                <label style={LS}>Stock Number <span style={{ color:'var(--text4)', fontWeight:400 }}>(auto-generated if blank)</span></label>
                 <input style={{ ...IS, minHeight:44, fontFamily:'monospace' }} placeholder="e.g. A&S-000001" value={newTruck.stock_number} onChange={e => setNewTruck(p=>({...p,stock_number:e.target.value}))} />
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
@@ -913,6 +973,7 @@ export default function InventoryPage() {
                 <div><label style={LS}>Purchase Price ($)</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="35000" value={newTruck.purchase_price} onChange={e => setNewTruck(p=>({...p,purchase_price:e.target.value}))} /></div>
                 <div><label style={LS}>Recondition ($)</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="0" value={newTruck.recondition_cost} onChange={e => setNewTruck(p=>({...p,recondition_cost:e.target.value}))} /></div>
               </div>
+              <div style={{ marginBottom:14 }}><label style={LS}>Asking Price ($)</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="65000" value={newTruck.asking_price} onChange={e => setNewTruck(p=>({...p,asking_price:e.target.value}))} /></div>
               <div style={{ marginBottom:20 }}><label style={LS}>Notes</label><textarea style={{ ...IS, height:70, resize:'vertical' }} placeholder="Any purchase notes..." value={newTruck.notes} onChange={e => setNewTruck(p=>({...p,notes:e.target.value}))} /></div>
               <div style={{ display:'flex', gap:10 }}>
                 <button onClick={() => setShowAddModal(false)} style={{ flex:1, background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', borderRadius:12, padding:'14px', fontSize:14, cursor:'pointer', fontWeight:500, minHeight:50 }}>Cancel</button>
@@ -922,9 +983,10 @@ export default function InventoryPage() {
           </div>
         )}
 
+        {/* ── EDIT MODAL ── */}
         {editTruck && (
           <div onClick={() => setEditTruck(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(10px)', padding: isMobile ? 0 : 20 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width:'100%', maxWidth: isMobile ? '100%' : 560, maxHeight:'92vh', overflowY:'auto' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width:'100%', maxWidth: isMobile ? '100%' : 580, maxHeight:'92vh', overflowY:'auto' }}>
               {isMobile && <div style={{ width:36, height:4, background:'var(--border)', borderRadius:99, margin:'0 auto 20px' }} />}
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22 }}>
                 <div>
@@ -933,38 +995,94 @@ export default function InventoryPage() {
                 </div>
                 <button onClick={() => setEditTruck(null)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:16, width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
               </div>
+
+              {/* Stock Number */}
               <div style={{ marginBottom:14 }}>
                 <label style={LS}>Stock Number</label>
                 <input style={{ ...IS, minHeight:44, fontFamily:'monospace' }} value={editForm.stock_number||''} onChange={e => setEditForm(p=>({...p,stock_number:e.target.value}))} />
               </div>
+
+              {/* Status + Bought On */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Status</label><select style={{ ...IS, minHeight:44 }} value={editForm.status||''} onChange={e => setEditForm(p=>({...p,status:e.target.value}))}>{['Intake','Purchased','In Reconditioning','Ready to List','Listed','Deal Pending','Sold'].map(s=><option key={s}>{s}</option>)}</select></div>
                 <div><label style={LS}>Bought On</label><input style={{ ...IS, minHeight:44 }} type="date" value={editForm.bought_on||''} onChange={e => setEditForm(p=>({...p,bought_on:e.target.value}))} /></div>
               </div>
-              <div style={{ marginBottom:12 }}><label style={LS}>VIN</label><input style={{ ...IS, minHeight:44 }} value={editForm.vin||''} onChange={e => setEditForm(p=>({...p,vin:e.target.value}))} /></div>
+
+              {/* VIN */}
+              <div style={{ marginBottom:12 }}><label style={LS}>VIN</label><input style={{ ...IS, minHeight:44, fontFamily:'monospace' }} value={editForm.vin||''} onChange={e => setEditForm(p=>({...p,vin:e.target.value}))} /></div>
+
+              {/* Year / Make / Model */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:12 }}>
                 <div><label style={LS}>Year</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.year||''} onChange={e => setEditForm(p=>({...p,year:e.target.value as any}))} /></div>
                 <div><label style={LS}>Make</label><input style={{ ...IS, minHeight:44 }} value={editForm.make||''} onChange={e => setEditForm(p=>({...p,make:e.target.value}))} /></div>
                 <div><label style={LS}>Model</label><input style={{ ...IS, minHeight:44 }} value={editForm.model||''} onChange={e => setEditForm(p=>({...p,model:e.target.value}))} /></div>
               </div>
+
+              {/* Colour + KMs */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Colour</label><input style={{ ...IS, minHeight:44 }} value={editForm.colour||''} onChange={e => setEditForm(p=>({...p,colour:e.target.value}))} /></div>
                 <div><label style={LS}>Kilometers</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.kilometers||''} onChange={e => setEditForm(p=>({...p,kilometers:e.target.value as any}))} /></div>
               </div>
+
+              {/* HP + Ratio */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+                <div><label style={LS}>Horsepower</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.horsepower||''} onChange={e => setEditForm(p=>({...p,horsepower:e.target.value as any}))} /></div>
+                <div><label style={LS}>Ratio</label><input style={{ ...IS, minHeight:44 }} value={editForm.ratio||''} onChange={e => setEditForm(p=>({...p,ratio:e.target.value}))} /></div>
+              </div>
+
+              {/* Bought From */}
               <div style={{ marginBottom:12 }}><label style={LS}>Bought From</label><input style={{ ...IS, minHeight:44 }} value={editForm.bought_from||''} onChange={e => setEditForm(p=>({...p,bought_from:e.target.value}))} /></div>
+
+              <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
+              <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.12em', fontWeight:700, marginBottom:12 }}>ACQUISITION DETAILS</div>
+
+              {/* Found By + Delivered By */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+                <div>
+                  <label style={LS}>Found By</label>
+                  <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={editForm.found_by||''} onChange={e => setEditForm(p=>({...p,found_by:e.target.value}))}>
+                    <option value="">— Select —</option>
+                    {TEAM.map(m=><option key={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={LS}>How Delivered</label>
+                  <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={editForm.delivered_by||''} onChange={e => setEditForm(p=>({...p,delivered_by:e.target.value}))}>
+                    <option value="">— Select —</option>
+                    {DELIVERY_METHODS.map(m=><option key={m}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* From Location */}
+              <div style={{ marginBottom:14 }}><label style={LS}>From (Location)</label><input style={{ ...IS, minHeight:44 }} placeholder="e.g. Hamilton, ON" value={editForm.from_location||''} onChange={e => setEditForm(p=>({...p,from_location:e.target.value}))} /></div>
+
+              <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
+
+              {/* Purchase + Recon */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
                 <div><label style={LS}>Purchase Price ($)</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.purchase_price||''} onChange={e => setEditForm(p=>({...p,purchase_price:e.target.value as any}))} /></div>
                 <div><label style={LS}>Recondition ($)</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.recondition_cost||''} onChange={e => setEditForm(p=>({...p,recondition_cost:e.target.value as any}))} /></div>
               </div>
+
+              {/* Asking Price */}
+              <div style={{ marginBottom:14 }}><label style={LS}>Asking Price ($)</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.asking_price||''} onChange={e => setEditForm(p=>({...p,asking_price:e.target.value as any}))} /></div>
+
+              {/* Sold Price + Date Sold */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
                 <div><label style={LS}>Sold Price ($)</label><input style={{ ...IS, minHeight:44 }} type="number" value={editForm.sold_price||''} onChange={e => setEditForm(p=>({...p,sold_price:e.target.value as any}))} /></div>
                 <div><label style={LS}>Date Sold</label><input style={{ ...IS, minHeight:44 }} type="date" value={editForm.date_sold||''} onChange={e => setEditForm(p=>({...p,date_sold:e.target.value}))} /></div>
               </div>
+
+              {/* Customer + Payment */}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
                 <div><label style={LS}>Customer</label><input style={{ ...IS, minHeight:44 }} value={editForm.customer||''} onChange={e => setEditForm(p=>({...p,customer:e.target.value}))} /></div>
                 <div><label style={LS}>Payment Status</label><select style={{ ...IS, minHeight:44 }} value={editForm.payment_status||'N/A'} onChange={e => setEditForm(p=>({...p,payment_status:e.target.value}))}>{['N/A','Paid','Unpaid'].map(s=><option key={s}>{s}</option>)}</select></div>
               </div>
+
+              {/* Notes */}
               <div style={{ marginBottom:22 }}><label style={LS}>Notes</label><textarea style={{ ...IS, height:70, resize:'vertical' }} value={editForm.notes||''} onChange={e => setEditForm(p=>({...p,notes:e.target.value}))} /></div>
+
               <div style={{ display:'flex', gap:10 }}>
                 <button onClick={() => setEditTruck(null)} style={{ flex:1, background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', borderRadius:12, padding:'14px', fontSize:14, cursor:'pointer', fontWeight:500, minHeight:50 }}>Cancel</button>
                 <button onClick={saveEdit} style={{ flex:2, background:'linear-gradient(135deg,#EAB308,#d97706)', border:'none', color:'#000', borderRadius:12, padding:'14px', fontSize:14, fontWeight:800, cursor:'pointer', minHeight:50 }}>Save Changes</button>
