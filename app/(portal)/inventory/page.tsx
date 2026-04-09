@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type Truck = {
@@ -13,6 +13,7 @@ type Truck = {
   horsepower: number | null; ratio: string | null
   delivered_by: string | null; from_location: string | null; found_by: string | null
   stock_number: string | null; asking_price: number | null
+  towed_by: string | null
 }
 type TruckPhoto = { id: string; truck_id: string; url: string; sort_order: number }
 type ReconPhoto = { id: string; truck_id: string; url: string; type: 'before' | 'after'; sort_order: number }
@@ -38,6 +39,9 @@ const fmt = (d: string | null) => {
   if (isNaN(date.getTime())) return d
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
+
+const money = (n: number | null) => n != null ? `$${n.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'
+
 
 function Lightbox({ photos, startIndex, onClose }: { photos: { url: string }[]; startIndex: number; onClose: () => void }) {
   const [idx, setIdx] = useState(startIndex)
@@ -375,17 +379,12 @@ export default function InventoryPage() {
   const [filterPopup,   setFilterPopup]   = useState<{ col: keyof Truck; x: number; y: number } | null>(null)
   const [filterSearch,  setFilterSearch]  = useState('')
   const popupRef = useRef<HTMLDivElement>(null)
-  const [boughtFrom,      setBoughtFrom]      = useState('')
-  const [boughtTo,        setBoughtTo]        = useState('')
-  const [soldFrom,        setSoldFrom]        = useState('')
-  const [soldTo,          setSoldTo]          = useState('')
-  const [showDateFilters, setShowDateFilters] = useState(false)
   const [newTruck, setNewTruck] = useState({
     status: 'Purchased', bought_on: new Date().toISOString().split('T')[0],
     vin: '', year: '', make: '', model: '', colour: '', kilometers: '',
     horsepower: '', ratio: '', bought_from: '', purchase_price: '',
     recondition_cost: '0', notes: '', stock_number: '',
-    delivered_by: '', from_location: '', found_by: '', asking_price: '',
+    delivered_by: '', from_location: '', found_by: '', asking_price: '', towed_by: '',
   })
   const [editTruck,     setEditTruck]     = useState<Truck | null>(null)
   const [editForm,      setEditForm]      = useState<Partial<Truck>>({})
@@ -477,13 +476,13 @@ export default function InventoryPage() {
       found_by: newTruck.found_by || null,
       stock_number: stockNum,
       asking_price: parseFloat(newTruck.asking_price) || null,
+      towed_by: newTruck.delivered_by === 'Towed' ? (newTruck.towed_by || null) : null,
     }])
     if (error) return alert('Error: ' + error.message)
     setShowAddModal(false)
-    setNewTruck({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', horsepower: '', ratio: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '', stock_number: '', delivered_by: '', from_location: '', found_by: '', asking_price: '' })
+    setNewTruck({ status: 'Purchased', bought_on: new Date().toISOString().split('T')[0], vin: '', year: '', make: '', model: '', colour: '', kilometers: '', horsepower: '', ratio: '', bought_from: '', purchase_price: '', recondition_cost: '0', notes: '', stock_number: '', delivered_by: '', from_location: '', found_by: '', asking_price: '', towed_by: '' })
     loadAll()
   }
-
   async function deleteTruck(id: string) {
     if (!confirm('Delete this truck?')) return
     await supabase.from('Inventory Data').delete().eq('id', id)
@@ -505,6 +504,7 @@ export default function InventoryPage() {
       ratio: truck.ratio, found_by: truck.found_by,
       delivered_by: truck.delivered_by, from_location: truck.from_location,
       asking_price: truck.asking_price,
+      towed_by: truck.towed_by || null,
     })
   }
 
@@ -529,10 +529,10 @@ export default function InventoryPage() {
       found_by: editForm.found_by || null,
       delivered_by: editForm.delivered_by || null,
       from_location: editForm.from_location || null,
+      towed_by: editForm.delivered_by === 'Towed' ? (editForm.towed_by || null) : null,
     }
     const { error } = await supabase.from('Inventory Data').update(payload).eq('id', editTruck.id)
-    if (error) { alert('Error: ' + error.message); return }
-    setTrucks(prev => prev.map(t => t.id === editTruck.id ? { ...t, ...payload } : t))
+    if (error) { alert('Error: ' + error.message); return }    setTrucks(prev => prev.map(t => t.id === editTruck.id ? { ...t, ...payload } : t))
     setEditTruck(null)
   }
 
@@ -559,10 +559,6 @@ export default function InventoryPage() {
         if (!val) continue; const tv = (t as any)[col]
         if (tv == null || String(tv) !== val) return false
       }
-      if (boughtFrom && (!t.bought_on || t.bought_on < boughtFrom)) return false
-      if (boughtTo && (!t.bought_on || t.bought_on > boughtTo)) return false
-      if (soldFrom && (!t.date_sold || t.date_sold < soldFrom)) return false
-      if (soldTo && (!t.date_sold || t.date_sold > soldTo)) return false
       return true
     })
     .filter(t => {
@@ -582,9 +578,8 @@ export default function InventoryPage() {
   const inStock = trucks.filter(t => t.status !== 'Sold').length
   const sold    = trucks.filter(t => t.status === 'Sold').length
   const pend    = trucks.filter(t => t.payment_status === 'Unpaid').length
-  const activeFilterCount = Object.values(colFilters).filter(Boolean).length + [boughtFrom, boughtTo, soldFrom, soldTo].filter(Boolean).length
-
-  function clearAllFilters() { setColFilters({}); setBoughtFrom(''); setBoughtTo(''); setSoldFrom(''); setSoldTo('') }
+  const activeFilterCount = Object.values(colFilters).filter(Boolean).length
+  function clearAllFilters() { setColFilters({}) }
 
   const IS: React.CSSProperties = { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '10px 14px', color: 'var(--text)', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui,sans-serif' }
   const LS: React.CSSProperties = { fontSize: 13, color: 'var(--text2)', marginBottom: 6, display: 'block', fontWeight: 500 }
@@ -593,7 +588,7 @@ export default function InventoryPage() {
   type Col = { key: keyof Truck | 'allIn' | 'profit'; label: string; sortKey?: keyof Truck; filterable?: boolean }
   const cols: Col[] = [
     { key: 'status',           label: 'Status',        sortKey: 'status',           filterable: true },
-    { key: 'bought_on',        label: 'Bought On',     sortKey: 'bought_on' },
+    { key: 'bought_on',        label: 'Bought On',     sortKey: 'bought_on',    filterable: true },
     { key: 'vin',              label: 'VIN',           sortKey: 'vin' },
     { key: 'year',             label: 'Year',          sortKey: 'year',             filterable: true },
     { key: 'make',             label: 'Make',          sortKey: 'make',             filterable: true },
@@ -610,7 +605,7 @@ export default function InventoryPage() {
     { key: 'recondition_cost', label: 'Recon',         sortKey: 'recondition_cost' },
     { key: 'allIn',            label: 'All-In' },
     { key: 'asking_price',     label: 'Asking Price',  sortKey: 'asking_price' },
-    { key: 'date_sold',        label: 'Date Sold',     sortKey: 'date_sold' },
+    { key: 'date_sold',        label: 'Date Sold',     sortKey: 'date_sold',    filterable: true },
     { key: 'customer',         label: 'Customer',      sortKey: 'customer',         filterable: true },
     { key: 'sold_price',       label: 'Sold Price',    sortKey: 'sold_price' },
     { key: 'profit',           label: 'Profit' },
@@ -682,35 +677,7 @@ export default function InventoryPage() {
             <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--text3)', fontSize:15 }}>🔍</span>
             <input style={{ ...IS, paddingLeft:36, minHeight:44 }} placeholder="Search VIN, Make, Model, Stock #..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <button onClick={() => setShowDateFilters(p => !p)} style={{ background: showDateFilters ? 'var(--gold-dim)' : 'var(--card-bg)', border:`1px solid ${showDateFilters ? 'var(--gold)' : 'var(--card-border)'}`, color: showDateFilters ? 'var(--gold)' : 'var(--text2)', borderRadius:8, padding:'10px 14px', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', minHeight:44 }}>
-            📅 {isMobile ? '' : 'Date Filters '}{(boughtFrom||boughtTo||soldFrom||soldTo) ? '●' : ''}
-          </button>
         </div>
-
-        {showDateFilters && (
-          <div style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:12, padding:'16px', marginBottom:14, display:'flex', flexDirection:'column', gap:16 }}>
-            <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:16 }}>
-              <div>
-                <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.1em', fontWeight:700, marginBottom:8 }}>BOUGHT ON</div>
-                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <input type="date" style={{ ...IS, flex:1 }} value={boughtFrom} onChange={e => setBoughtFrom(e.target.value)} />
-                  <span style={{ color:'var(--text4)', flexShrink:0 }}>→</span>
-                  <input type="date" style={{ ...IS, flex:1 }} value={boughtTo} onChange={e => setBoughtTo(e.target.value)} />
-                  {(boughtFrom||boughtTo) && <button onClick={() => { setBoughtFrom(''); setBoughtTo('') }} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:18, padding:4, minWidth:32 }}>×</button>}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize:10, color:'var(--text4)', letterSpacing:'0.1em', fontWeight:700, marginBottom:8 }}>DATE SOLD</div>
-                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <input type="date" style={{ ...IS, flex:1 }} value={soldFrom} onChange={e => setSoldFrom(e.target.value)} />
-                  <span style={{ color:'var(--text4)', flexShrink:0 }}>→</span>
-                  <input type="date" style={{ ...IS, flex:1 }} value={soldTo} onChange={e => setSoldTo(e.target.value)} />
-                  {(soldFrom||soldTo) && <button onClick={() => { setSoldFrom(''); setSoldTo('') }} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:18, padding:4, minWidth:32 }}>×</button>}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {loading ? (
           <div style={{ display:'flex', justifyContent:'center', padding:60 }}>
@@ -765,9 +732,9 @@ export default function InventoryPage() {
                     </div>
                     <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap: isMobile ? 8 : 12, marginBottom:10 }}>
                       {[
-                        { l:'PURCHASE', v:`$${(truck.purchase_price||0).toLocaleString()}`, c:'var(--text)' },
-                        { l:'ALL-IN',   v:`$${allIn.toLocaleString()}`, c:'var(--text)' },
-                        { l:'PROFIT',   v: profit==null ? '—' : `${profit<0?'-':''}$${Math.abs(profit).toLocaleString()}`, c: profit==null ? 'var(--text4)' : profit>=0 ? 'var(--green)' : 'var(--red)' },
+                      { l:'PURCHASE', v: money(truck.purchase_price||0), c:'var(--text)' },
+                      { l:'ALL-IN',   v: money(allIn), c:'var(--text)' },
+                      { l:'PROFIT',   v: profit==null ? '—' : `${profit<0?'-':''}${money(Math.abs(profit))}`, c: profit==null ? 'var(--text4)' : profit>=0 ? 'var(--green)' : 'var(--red)' },
                       ].map(s => (
                         <div key={s.l} style={{ background:'var(--hover)', borderRadius:8, padding:'8px 10px' }}>
                           <div style={{ fontSize:9, color:'var(--text4)', marginBottom:3, letterSpacing:'0.1em', fontWeight:600 }}>{s.l}</div>
@@ -811,15 +778,41 @@ export default function InventoryPage() {
                       return (
                         <th key={col.key} style={{ padding:'12px 12px', textAlign:'left', whiteSpace:'nowrap', userSelect:'none' }}>
                           {col.sortKey
-                            ? <button className={`th-btn${isActive ? ' active' : ''}`} onClick={() => handleSort(col.sortKey!)}>
-                                {col.label}<span style={{ fontSize:9, marginLeft:2 }}>{isActive ? (sortDir==='asc' ? '▲' : '▼') : '⇅'}</span>
-                              </button>
+                            ? <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                                <button className={`th-btn${isActive ? ' active' : ''}`} onClick={() => handleSort(col.sortKey!)}>
+                                  {col.label}
+                                  {isActive && <span style={{ fontSize:9, marginLeft:2 }}>{sortDir==='asc' ? '▲' : '▼'}</span>}
+                                </button>
+                                {col.filterable && (
+                                  <button
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      const rect = (e.target as HTMLElement).getBoundingClientRect()
+                                      setFilterPopup(prev =>
+                                        prev?.col === col.sortKey ? null : { col: col.sortKey as keyof Truck, x: rect.left, y: rect.bottom + 4 }
+                                      )
+                                      setFilterSearch('')
+                                    }}
+                                    style={{
+                                      background: colFilters[col.sortKey as keyof Truck] ? 'var(--gold-dim)' : 'none',
+                                      border: `1px solid ${colFilters[col.sortKey as keyof Truck] ? 'var(--gold)' : 'var(--border)'}`,
+                                      color: colFilters[col.sortKey as keyof Truck] ? 'var(--gold)' : 'var(--text4)',
+                                      borderRadius: 4, width: 18, height: 18, fontSize: 10, cursor: 'pointer',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                                      fontWeight: 700, lineHeight: 1,
+                                    }}
+                                    title={`Filter by ${col.label}`}
+                                  >
+                                    {colFilters[col.sortKey as keyof Truck] ? '●' : '▾'}
+                                  </button>
+                                )}
+                              </div>
                             : <span style={{ fontSize:14, color:'var(--text)', fontWeight:600, letterSpacing:'0.06em' }}>{col.label}</span>}
                         </th>
                       )
                     })}
                     <th style={{ padding:'12px 12px' }} />
-                  </tr>
+                    </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0
@@ -860,15 +853,15 @@ export default function InventoryPage() {
                           <td style={TD}>{truck.delivered_by || '—'}</td>
                           <td style={TD}>{truck.from_location || '—'}</td>
                           <td style={TD}>{truck.bought_from || '—'}</td>
-                          <td style={TD}>${(truck.purchase_price||0).toLocaleString()}</td>
-                          <td style={TD}>${(truck.recondition_cost||0).toLocaleString()}</td>
-                          <td style={TD}>${allIn.toLocaleString()}</td>
-                          <td style={{ ...TD, color:'var(--blue)', fontWeight:600 }}>{truck.asking_price ? `$${truck.asking_price.toLocaleString()}` : '—'}</td>
+                          <td style={TD}>{money(truck.purchase_price||0)}</td>
+                          <td style={TD}>{money(truck.recondition_cost||0)}</td>
+                          <td style={TD}>{money(allIn)}</td>
+                          <td style={{ ...TD, color:'var(--blue)', fontWeight:600 }}>{money(truck.asking_price)}</td>
                           <td style={TD}>{truck.date_sold ? fmt(truck.date_sold) : '—'}</td>
                           <td style={TD}>{truck.customer || '—'}</td>
-                          <td style={TD}>{truck.sold_price != null ? `$${truck.sold_price.toLocaleString()}` : '—'}</td>
+                          <td style={TD}>{money(truck.sold_price)}</td>
                           <td style={{ padding:'10px 12px', whiteSpace:'nowrap', fontWeight:700, color: profit==null ? 'var(--text4)' : profit>=0 ? 'var(--green)' : 'var(--red)' }}>
-                            {profit==null ? '—' : `${profit<0?'-':''}$${Math.abs(profit).toLocaleString()}`}
+                            {profit==null ? '—' : `${profit<0?'-':''}${money(Math.abs(profit))}`}
                           </td>
                           <td style={{ padding:'10px 12px' }}>
                             {truck.payment_status && truck.payment_status !== 'N/A'
@@ -959,8 +952,13 @@ export default function InventoryPage() {
                     {DELIVERY_METHODS.map(m => <option key={m}>{m}</option>)}
                   </select>
                 </div>
-                <div><label style={LS}>From (Location)</label><input style={{ ...IS, minHeight:44 }} placeholder="e.g. Hamilton, ON" value={newTruck.from_location} onChange={e => setNewTruck(p=>({...p,from_location:e.target.value}))} /></div>
-              </div>
+                <div><label style={LS}>From (Location)</label><input style={{ ...IS, minHeight:44 }} placeholder="e.g. Hamilton, ON" value={newTruck.from_location} onChange={e => setNewTruck(p=>({...p,from_location:e.target.value}))} /></div>              </div>
+                {newTruck.delivered_by === 'Towed' && (
+                  <div style={{ marginBottom:14 }}>
+                    <label style={LS}>Towed By</label>
+                    <input style={{ ...IS, minHeight:44 }} placeholder="e.g. ABC Towing" value={newTruck.towed_by} onChange={e => setNewTruck(p=>({...p,towed_by:e.target.value}))} />
+                  </div>
+              )}
               <div style={{ marginBottom:14 }}>
                 <label style={LS}>Found By</label>
                 <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={newTruck.found_by} onChange={e => setNewTruck(p=>({...p,found_by:e.target.value}))}>
@@ -1056,6 +1054,12 @@ export default function InventoryPage() {
 
               {/* From Location */}
               <div style={{ marginBottom:14 }}><label style={LS}>From (Location)</label><input style={{ ...IS, minHeight:44 }} placeholder="e.g. Hamilton, ON" value={editForm.from_location||''} onChange={e => setEditForm(p=>({...p,from_location:e.target.value}))} /></div>
+              {editForm.delivered_by === 'Towed' && (
+                <div style={{ marginBottom:14 }}>
+                  <label style={LS}>Towed By</label>
+                  <input style={{ ...IS, minHeight:44 }} placeholder="e.g. ABC Towing" value={editForm.towed_by||''} onChange={e => setEditForm(p=>({...p,towed_by:e.target.value}))} />
+                </div>
+              )}
 
               <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
 
