@@ -29,6 +29,7 @@ type Lead = {
   ratio: string | null
   recondition_cost: number | null
   bought_on: string | null
+  found_by: string | null
 }
 
 const statusColors: Record<string, { bg: string; color: string; border: string }> = {
@@ -37,6 +38,7 @@ const statusColors: Record<string, { bg: string; color: string; border: string }
 }
 
 const STATUSES = ['Offer Sent', 'Offer Accepted']
+const TEAM = ['Aamir Javaid', 'Faiz Aamir', 'Faraz Aamir', 'Umar Aamir', 'Waleed Aamir']
 
 const fmt = (d: string | null) => {
   if (!d) return '—'
@@ -52,7 +54,7 @@ function calcTowing(distance: number | null, rate: number | null, units: number 
 const emptyForm = {
   status: 'Offer Sent',
   // seller info
-  company: '', contact_name: '', phone: '', email: '',
+  company: '', contact_name: '', phone: '', email: '', found_by: '',
   // truck info
   year: '', make: '', model: '', colour: '', kilometers: '', units: '1',
   vin: '', horsepower: '', ratio: '',
@@ -119,9 +121,16 @@ function LeadForm({ f, setF, onSubmit, onCancel, submitLabel }: {
         <div><label style={LS}>Company</label><input style={{ ...IS, minHeight: 44 }} placeholder="ABC Trucking" value={f.company} onChange={e => setF({ ...f, company: e.target.value })} /></div>
         <div><label style={LS}>Contact Name</label><input style={{ ...IS, minHeight: 44 }} placeholder="John Smith" value={f.contact_name} onChange={e => setF({ ...f, contact_name: e.target.value })} /></div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-        <div><label style={LS}>Phone</label><input style={{ ...IS, minHeight: 44 }} placeholder="416-555-0100" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} /></div>
-        <div><label style={LS}>Email</label><input style={{ ...IS, minHeight: 44 }} placeholder="john@example.com" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div><label style={LS}>Phone</label><input style={{ ...IS, minHeight: 44 }} placeholder="416-555-0100" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} /></div>
+              <div><label style={LS}>Email</label><input style={{ ...IS, minHeight: 44 }} placeholder="john@example.com" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></div>
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={LS}>Found By</label>
+              <select style={{ ...IS, minHeight: 44, cursor: 'pointer' }} value={f.found_by} onChange={e => setF({ ...f, found_by: e.target.value })}>
+                <option value="">— Select —</option>
+                {TEAM.map(m => <option key={m}>{m}</option>)}
+              </select>
       </div>
 
       {/* Truck Info */}
@@ -248,6 +257,7 @@ export default function LeadsPage() {
       towing_rate: lead.towing_rate ? String(lead.towing_rate) : '3',
       bought_on: lead.bought_on || new Date().toISOString().split('T')[0],
       notes: lead.notes || '',
+      found_by: lead.found_by || '',
     })
   }
 
@@ -279,6 +289,7 @@ export default function LeadsPage() {
       towing_cost: towing,
       bought_on: f.bought_on || null,
       notes: f.notes || null,
+      found_by: f.found_by || null,
     }
   }
 
@@ -325,6 +336,7 @@ export default function LeadsPage() {
       purchase_price: allIn,
       recondition_cost: data.recondition_cost || 0,
       payment_status: 'N/A',
+      found_by: data.found_by || null,
       notes: [
         data.notes,
         data.towing_cost ? `Towing: $${data.towing_cost.toLocaleString()}` : null,
@@ -371,6 +383,7 @@ export default function LeadsPage() {
         towing_rate: lead.towing_rate ? String(lead.towing_rate) : '3',
         bought_on: lead.bought_on || new Date().toISOString().split('T')[0],
         notes: lead.notes || '',
+        found_by: lead.found_by || '',
       })
       await promoteToInventory(id, payload)
     }
@@ -531,7 +544,7 @@ export default function LeadsPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Status', 'Company', 'Contact', 'Truck', 'VIN', 'KMs', 'Units', 'HP', 'Ratio', 'Asking', 'Offer', 'Towing', 'Recon', 'All-In', 'Date', ''].map(h => (
+                      {['Status', 'Company', 'Contact', 'Found By', 'Truck', 'VIN', 'KMs', 'Units', 'HP', 'Ratio', 'Asking', 'Offer', 'Towing', 'Recon', 'All-In', 'Date', ''].map(h => (
                       <th key={h} style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text)', fontWeight: 600, fontSize: 12, letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -557,6 +570,7 @@ export default function LeadsPage() {
                           <div>{lead.contact_name || '—'}</div>
                           {lead.phone && <div style={{ fontSize: 11, color: 'var(--text2)' }}>{lead.phone}</div>}
                         </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--gold)', fontWeight: 600, whiteSpace: 'nowrap' }}>{lead.found_by || '—'}</td>
                         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: 'var(--text)' }}>{lead.year} {lead.make} {lead.model}</td>
                         <td style={{ padding: '10px 14px', color: 'var(--text2)', fontFamily: 'monospace', fontSize: 12, whiteSpace: 'nowrap' }}>{lead.vin || '—'}</td>
                         <td style={{ padding: '10px 14px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{lead.kilometers ? lead.kilometers.toLocaleString() : '—'}</td>
