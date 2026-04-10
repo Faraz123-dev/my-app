@@ -317,9 +317,25 @@ export default function LeadsPage() {
     loadLeads()
   }
 
-  async function promoteToInventory(leadId: string, data: ReturnType<typeof buildPayload>) {
+async function promoteToInventory(leadId: string, data: ReturnType<typeof buildPayload>) {
     setPromoting(leadId)
     const allIn = (data.offer_price || 0) + (data.towing_cost || 0)
+
+    // Generate stock number
+    const { data: snData } = await supabase
+      .from('Inventory Data')
+      .select('stock_number')
+      .not('stock_number', 'is', null)
+      .order('stock_number', { ascending: false })
+      .limit(1)
+    const lastSN = snData?.[0]?.stock_number
+    let stockNumber: string
+    if (lastSN && /^A&S-\d{6}$/.test(lastSN)) {
+      stockNumber = `A&S-${String(parseInt(lastSN.replace('A&S-', '')) + 1).padStart(6, '0')}`
+    } else {
+      const { count } = await supabase.from('Inventory Data').select('*', { count: 'exact', head: true })
+      stockNumber = `A&S-${String((count || 0) + 1).padStart(6, '0')}`
+    }
 
     const { error } = await supabase.from('Inventory Data').insert([{
       status: 'Purchased',
@@ -336,6 +352,7 @@ export default function LeadsPage() {
       purchase_price: allIn,
       recondition_cost: data.recondition_cost || 0,
       payment_status: 'N/A',
+      stock_number: stockNumber,
       found_by: data.found_by || null,
       notes: [
         data.notes,

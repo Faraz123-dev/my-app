@@ -532,8 +532,9 @@ export default function InventoryPage() {
       towed_by: editForm.delivered_by === 'Towed' ? (editForm.towed_by || null) : null,
     }
     const { error } = await supabase.from('Inventory Data').update(payload).eq('id', editTruck.id)
-    if (error) { alert('Error: ' + error.message); return }    setTrucks(prev => prev.map(t => t.id === editTruck.id ? { ...t, ...payload } : t))
-    setEditTruck(null)
+    if (error) { alert('Error: ' + error.message); return }
+    setTrucks(prev => prev.map(t => t.id === editTruck.id ? { ...t, ...payload } : t))
+    setEditTruck(null)  
   }
 
   function handleSort(col: keyof Truck) {
@@ -585,32 +586,33 @@ export default function InventoryPage() {
   const LS: React.CSSProperties = { fontSize: 13, color: 'var(--text2)', marginBottom: 6, display: 'block', fontWeight: 500 }
   const TD: React.CSSProperties = { padding: '12px 14px', color: 'var(--text)', whiteSpace: 'nowrap', fontSize: 15 }
 
-  type Col = { key: keyof Truck | 'allIn' | 'profit'; label: string; sortKey?: keyof Truck; filterable?: boolean }
-  const cols: Col[] = [
-    { key: 'status',           label: 'Status',        sortKey: 'status',           filterable: true },
-    { key: 'bought_on',        label: 'Bought On',     sortKey: 'bought_on',    filterable: true },
-    { key: 'vin',              label: 'VIN',           sortKey: 'vin' },
-    { key: 'year',             label: 'Year',          sortKey: 'year',             filterable: true },
-    { key: 'make',             label: 'Make',          sortKey: 'make',             filterable: true },
-    { key: 'model',            label: 'Model',         sortKey: 'model',            filterable: true },
-    { key: 'colour',           label: 'Colour',        sortKey: 'colour',           filterable: true },
-    { key: 'kilometers',       label: 'KMs',           sortKey: 'kilometers' },
-    { key: 'horsepower',       label: 'Horsepower',    sortKey: 'horsepower' },
-    { key: 'ratio',            label: 'Ratio',         sortKey: 'ratio' },
-    { key: 'found_by',         label: 'Found By',      sortKey: 'found_by',         filterable: true },
-    { key: 'delivered_by',     label: 'Brought In',    sortKey: 'delivered_by',     filterable: true },
-    { key: 'from_location',    label: 'From',          sortKey: 'from_location' },
-    { key: 'bought_from',      label: 'Bought From',   sortKey: 'bought_from',      filterable: true },
-    { key: 'purchase_price',   label: 'Purchase',      sortKey: 'purchase_price' },
-    { key: 'recondition_cost', label: 'Recon',         sortKey: 'recondition_cost' },
-    { key: 'allIn',            label: 'All-In' },
-    { key: 'asking_price',     label: 'Asking Price',  sortKey: 'asking_price' },
-    { key: 'date_sold',        label: 'Date Sold',     sortKey: 'date_sold',    filterable: true },
-    { key: 'customer',         label: 'Customer',      sortKey: 'customer',         filterable: true },
-    { key: 'sold_price',       label: 'Sold Price',    sortKey: 'sold_price' },
-    { key: 'profit',           label: 'Profit' },
-    { key: 'payment_status',   label: 'Payment',       sortKey: 'payment_status',   filterable: true },
-  ]
+type Col = { key: keyof Truck | 'allIn' | 'profit'; label: string; sortKey?: keyof Truck; filterable?: boolean }
+const cols: Col[] = [
+  { key: 'status',           label: 'Status',        sortKey: 'status',           filterable: true },
+  { key: 'bought_on',        label: 'Bought On',     sortKey: 'bought_on',        filterable: true },
+  { key: 'vin',              label: 'VIN',           sortKey: 'vin' },
+  { key: 'year',             label: 'Year',          sortKey: 'year',             filterable: true },
+  { key: 'make',             label: 'Make',          sortKey: 'make',             filterable: true },
+  { key: 'model',            label: 'Model',         sortKey: 'model',            filterable: true },
+  { key: 'colour',           label: 'Colour',        sortKey: 'colour',           filterable: true },
+  { key: 'kilometers',       label: 'KMs',           sortKey: 'kilometers' },
+  { key: 'horsepower',       label: 'Horsepower',    sortKey: 'horsepower' },
+  { key: 'ratio',            label: 'Ratio',         sortKey: 'ratio' },
+  { key: 'found_by',         label: 'Found By',      sortKey: 'found_by',         filterable: true },
+  { key: 'delivered_by',     label: 'Brought In',    sortKey: 'delivered_by',     filterable: true },
+  { key: 'towed_by',         label: 'Towed By',      sortKey: 'towed_by' },        // ← ADD THIS
+  { key: 'from_location',    label: 'From',          sortKey: 'from_location' },
+  { key: 'bought_from',      label: 'Bought From',   sortKey: 'bought_from',      filterable: true },
+  { key: 'purchase_price',   label: 'Purchase',      sortKey: 'purchase_price' },
+  { key: 'recondition_cost', label: 'Recon',         sortKey: 'recondition_cost' },
+  { key: 'allIn',            label: 'All-In' },
+  { key: 'asking_price',     label: 'Asking Price',  sortKey: 'asking_price' },
+  { key: 'date_sold',        label: 'Date Sold',     sortKey: 'date_sold',        filterable: true },
+  { key: 'customer',         label: 'Customer',      sortKey: 'customer',         filterable: true },
+  { key: 'sold_price',       label: 'Sold Price',    sortKey: 'sold_price' },
+  { key: 'profit',           label: 'Profit' },
+  { key: 'payment_status',   label: 'Payment',       sortKey: 'payment_status',   filterable: true },
+]
 
   const popupValues = filterPopup
     ? getUnique(trucks, filterPopup.col).filter(v => !filterSearch || v.toLowerCase().includes(filterSearch.toLowerCase()))
@@ -767,13 +769,10 @@ export default function InventoryPage() {
         ) : (
 
           <div style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:14, overflow:'hidden' }}>
-            <div style={{ overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:15 }}>
+          <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 260px)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 15 }}>
                 <thead>
-                  <tr style={{ borderBottom:'1px solid var(--border)' }}>
-                    <th style={{ padding:'12px 12px', textAlign:'left', color:'var(--text)', fontWeight:600, fontSize:14, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>STOCK #</th>
-                    <th style={{ padding:'12px 12px', textAlign:'left', color:'var(--text)', fontWeight:600, fontSize:14, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>PHOTO</th>
-                    {cols.map(col => {
+                <tr style={{ borderBottom:'2px solid var(--gold)', position:'sticky', top:0, zIndex:10, background:'var(--surface)', boxShadow:'0 2px 8px rgba(0,0,0,0.18)' }}><th style={{ padding:'12px 12px', textAlign:'left', color:'var(--text)', fontWeight:600, fontSize:14, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>STOCK #</th><th style={{ padding:'12px 12px', textAlign:'left', color:'var(--text)', fontWeight:600, fontSize:14, letterSpacing:'0.06em', whiteSpace:'nowrap' }}>PHOTO</th>{cols.map(col => {
                       const isActive = sortCol === col.sortKey
                       return (
                         <th key={col.key} style={{ padding:'12px 12px', textAlign:'left', whiteSpace:'nowrap', userSelect:'none' }}>
@@ -811,9 +810,9 @@ export default function InventoryPage() {
                         </th>
                       )
                     })}
-                    <th style={{ padding:'12px 12px' }} />
+                  <th style={{ padding:'12px 12px' }} />
                     </tr>
-                </thead>
+                  </thead>
                 <tbody>
                   {filtered.length === 0
                     ? <tr><td colSpan={cols.length+3} style={{ padding:48, textAlign:'center', color:'var(--text4)' }}>No trucks found</td></tr>
@@ -824,11 +823,7 @@ export default function InventoryPage() {
                       const profit = truck.sold_price != null ? truck.sold_price - allIn : null
                       const sc = statusColors[truck.status] || { bg:'rgba(255,255,255,0.04)', color:'#888', border:'rgba(255,255,255,0.1)' }
                       return (
-                        <tr key={truck.id} onClick={() => window.location.href = `/inventory/${truck.id}`}
-                          style={{ borderBottom:'1px solid var(--border2)', cursor:'pointer', transition:'background 0.15s' }}
-                          onMouseEnter={e => (e.currentTarget.style.background='var(--hover)')}
-                          onMouseLeave={e => (e.currentTarget.style.background='transparent')}>
-                          <td style={{ padding:'10px 12px', fontFamily:'monospace', fontSize:13, fontWeight:700, color:'var(--gold)', whiteSpace:'nowrap' }}>
+                        <tr key={truck.id} onClick={() => window.location.href = `/inventory/${truck.id}`} style={{ borderBottom:'1px solid var(--border2)', cursor:'pointer', transition:'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background='var(--hover)')} onMouseLeave={e => (e.currentTarget.style.background='transparent')}><td style={{ padding:'10px 12px', fontFamily:'monospace', fontSize:13, fontWeight:700, color:'var(--gold)', whiteSpace:'nowrap' }}>
                             {truck.stock_number || '—'}
                           </td>
                           <td style={{ padding:'8px 12px' }} onClick={e => e.stopPropagation()}>
@@ -851,6 +846,7 @@ export default function InventoryPage() {
                           <td style={TD}>{truck.ratio || '—'}</td>
                           <td style={{ ...TD, color:'var(--gold)', fontWeight:600 }}>{truck.found_by || '—'}</td>
                           <td style={TD}>{truck.delivered_by || '—'}</td>
+                          <td style={TD}>{truck.towed_by || '—'}</td>
                           <td style={TD}>{truck.from_location || '—'}</td>
                           <td style={TD}>{truck.bought_from || '—'}</td>
                           <td style={TD}>{money(truck.purchase_price||0)}</td>
@@ -956,8 +952,10 @@ export default function InventoryPage() {
                 {newTruck.delivered_by === 'Towed' && (
                   <div style={{ marginBottom:14 }}>
                     <label style={LS}>Towed By</label>
-                    <input style={{ ...IS, minHeight:44 }} placeholder="e.g. ABC Towing" value={newTruck.towed_by} onChange={e => setNewTruck(p=>({...p,towed_by:e.target.value}))} />
-                  </div>
+                    <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={newTruck.towed_by} onChange={e => setNewTruck(p=>({...p,towed_by:e.target.value}))}>
+                      <option value="">— Select —</option>
+                      {TEAM.map(m => <option key={m}>{m}</option>)}
+                    </select>                  </div>
               )}
               <div style={{ marginBottom:14 }}>
                 <label style={LS}>Found By</label>
@@ -1057,8 +1055,10 @@ export default function InventoryPage() {
               {editForm.delivered_by === 'Towed' && (
                 <div style={{ marginBottom:14 }}>
                   <label style={LS}>Towed By</label>
-                  <input style={{ ...IS, minHeight:44 }} placeholder="e.g. ABC Towing" value={editForm.towed_by||''} onChange={e => setEditForm(p=>({...p,towed_by:e.target.value}))} />
-                </div>
+                  <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={editForm.towed_by||''} onChange={e => setEditForm(p=>({...p,towed_by:e.target.value}))}>
+                    <option value="">— Select —</option>
+                    {TEAM.map(m => <option key={m}>{m}</option>)}
+                  </select>                </div>
               )}
 
               <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
