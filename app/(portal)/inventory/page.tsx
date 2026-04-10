@@ -601,7 +601,7 @@ const cols: Col[] = [
   { key: 'found_by',         label: 'Found By',      sortKey: 'found_by',         filterable: true },
   { key: 'delivered_by',     label: 'Brought In',    sortKey: 'delivered_by',     filterable: true },
   { key: 'towed_by',         label: 'Towed By',      sortKey: 'towed_by' },        // ← ADD THIS
-  { key: 'from_location',    label: 'From',          sortKey: 'from_location' },
+  { key: 'from_location',    label: 'From (Location)',          sortKey: 'from_location' },
   { key: 'bought_from',      label: 'Bought From',   sortKey: 'bought_from',      filterable: true },
   { key: 'purchase_price',   label: 'Purchase',      sortKey: 'purchase_price' },
   { key: 'recondition_cost', label: 'Recon',         sortKey: 'recondition_cost' },

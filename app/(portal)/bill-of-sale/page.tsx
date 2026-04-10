@@ -59,7 +59,7 @@ function bosHTML(bos: BOS): string {
   return `<!DOCTYPE html>
 <html>
 <head>
-<title>Sales Invoice</title>
+<title>Sales Agreement</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; font-family: 'Times New Roman', Times, serif; font-size: 12px; color: #000; }
@@ -102,7 +102,7 @@ function bosHTML(bos: BOS): string {
   <div class="header">
     <img src="${LOGO_SRC}" class="header-logo" alt="Logo" />
     <div>
-      <div class="header-title">Sales Invoice</div>
+      <div class="header-title">Sales Agreement</div>
       <div class="header-company">Aamir &amp; Sons Trading Ltd.</div>
       <div class="header-sub">2 Blair Dr, Brampton, ON L6T 2H5 &bull; HST # 704391101RT0001</div>
       <div class="header-sub">Tel: 647-563-5783 &bull; aamirandsons@hotmail.com</div>
@@ -146,7 +146,7 @@ function bosHTML(bos: BOS): string {
         <tr><td class="lbl">HST (${bos.tax_rate}%)</td><td class="amt">$${bos.tax_amount.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</td></tr>
         <tr class="subtotal"><td class="lbl">Total</td><td class="amt">$${bos.total.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD</td></tr>
         ${deposit > 0 ? `
-        <tr class="deposit-row"><td class="lbl">Deposit Paid</td><td class="amt">&minus; $${deposit.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</td></tr>
+        <tr class="deposit-row"><td class="lbl">Nonrefundable Deposit Paid</td><td class="amt">&minus; $${deposit.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</td></tr>
         <tr class="grand"><td>BALANCE DUE</td><td style="text-align:right;">$${totalRemaining.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD</td></tr>
         ` : `
         <tr class="grand"><td>AMOUNT DUE</td><td style="text-align:right;">$${bos.total.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD</td></tr>
@@ -188,7 +188,7 @@ function openBOS(bos: BOS) {
   const blob = new Blob([bosHTML(bos)], { type: 'text/html' })
   const url = URL.createObjectURL(blob)
   const w = window.open(url, '_blank')
-  if (!w) { alert('Please allow popups for this site to print the Bill of Sale.'); return }
+  if (!w) { alert('Please allow popups for this site to print the Sales Agreement.'); return }
   w.onload = () => { w.print(); URL.revokeObjectURL(url) }
 }
 
@@ -327,7 +327,7 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
       <div style={{ display: 'flex', gap: 10 }}>
         <button onClick={onCancel} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '14px', fontSize: 14, cursor: 'pointer', fontWeight: 500, minHeight: 50 }}>Cancel</button>
         <button onClick={handleSave} disabled={saving} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 800, cursor: saving ? 'default' : 'pointer', minHeight: 50, opacity: saving ? 0.7 : 1 }}>
-          {saving ? 'Saving...' : 'Save Bill of Sale'}
+          {saving ? 'Saving...' : 'Save Sales Agreement'}
         </button>
       </div>
     </div>
@@ -352,7 +352,7 @@ function BOSPreviewModal({ bos, onClose }: { bos: BOS; onClose: () => void }) {
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 720, maxHeight: '94vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.6)', color: '#000', overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid #e5e7eb', background: '#f9f9f6', flexShrink: 0 }}>
-          <span style={{ fontWeight: 700, fontSize: 14, color: '#0f0f0f' }}>Sales Invoice Preview</span>
+          <span style={{ fontWeight: 700, fontSize: 14, color: '#0f0f0f' }}>Sales Agreement Preview</span>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => openBOS(bos)} style={{ background: '#b45309', border: 'none', color: '#fff', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🖨 Print / PDF</button>
             <button onClick={onClose} style={{ background: '#eee', border: 'none', color: '#333', borderRadius: '50%', width: 32, height: 32, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
@@ -362,7 +362,7 @@ function BOSPreviewModal({ bos, onClose }: { bos: BOS; onClose: () => void }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '3px double #000', paddingBottom: 14, marginBottom: 18 }}>
             <img src={LOGO_SRC} style={{ height: 80, width: 'auto', objectFit: 'contain' }} alt="Logo" />
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 1 }}>Sales Invoice</div>
+              <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 1 }}>Sales Agreement</div>
               <div style={{ fontSize: 13, fontWeight: 700, marginTop: 4 }}>Aamir & Sons Trading Ltd.</div>
               <div style={{ fontSize: 10, color: '#444', marginTop: 2 }}>2 Blair Dr, Brampton, ON L6T 2H5 &bull; HST # 704391101RT0001</div>
               <div style={{ fontSize: 10, color: '#444' }}>Tel: 647-563-5783 &bull; aamirandsons@hotmail.com</div>
@@ -398,7 +398,7 @@ function BOSPreviewModal({ bos, onClose }: { bos: BOS; onClose: () => void }) {
                   { l: 'Sale Price', v: `$${bos.price.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, bold: false, bg: '#fff' },
                   { l: `HST (${bos.tax_rate}%)`, v: `$${bos.tax_amount.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, bold: false, bg: '#fff' },
                   { l: 'Total', v: `$${bos.total.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD`, bold: true, bg: '#f5f5f5' },
-                  ...(deposit > 0 ? [{ l: 'Deposit Paid', v: `− $${deposit.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, bold: false, bg: '#fff', italic: true, color: '#666' }] : []),
+                  ...(deposit > 0 ? [{ l: 'Nonrefundable Deposit Paid', v: `− $${deposit.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, bold: false, bg: '#fff', italic: true, color: '#666' }] : []),
                 ] as any[]).map((row: any) => (
                   <div key={row.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: row.bg, borderBottom: '1px solid #ccc', fontWeight: row.bold ? 700 : 400, fontSize: 12, color: row.color || '#000', fontStyle: row.italic ? 'italic' : 'normal' }}>
                     <span>{row.l}</span><span>{row.v}</span>
@@ -413,7 +413,7 @@ function BOSPreviewModal({ bos, onClose }: { bos: BOS; onClose: () => void }) {
           </div>
           <hr style={{ border: 'none', borderTop: '1px solid #ddd', margin: '0 0 12px' }} />
           <div style={{ border: '2px solid #000', textAlign: 'center', fontWeight: 900, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', padding: 10, marginBottom: 8 }}>Sold As-Is Where-Is — No Guarantee — No Warranty</div>
-          {validTillStr && <div style={{ border: '1px dashed #666', textAlign: 'center', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: 6, marginBottom: 14, color: '#333' }}>ℹ &nbsp; Deposit receipt valid until &nbsp; {validTillStr} &nbsp; (5 business days)</div>}
+          {validTillStr && <div style={{ border: '1px dashed #666', textAlign: 'center', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: 6, marginBottom: 14, color: '#333' }}>ℹ️ Nonrefundable deposit valid until {validTillStr} (5 business days)</div>}
           <div style={{ borderLeft: '3px solid #999', padding: '10px 14px', background: '#fafafa', fontSize: 11, lineHeight: 1.8, color: '#333', marginBottom: 12 }}>
             I am the legal owner of the above-described vehicle as evidenced by the attached Registration (and where applicable, the title) for the vehicle or equipment. The above-described vehicle/equipment is clear title: there are no liens or encumbrances against this vehicle/equipment. The buyer acknowledges they have inspected the vehicle and agree to purchase it in its current as-is condition with no warranties expressed or implied. All sales are final.<br /><br />
             Agreed to this on <strong>{saleDate}</strong>, in the city of Brampton, Ontario.
@@ -434,7 +434,7 @@ function BOSPreviewModal({ bos, onClose }: { bos: BOS; onClose: () => void }) {
   )
 }
 
-export default function BillOfSalePage() {
+export default function OfSalePagBille() {
   const [bosList, setBosList]       = useState<BOS[]>([])
   const [trucks, setTrucks]         = useState<Truck[]>([])
   const [customers, setCustomers]   = useState<any[]>([])
@@ -495,7 +495,7 @@ async function saveBOS(data: any) {
   }
 
   async function deleteBOS(id: string) {
-    if (!confirm('Delete this Bill of Sale?')) return
+    if (!confirm('Delete this Sales Agreement?')) return
     await supabase.from('bills_of_sale').delete().eq('id', id); loadAll()
   }
 
@@ -519,9 +519,9 @@ async function saveBOS(data: any) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 14 : 20 }}>
           <div>
             <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 4, opacity: 0.7 }}>SALES</div>
-            <h1 style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>Sales Invoice</h1>
+            <h1 style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>Sales Agreement</h1>
           </div>
-          <button onClick={() => setShowAdd(true)} style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 99, padding: isMobile ? '10px 18px' : '9px 20px', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 16px rgba(234,179,8,0.35)', minHeight: 44 }}>+ New Bill of Sale</button>
+          <button onClick={() => setShowAdd(true)} style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 99, padding: isMobile ? '10px 18px' : '9px 20px', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 16px rgba(234,179,8,0.35)', minHeight: 44 }}>+ New Sales Agreement</button>
         </div>
         <div style={{ height: 1, background: 'linear-gradient(90deg,var(--gold),transparent)', marginBottom: isMobile ? 14 : 20 }} />
         <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -590,7 +590,7 @@ async function saveBOS(data: any) {
             <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width: '100%', maxWidth: isMobile ? '100%' : 660, maxHeight: '92vh', overflowY: 'auto' }}>
               {isMobile && <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 99, margin: '0 auto 20px' }} />}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0 }}>New Sales Invoice</h2>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0 }}>New Sales Agreement</h2>
                 <button onClick={() => setShowAdd(false)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
               <BOSForm trucks={trucks} customers={customers} onSave={saveBOS} onCancel={() => setShowAdd(false)} />
@@ -602,7 +602,7 @@ async function saveBOS(data: any) {
             <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width: '100%', maxWidth: isMobile ? '100%' : 660, maxHeight: '92vh', overflowY: 'auto' }}>
               {isMobile && <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 99, margin: '0 auto 20px' }} />}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Edit Sales Invoice</h2>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Edit Sales Agreement</h2>
                 <button onClick={() => setEditBOS(null)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
               <BOSForm trucks={trucks} customers={customers} onSave={(data) => updateBOS(editBOS!.id, data)} onCancel={() => setEditBOS(null)} initial={editBOS} />
