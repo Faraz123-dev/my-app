@@ -327,6 +327,10 @@ export default function TruckDetailPage() {
   const [showInvoiceModal, setShowInvoiceModal]  = useState(false)
   const [showCostModal,    setShowCostModal]     = useState(false)
   const [showOfferModal,   setShowOfferModal]    = useState(false)
+  const [editPart,         setEditPart]                  = useState<Part | null>(null)
+  const [editLabor,        setEditLabor]                = useState<Labor | null>(null)
+  const [editInvoice,      setEditInvoice]            = useState<Invoice | null>(null)
+  const [editCost,         setEditCost]                  = useState<OtherCost | null>(null)
 
   const [detailsForm, setDetailsForm] = useState<any>({})
   const [notesForm,   setNotesForm]   = useState({ notes: '' })
@@ -338,7 +342,7 @@ export default function TruckDetailPage() {
   const [newCost,     setNewCost]     = useState({ category: '', amount: '', date: '', notes: '' })
   const [newOffer,    setNewOffer]    = useState({ amount: '', date: '', notes: '', accepted: false })
 
-  const [docCategory,  setDocCategory]  = useState('Photos')
+  const [docCategory, setDocCategory] = useState('Purchase Docs')
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [previewDoc,   setPreviewDoc]   = useState<Doc | null>(null)
   const docFileRef = useRef<HTMLInputElement>(null)
@@ -477,6 +481,26 @@ export default function TruckDetailPage() {
   async function addOffer() {
     await supabase.from('offers').insert([{ truck_id: id, amount: parseFloat(newOffer.amount)||0, date: newOffer.date||null, notes: newOffer.notes||null, accepted: newOffer.accepted }])
     setShowOfferModal(false); setNewOffer({ amount:'', date:'', notes:'', accepted:false }); fetchAll()
+  }
+  async function updatePart() {
+  if (!editPart) return
+  await supabase.from('parts').update({ part: editPart.part, category: editPart.category, qty: editPart.qty, unit_cost: editPart.unit_cost, date: editPart.date || null }).eq('id', editPart.id)
+  setEditPart(null); fetchAll()
+  }
+  async function updateLabor() {
+    if (!editLabor) return
+    await supabase.from('labor').update({ tech: editLabor.tech, hours: editLabor.hours, rate: editLabor.rate, date: editLabor.date || null }).eq('id', editLabor.id)
+    setEditLabor(null); fetchAll()
+  }
+  async function updateInvoice() {
+    if (!editInvoice) return
+    await supabase.from('vendor_invoices').update({ vendor: editInvoice.vendor, description: editInvoice.description, amount: editInvoice.amount, qty: editInvoice.qty, status: editInvoice.status, date: editInvoice.date || null }).eq('id', editInvoice.id)
+    setEditInvoice(null); fetchAll()
+  }
+  async function updateCost() {
+    if (!editCost) return
+    await supabase.from('other_costs').update({ category: editCost.category, amount: editCost.amount, date: editCost.date || null, notes: editCost.notes || null }).eq('id', editCost.id)
+    setEditCost(null); fetchAll()
   }
   async function deleteRow(table: string, rowId: string) {
     if (!confirm('Delete this entry?')) return
@@ -680,6 +704,7 @@ export default function TruckDetailPage() {
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0, marginLeft:12 }}>
                       <span style={{ fontSize:15, fontWeight:700, color:'var(--gold)' }}>${(p.qty*p.unit_cost).toLocaleString()}</span>
+                      <button onClick={() => setEditPart(p)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:14, padding:4, minWidth:32, minHeight:32 }}>✏️</button>
                       <button onClick={() => deleteRow('parts', p.id)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:16, padding:4, minWidth:32, minHeight:32 }}>🗑</button>
                     </div>
                   </div>
@@ -695,6 +720,7 @@ export default function TruckDetailPage() {
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0, marginLeft:12 }}>
                       <span style={{ fontSize:15, fontWeight:700, color:'var(--gold)' }}>${(l.hours*l.rate).toLocaleString()}</span>
+                      <button onClick={() => setEditLabor(l)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:14, padding:4, minWidth:32, minHeight:32 }}>✏️</button>
                       <button onClick={() => deleteRow('labor', l.id)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:16, padding:4, minWidth:32, minHeight:32 }}>🗑</button>
                     </div>
                   </div>
@@ -711,6 +737,7 @@ export default function TruckDetailPage() {
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0, marginLeft:12 }}>
                       <span style={{ fontSize:15, fontWeight:700, color:'var(--gold)' }}>${inv.amount.toLocaleString()}</span>
+                      <button onClick={() => setEditInvoice(inv)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:14, padding:4, minWidth:32, minHeight:32 }}>✏️</button>
                       <button onClick={() => deleteRow('vendor_invoices', inv.id)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:16, padding:4, minWidth:32, minHeight:32 }}>🗑</button>
                     </div>
                   </div>
@@ -754,6 +781,7 @@ export default function TruckDetailPage() {
                       </div>
                       <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0, marginLeft:12 }}>
                         <span style={{ fontSize:15, fontWeight:700, color:'var(--gold)' }}>${c.amount.toLocaleString()}</span>
+                        <button onClick={() => setEditCost(c)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:14, padding:4, minWidth:32, minHeight:32 }}>✏️</button>
                         <button onClick={() => deleteRow('other_costs', c.id)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:16, padding:4, minWidth:32, minHeight:32 }}>🗑</button>
                       </div>
                     </div>
@@ -1084,6 +1112,51 @@ export default function TruckDetailPage() {
   )}
 
       {previewDoc && <PreviewModal url={previewDoc.url} name={previewDoc.name} onClose={() => setPreviewDoc(null)} />}
+        {editPart && (
+  <Modal title="Edit Part" onClose={() => setEditPart(null)} onSave={updatePart}>
+    <div style={{ marginBottom:14 }}><label style={LS}>Part Name</label><input style={IS} value={editPart.part} onChange={e=>setEditPart(p=>p?({...p,part:e.target.value}):p)} /></div>
+    <div style={{ marginBottom:14 }}><label style={LS}>Category</label><input style={IS} value={editPart.category} onChange={e=>setEditPart(p=>p?({...p,category:e.target.value}):p)} /></div>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+      <div><label style={LS}>Qty</label><input style={IS} type="number" value={editPart.qty} onChange={e=>setEditPart(p=>p?({...p,qty:parseFloat(e.target.value)||1}):p)} /></div>
+      <div><label style={LS}>Unit Cost ($)</label><input style={IS} type="number" value={editPart.unit_cost} onChange={e=>setEditPart(p=>p?({...p,unit_cost:parseFloat(e.target.value)||0}):p)} /></div>
+      <div><label style={LS}>Date</label><input style={IS} type="date" value={editPart.date||''} onChange={e=>setEditPart(p=>p?({...p,date:e.target.value}):p)} /></div>
+    </div>
+  </Modal>
+)}
+{editLabor && (
+  <Modal title="Edit Labor" onClose={() => setEditLabor(null)} onSave={updateLabor}>
+    <div style={{ marginBottom:14 }}><label style={LS}>Technician</label><input style={IS} value={editLabor.tech} onChange={e=>setEditLabor(p=>p?({...p,tech:e.target.value}):p)} /></div>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
+      <div><label style={LS}>Hours</label><input style={IS} type="number" value={editLabor.hours} onChange={e=>setEditLabor(p=>p?({...p,hours:parseFloat(e.target.value)||0}):p)} /></div>
+      <div><label style={LS}>Rate ($/hr)</label><input style={IS} type="number" value={editLabor.rate} onChange={e=>setEditLabor(p=>p?({...p,rate:parseFloat(e.target.value)||0}):p)} /></div>
+      <div><label style={LS}>Date</label><input style={IS} type="date" value={editLabor.date||''} onChange={e=>setEditLabor(p=>p?({...p,date:e.target.value}):p)} /></div>
+    </div>
+  </Modal>
+)}
+{editInvoice && (
+  <Modal title="Edit Vendor Invoice" onClose={() => setEditInvoice(null)} onSave={updateInvoice}>
+    <div style={{ marginBottom:14 }}><label style={LS}>Vendor</label><input style={IS} value={editInvoice.vendor} onChange={e=>setEditInvoice(p=>p?({...p,vendor:e.target.value}):p)} /></div>
+    <div style={{ marginBottom:14 }}><label style={LS}>Description</label><input style={IS} value={editInvoice.description} onChange={e=>setEditInvoice(p=>p?({...p,description:e.target.value}):p)} /></div>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
+      <div><label style={LS}>Amount ($)</label><input style={IS} type="number" value={editInvoice.amount} onChange={e=>setEditInvoice(p=>p?({...p,amount:parseFloat(e.target.value)||0}):p)} /></div>
+      <div><label style={LS}>Qty</label><input style={IS} type="number" value={editInvoice.qty} onChange={e=>setEditInvoice(p=>p?({...p,qty:parseInt(e.target.value)||1}):p)} /></div>
+    </div>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+      <div><label style={LS}>Status</label><select style={IS} value={editInvoice.status} onChange={e=>setEditInvoice(p=>p?({...p,status:e.target.value}):p)}><option>Unpaid</option><option>Paid</option></select></div>
+      <div><label style={LS}>Date</label><input style={IS} type="date" value={editInvoice.date||''} onChange={e=>setEditInvoice(p=>p?({...p,date:e.target.value}):p)} /></div>
+    </div>
+  </Modal>
+)}
+{editCost && (
+  <Modal title="Edit Other Cost" onClose={() => setEditCost(null)} onSave={updateCost}>
+    <div style={{ marginBottom:14 }}><label style={LS}>Category</label><input style={IS} value={editCost.category} onChange={e=>setEditCost(p=>p?({...p,category:e.target.value}):p)} /></div>
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
+      <div><label style={LS}>Amount ($)</label><input style={IS} type="number" value={editCost.amount} onChange={e=>setEditCost(p=>p?({...p,amount:parseFloat(e.target.value)||0}):p)} /></div>
+      <div><label style={LS}>Date</label><input style={IS} type="date" value={editCost.date||''} onChange={e=>setEditCost(p=>p?({...p,date:e.target.value}):p)} /></div>
+    </div>
+    <div><label style={LS}>Notes</label><input style={IS} value={editCost.notes||''} onChange={e=>setEditCost(p=>p?({...p,notes:e.target.value}):p)} /></div>
+  </Modal>
+)}
     </>
   )
 }
