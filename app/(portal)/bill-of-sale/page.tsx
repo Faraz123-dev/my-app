@@ -413,7 +413,7 @@ function BOSPreviewModal({ bos, onClose }: { bos: BOS; onClose: () => void }) {
           </div>
           <hr style={{ border: 'none', borderTop: '1px solid #ddd', margin: '0 0 12px' }} />
           <div style={{ border: '2px solid #000', textAlign: 'center', fontWeight: 900, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', padding: 10, marginBottom: 8 }}>Sold As-Is Where-Is — No Guarantee — No Warranty</div>
-          {validTillStr && <div style={{ border: '1px dashed #666', textAlign: 'center', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: 6, marginBottom: 14, color: '#333' }}>ℹ️ Nonrefundable deposit valid until {validTillStr} (5 business days)</div>}
+          {validTillStr && <div style={{ border: '1px dashed #666', textAlign: 'center', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: 6, marginBottom: 14, color: '#333' }}>ℹ️ This Sales Agreement is Valid until {validTillStr} (5 business days)</div>}
           <div style={{ borderLeft: '3px solid #999', padding: '10px 14px', background: '#fafafa', fontSize: 11, lineHeight: 1.8, color: '#333', marginBottom: 12 }}>
             I am the legal owner of the above-described vehicle as evidenced by the attached Registration (and where applicable, the title) for the vehicle or equipment. The above-described vehicle/equipment is clear title: there are no liens or encumbrances against this vehicle/equipment. The buyer acknowledges they have inspected the vehicle and agree to purchase it in its current as-is condition with no warranties expressed or implied. All sales are final.<br /><br />
             Agreed to this on <strong>{saleDate}</strong>, in the city of Brampton, Ontario.
