@@ -25,9 +25,11 @@ const TD: React.CSSProperties = { padding: '12px 14px', color: 'var(--text)', wh
 const emptyForm = {
   truck_id: '',
   truck_year: '', truck_make: '', truck_model: '', truck_vin: '', truck_colour: '', truck_km: '',
-  buyer_name: '', buyer_address: '', buyer_phone: '',
+  buyer_name: '', buyer_address: '',
   price: '', tax_rate: '13', deposit: '0', sale_date: new Date().toISOString().split('T')[0], notes: '',
   invoice_number: '',
+  sold_with_safety: false,
+  buyer_company: '',
 }
 
 type FormType = typeof emptyForm
@@ -117,7 +119,7 @@ function bosHTML(bos: BOS): string {
       <div class="row"><span class="row-lbl">Company</span><span class="row-val">Aamir &amp; Sons Trading Ltd.</span></div>
       <div class="row"><span class="row-lbl">Address</span><span class="row-val">2 Blair Dr, Brampton, ON L6T 2H5</span></div>
       <div class="row"><span class="row-lbl">HST #</span><span class="row-val">704391101RT0001</span></div>
-      <div class="row"><span class="row-lbl">Phone</span><span class="row-val">647-563-5783</span></div>
+      <div class="row"><span class="row-lbl">Company</span><span class="row-val">${bos.buyer_company || '___________________________'}</span></div>
     </div>
     <div>
       <div class="section-title">Buyer</div>
@@ -157,7 +159,7 @@ function bosHTML(bos: BOS): string {
 
   <hr class="divider" />
 
-  <div class="disclaimer-box">Sold As-Is Where-Is &mdash; No Guarantee &mdash; No Warranty</div>
+<div class="disclaimer-box">${bos.sold_with_safety ? 'SOLD WITH SAFETY' : 'Sold As-Is Where-Is &mdash; No Guarantee &mdash; No Warranty'}</div>
   ${validTillStr ? `<div class="validity-box">&#9432;&nbsp; Deposit receipt valid until &nbsp;${validTillStr}&nbsp; (5 business days)</div>` : ''}
 
   <div class="legal-box">
@@ -209,6 +211,8 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
     sale_date: initial.sale_date || new Date().toISOString().split('T')[0],
     notes: initial.notes || '',
     invoice_number: initial.invoice_number || '',
+    sold_with_safety: (initial as any).sold_with_safety || false,
+    buyer_company: (initial as any).buyer_company || '',
   } : { ...emptyForm })
   const [saving, setSaving] = useState(false)
 
@@ -247,6 +251,8 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
       price, tax_rate: taxRate, tax_amount: taxAmount, total, deposit,
       sale_date: form.sale_date || null, notes: form.notes || null,
       invoice_number: form.invoice_number || null,
+      sold_with_safety: form.sold_with_safety,
+      buyer_company: form.buyer_company || null,
     })
     setSaving(false)
   }
@@ -262,11 +268,11 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
         <label style={LS}>Link to Inventory (optional)</label>
           <select style={{ ...IS, minHeight: 44 }} value={form.truck_id} onChange={e => onTruckSelect(e.target.value)}>
             <option value="">— Enter manually —</option>
-            {trucks.map(t => <option key={t.id} value={t.id}>{t.year} {t.make} {t.model} — {t.vin}</option>)}
+          {trucks.map(t => <option key={t.id} value={t.id}>{t.stock_number || t.vin} {'-'} {t.year} {t.make} {t.model}</option>)}
           </select>
         </div>
-        <div>
-          <label style={LS}>Auto-fill from Customer DB (optional)</label>
+        <div>         
+           <label style={LS}>Auto-fill from Customer DB (optional)</label>
           <select style={{ ...IS, minHeight: 44 }} defaultValue=""
             onChange={e => {
               const c = customers.find((c: any) => c.id === e.target.value)
@@ -292,7 +298,7 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
       <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>BUYER</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         <div><label style={LS}>Full Name *</label><input style={{ ...IS, minHeight: 44 }} placeholder="John Smith" value={form.buyer_name} onChange={e => setForm(f => ({ ...f, buyer_name: e.target.value }))} /></div>
-        <div><label style={LS}>Phone</label><input style={{ ...IS, minHeight: 44 }} placeholder="416-555-0100" value={form.buyer_phone} onChange={e => setForm(f => ({ ...f, buyer_phone: e.target.value }))} /></div>
+        <div><label style={LS}>Company Name</label><input style={{ ...IS, minHeight: 44 }} placeholder="ABC Trucking Inc." value={form.buyer_company} onChange={e => setForm(f => ({ ...f, buyer_company: e.target.value }))} /></div>
       </div>
       <div style={{ marginBottom: 20 }}>
         <label style={LS}>Address</label>
@@ -320,6 +326,14 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
           ))}
         </div>
       )}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+          <input type="checkbox" checked={form.sold_with_safety} onChange={e => setForm(f => ({ ...f, sold_with_safety: e.target.checked }))}
+            style={{ width: 18, height: 18, accentColor: '#EAB308', cursor: 'pointer' }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Truck sold with safety</span>
+          <span style={{ fontSize: 12, color: 'var(--text4)' }}>(changes warranty disclaimer on invoice)</span>
+        </label>
+      </div>
       <div style={{ marginBottom: 20 }}>
         <label style={LS}>Notes (optional)</label>
         <textarea style={{ ...IS, height: 60, resize: 'vertical' }} placeholder="Any additional notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
@@ -372,14 +386,13 @@ function BOSPreviewModal({ bos, onClose }: { bos: BOS; onClose: () => void }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 14 }}>
             <div>
               <div style={secT}>Seller</div>
-              {([["Company","Aamir & Sons Trading Ltd."],["Address","2 Blair Dr, Brampton, ON L6T 2H5"],["HST #","704391101RT0001"],["Phone","647-563-5783"]] as [string,string][]).map(([l,v]) => (
+              {([["Company","Aamir & Sons Trading Ltd."],["Address","2 Blair Dr, Brampton, ON L6T 2H5"],["HST #","704391101RT0001"]] as [string,string][]).map(([l,v]) => (
                 <div key={l} style={rowS}><span style={{ color: '#555' }}>{l}</span><span style={{ fontWeight: 600 }}>{v}</span></div>
               ))}
             </div>
             <div>
               <div style={secT}>Buyer</div>
-              {([["Name", bos.buyer_name || '___________________________'],["Address", bos.buyer_address || '___________________________'],["Phone", bos.buyer_phone || '___________________________']] as [string,string][]).map(([l,v]) => (
-                <div key={l} style={rowS}><span style={{ color: '#555' }}>{l}</span><span style={{ fontWeight: 600 }}>{v}</span></div>
+              {([["Name", bos.buyer_name || '___________________________'],["Company", (bos as any).buyer_company || '___________________________'],["Address", bos.buyer_address || '___________________________']] as [string,string][]).map(([l,v]) => (                <div key={l} style={rowS}><span style={{ color: '#555' }}>{l}</span><span style={{ fontWeight: 600 }}>{v}</span></div>
               ))}
             </div>
           </div>
@@ -412,8 +425,9 @@ function BOSPreviewModal({ bos, onClose }: { bos: BOS; onClose: () => void }) {
             </div>
           </div>
           <hr style={{ border: 'none', borderTop: '1px solid #ddd', margin: '0 0 12px' }} />
-          <div style={{ border: '2px solid #000', textAlign: 'center', fontWeight: 900, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', padding: 10, marginBottom: 8 }}>Sold As-Is Where-Is — No Guarantee — No Warranty</div>
-          {validTillStr && <div style={{ border: '1px dashed #666', textAlign: 'center', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: 6, marginBottom: 14, color: '#333' }}>ℹ️ This Sales Agreement is Valid until {validTillStr} (5 business days)</div>}
+          <div style={{ border: '2px solid #000', textAlign: 'center', fontWeight: 900, fontSize: 13, letterSpacing: '0.08em', textTransform: 'uppercase', padding: 10, marginBottom: 8 }}>
+            {(bos as any).sold_with_safety ? 'SOLD WITH SAFETY' : 'Sold As-Is Where-Is — No Guarantee — No Warranty'}
+          </div>          {validTillStr && <div style={{ border: '1px dashed #666', textAlign: 'center', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: 6, marginBottom: 14, color: '#333' }}>ℹ️ This Sales Agreement is Valid until {validTillStr} (5 business days)</div>}
           <div style={{ borderLeft: '3px solid #999', padding: '10px 14px', background: '#fafafa', fontSize: 11, lineHeight: 1.8, color: '#333', marginBottom: 12 }}>
             I am the legal owner of the above-described vehicle as evidenced by the attached Registration (and where applicable, the title) for the vehicle or equipment. The above-described vehicle/equipment is clear title: there are no liens or encumbrances against this vehicle/equipment. The buyer acknowledges they have inspected the vehicle and agree to purchase it in its current as-is condition with no warranties expressed or implied. All sales are final.<br /><br />
             Agreed to this on <strong>{saleDate}</strong>, in the city of Brampton, Ontario.
@@ -456,8 +470,7 @@ export default function OfSalePagBille() {
     setLoading(true)
     const [{ data: bosData }, { data: truckData }, { data: customerData }] = await Promise.all([
       supabase.from('bills_of_sale').select('*').order('created_at', { ascending: false }),
-      supabase.from('Inventory Data').select('id, year, make, model, vin, colour, kilometers, sold_price, customer, date_sold').order('bought_on', { ascending: false }),
-      supabase.from('customers').select('*').order('name'),
+      supabase.from('Inventory Data').select('id, year, make, model, vin, colour, kilometers, sold_price, customer, date_sold, stock_number').order('bought_on', { ascending: false }),      supabase.from('customers').select('*').order('name'),
     ])
     setBosList(bosData || [])
     setTrucks(truckData || [])
