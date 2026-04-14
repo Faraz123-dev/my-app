@@ -35,9 +35,10 @@ type Lead = {
 const statusColors: Record<string, { bg: string; color: string; border: string }> = {
   'Offer Sent':     { bg: 'var(--gold-dim)',  color: 'var(--gold)',  border: 'var(--gold)' },
   'Offer Accepted': { bg: 'var(--green-dim)', color: 'var(--green)', border: 'var(--green)' },
+  'Offer Rejected': { bg: 'var(--red-dim)', color: 'var(--red)', border: 'var(--red)' },
 }
 
-const STATUSES = ['Offer Sent', 'Offer Accepted']
+const STATUSES = ['Offer Sent', 'Offer Accepted', 'Offer Rejected']
 const TEAM = ['Aamir Javaid', 'Faiz Aamir', 'Faraz Aamir', 'Umar Aamir', 'Waleed Aamir']
 
 const fmt = (d: string | null) => {
