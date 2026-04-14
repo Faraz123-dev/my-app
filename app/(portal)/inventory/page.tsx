@@ -512,6 +512,7 @@ export default function InventoryPage() {
       delivered_by: truck.delivered_by, from_location: truck.from_location,
       asking_price: truck.asking_price,
       towed_by: truck.towed_by || null,
+      eta_recon: truck.eta_recon || null,
     })
   }
 
@@ -537,6 +538,7 @@ export default function InventoryPage() {
       delivered_by: editForm.delivered_by || null,
       from_location: editForm.from_location || null,
       towed_by: editForm.delivered_by === 'Towed' ? (editForm.towed_by || null) : null,
+      eta_recon: editForm.eta_recon || null,
     }
     const { error } = await supabase.from('Inventory Data').update(payload).eq('id', editTruck.id)
     if (error) { alert('Error: ' + error.message); return }
@@ -1069,7 +1071,7 @@ const cols: Col[] = [
             </div>
 
             {/* Row 3: Colour, KMs, HP, Ratio */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:12, marginBottom:14 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:14 }}>
               <div>
                 <label style={LS}>Colour</label>
                 <input style={{ ...IS, minHeight:44 }} placeholder="White" value={newTruck.colour} onChange={e => setNewTruck(p=>({...p,colour:e.target.value}))} />
@@ -1116,7 +1118,7 @@ const cols: Col[] = [
             )}
 
             {/* Row 5: Found By, Purchase, Recon, Asking */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:12, marginBottom:14 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:14 }}>
               <div>
                 <label style={LS}>Found By</label>
                 <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={newTruck.found_by} onChange={e => setNewTruck(p=>({...p,found_by:e.target.value}))}>
@@ -1154,7 +1156,7 @@ const cols: Col[] = [
         {/* ── EDIT MODAL ── */}
         {editTruck && (
           <div onClick={() => setEditTruck(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(10px)', padding: isMobile ? 0 : 20 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width:'100%', maxWidth: isMobile ? '100%' : 580, maxHeight:'92vh', overflowY:'auto' }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width:'100%', maxWidth: isMobile ? '100%' : 860, maxHeight:'92vh', overflowY:'auto' }}>
               {isMobile && <div style={{ width:36, height:4, background:'var(--border)', borderRadius:99, margin:'0 auto 20px' }} />}
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22 }}>
                 <div>
@@ -1224,6 +1226,7 @@ const cols: Col[] = [
 
               {/* From Location */}
               <div style={{ marginBottom:14 }}><label style={LS}>From (Location)</label><input style={{ ...IS, minHeight:44 }} placeholder="e.g. Hamilton, ON" value={editForm.from_location||''} onChange={e => setEditForm(p=>({...p,from_location:e.target.value}))} /></div>
+              <div style={{ marginBottom:14 }}><label style={LS}>ETA Recon</label><input style={{ ...IS, minHeight:44 }} type="date" value={editForm.eta_recon||''} onChange={e => setEditForm(p=>({...p,eta_recon:e.target.value}))} /></div>
               {editForm.delivered_by === 'Towed' && (
                 <div style={{ marginBottom:14 }}>
                   <label style={LS}>Towed By</label>
