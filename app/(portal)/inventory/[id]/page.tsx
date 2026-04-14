@@ -21,7 +21,7 @@ type Truck = {
 }
 type Part      = { id: string; part: string; category: string; qty: number; unit_cost: number; date: string | null; invoice_url: string | null }
 type Labor     = { id: string; tech: string; hours: number; rate: number; date: string | null; invoice_url: string | null }
-type Invoice = { id: string; vendor: string; description: string; amount: number; qty: number; status: string; date: string | null; invoice_url: string | null }
+type Invoice = { id: string; vendor: string; description: string; amount: number; tax_amount: number; qty: number; status: string; date: string | null; invoice_url: string | null } 
 type OtherCost = { id: string; category: string; amount: number; date: string | null; notes: string | null; invoice_url: string | null }
 type Offer     = { id: string; amount: number; date: string | null; notes: string | null; accepted: boolean }
 type Doc       = { id: string; category: string; name: string; url: string; created_at: string }
@@ -343,7 +343,7 @@ export default function TruckDetailPage() {
   const [listingForm, setListingForm] = useState({ listing_platform: '', listing_link: '', listing_date: '', asking_price: '' })
   const [newPart,     setNewPart]     = useState({ part: '', category: '', qty: '1', unit_cost: '', date: '' })
   const [newLabor,    setNewLabor]    = useState({ tech: '', hours: '', rate: '', date: '' })
-  const [newInvoice, setNewInvoice] = useState({ vendor: '', description: '', amount: '', qty: '1', status: 'Unpaid', date: '' })
+  const [newInvoice,  setNewInvoice]  = useState({ vendor: '', description: '', amount: '', tax_amount: '0', qty: '1', status: 'Unpaid', date: '' })  
   const [newCost,     setNewCost]     = useState({ category: '', amount: '', date: '', notes: '' })
   const [newOffer,    setNewOffer]    = useState({ amount: '', date: '', notes: '', accepted: false })
 
@@ -465,8 +465,7 @@ export default function TruckDetailPage() {
       const qty = parseInt(newInvoice.qty) || 1
       const { data: inserted, error } = await supabase.from('vendor_invoices').insert([{
         truck_id: id, vendor: newInvoice.vendor, description: newInvoice.description,
-        amount: parseFloat(newInvoice.amount)||0, qty, status: newInvoice.status, date: newInvoice.date||null
-      }]).select().single()
+        amount: parseFloat(newInvoice.amount)||0, tax_amount: parseFloat(newInvoice.tax_amount)||0,      }]).select().single()
         if (error) return
         const file = (newInvoice as any)._file
         if (file && inserted) {
@@ -478,7 +477,7 @@ export default function TruckDetailPage() {
           }
         }
         setShowInvoiceModal(false)
-        setNewInvoice({ vendor:'', description:'', amount:'', qty:'1', status:'Unpaid', date:'' })
+        setNewInvoice({ vendor:'', description:'', amount:'', tax_amount:'0', qty:'1', status:'Unpaid', date:'' })
         fetchAll()
       }
   async function addCost() {
@@ -501,7 +500,7 @@ export default function TruckDetailPage() {
   }
   async function updateInvoice() {
     if (!editInvoice) return
-    await supabase.from('vendor_invoices').update({ vendor: editInvoice.vendor, description: editInvoice.description, amount: editInvoice.amount, qty: editInvoice.qty, status: editInvoice.status, date: editInvoice.date || null }).eq('id', editInvoice.id)
+    await supabase.from('vendor_invoices').update({ vendor: editInvoice.vendor, description: editInvoice.description, amount: editInvoice.amount, tax_amount: editInvoice.tax_amount, qty: editInvoice.qty, status: editInvoice.status, date: editInvoice.date || null }).eq('id', editInvoice.id)    
     setEditInvoice(null); fetchAll()
   }
   async function updateCost() {
@@ -769,7 +768,7 @@ export default function TruckDetailPage() {
           return acc
         }, {})
       ).map(([vendor, vendorInvoices]) => {
-        const vendorTotal = vendorInvoices.reduce((s, i) => s + i.amount, 0)
+        const vendorTotal = vendorInvoices.reduce((s, i) => s + i.amount + (i.tax_amount||0), 0)        
         const allPaid = vendorInvoices.every(i => i.status === 'Paid')
         return (
           <div key={vendor} style={{ border:'1px solid var(--card-border)', borderRadius:12, overflow:'hidden' }}>
@@ -784,7 +783,7 @@ export default function TruckDetailPage() {
                 <span style={{ fontSize:11, fontWeight:700, color: allPaid ? 'var(--green)' : 'var(--orange)', background: allPaid ? 'var(--green-dim)' : 'var(--orange-dim)', borderRadius:99, padding:'2px 10px' }}>
                   {allPaid ? '✓ All Paid' : 'Has Unpaid'}
                 </span>
-                <span style={{ fontSize:15, fontWeight:800, color:'var(--gold)' }}>${vendorTotal.toLocaleString()}</span>
+                <span style={{ fontSize:15, fontWeight:800, color:'var(--gold)' }}>${vendorTotal.toLocaleString("en-CA",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
               </div>
             </div>
 
@@ -802,15 +801,7 @@ export default function TruckDetailPage() {
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'var(--card-bg)')}>
                 <div>
-                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{inv.description || <span style={{ color:'var(--text4)', fontStyle:'italic' }}>—</span>}</div>
-                  <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                    {inv.invoice_url && (
-                      <a href={inv.invoice_url} target="_blank" rel="noreferrer"
-                        style={{ fontSize:10, fontWeight:600, color:'var(--blue)', background:'var(--blue-dim)', border:'1px solid var(--blue)', borderRadius:99, padding:'1px 8px', textDecoration:'none' }}>📄 View</a>
-                    )}
-                    <UploadButton table="vendor_invoices" rowId={inv.id} currentUrl={inv.invoice_url} onUploaded={url => setInvoices(prev => prev.map(x => x.id===inv.id ? {...x,invoice_url:url} : x))} />
-                  </div>
-                </div>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{inv.description || <span style={{ color:'var(--text4)', fontStyle:'italic' }}>—</span>}</div>
                 <div style={{ fontSize:12, color:'var(--text2)' }}>{inv.date || '—'}</div>
                 <div>
                   <span style={{ fontSize:11, fontWeight:700, color: inv.status==='Paid' ? 'var(--green)' : 'var(--orange)', background: inv.status==='Paid' ? 'var(--green-dim)' : 'var(--orange-dim)', borderRadius:99, padding:'2px 8px' }}>
@@ -818,8 +809,19 @@ export default function TruckDetailPage() {
                   </span>
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:6, justifyContent:'space-between' }}>
-                  <span style={{ fontSize:14, fontWeight:800, color:'var(--gold)' }}>${inv.amount.toLocaleString()}</span>
-                  <div style={{ display:'flex', gap:2 }}>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:800, color:'var(--gold)' }}>${(inv.amount + (inv.tax_amount||0)).toLocaleString("en-CA",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+                  {inv.tax_amount > 0 && <div style={{ fontSize:10, color:'var(--text4)' }}>${inv.amount.toLocaleString("en-CA",{minimumFractionDigits:2,maximumFractionDigits:2})} + ${inv.tax_amount.toLocaleString("en-CA",{minimumFractionDigits:2,maximumFractionDigits:2})} tax</div>}
+                </div>
+                  <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                    {inv.invoice_url
+                      ? <a href={inv.invoice_url} target="_blank" rel="noreferrer" style={{ fontSize:11, color:'var(--blue)', background:'var(--blue-dim)', border:'1px solid var(--blue)', borderRadius:99, padding:'2px 8px', textDecoration:'none', fontWeight:600, whiteSpace:'nowrap' }}>📄</a>
+                      : <label style={{ fontSize:11, color:'var(--text4)', cursor:'pointer', padding:'2px 4px' }} title="Upload invoice">
+                          📎
+                          <input type="file" accept="image/*,application/pdf" style={{ display:'none' }}
+                            onChange={e => { const file = e.target.files?.[0]; if (file) { const path = `vendor_invoices/${inv.id}-${Date.now()}.${file.name.split('.').pop()}`; supabase.storage.from('invoices').upload(path, file, { upsert: true }).then(({ error }) => { if (!error) { const { data } = supabase.storage.from('invoices').getPublicUrl(path); supabase.from('vendor_invoices').update({ invoice_url: data.publicUrl }).eq('id', inv.id); setInvoices(prev => prev.map(x => x.id===inv.id ? {...x,invoice_url:data.publicUrl} : x)) } }) }}} />
+                        </label>
+                    }
                     <button onClick={() => setEditInvoice(inv)}
                       style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
                       onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
@@ -1150,42 +1152,42 @@ export default function TruckDetailPage() {
         </Modal>
       )}
 
-{showInvoiceModal && (
-  <Modal title="Add Vendor Invoice" onClose={() => setShowInvoiceModal(false)} onSave={addInvoice}>
-    <div style={{ marginBottom:14 }}><label style={LS}>Vendor</label><input style={IS} value={newInvoice.vendor} onChange={e=>setNewInvoice(p=>({...p,vendor:e.target.value}))} /></div>
-    <div style={{ marginBottom:14 }}><label style={LS}>Description</label><input style={IS} value={newInvoice.description} onChange={e=>setNewInvoice(p=>({...p,description:e.target.value}))} /></div>
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
-      <div><label style={LS}>Amount ($)</label><input style={IS} type="number" value={newInvoice.amount} onChange={e=>setNewInvoice(p=>({...p,amount:e.target.value}))} /></div>
-      <div><label style={LS}>Qty</label><input style={IS} type="number" placeholder="1" value={newInvoice.qty} onChange={e=>setNewInvoice(p=>({...p,qty:e.target.value}))} /></div>
-    </div>
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
-      <div><label style={LS}>Status</label><select style={IS} value={newInvoice.status} onChange={e=>setNewInvoice(p=>({...p,status:e.target.value}))}><option>Unpaid</option><option>Paid</option></select></div>
-      <div><label style={LS}>Date</label><input style={IS} type="date" value={newInvoice.date} onChange={e=>setNewInvoice(p=>({...p,date:e.target.value}))} /></div>
-    </div>
-
-    {/* Drag & drop PDF upload */}
-    <label style={LS}>Invoice File (optional)</label>
-    <div
-      onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--gold)' }}
-      onDragLeave={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
-      onDrop={e => {
-        e.preventDefault()
-        e.currentTarget.style.borderColor = 'var(--border)'
-        const file = e.dataTransfer.files[0]
-        if (file) setNewInvoice(p => ({ ...p, _file: file } as any))
-      }}
-      onClick={() => (document.getElementById('inv-file-input') as HTMLInputElement)?.click()}
-      style={{ border: '2px dashed var(--border)', borderRadius: 10, padding: '20px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s', marginBottom: 4 }}>
-      <div style={{ fontSize: 24, marginBottom: 6 }}>📄</div>
-      <div style={{ fontSize: 13, color: 'var(--text3)' }}>
-        {(newInvoice as any)._file ? (newInvoice as any)._file.name : 'Drag & drop PDF here or click to browse'}
-      </div>
-      {(newInvoice as any)._file && <div style={{ fontSize: 11, color: 'var(--green)', marginTop: 4 }}>✓ File ready to upload</div>}
-    </div>
-    <input id="inv-file-input" type="file" accept="image/*,application/pdf" style={{ display: 'none' }}
-      onChange={e => { const file = e.target.files?.[0]; if (file) setNewInvoice(p => ({ ...p, _file: file } as any)) }} />
-  </Modal>
-)}
+      {showInvoiceModal && (
+          <Modal title="Add Vendor Invoice" onClose={() => setShowInvoiceModal(false)} onSave={addInvoice}>
+            <div style={{ marginBottom:14 }}><label style={LS}>Vendor</label><input style={IS} value={newInvoice.vendor} onChange={e=>setNewInvoice(p=>({...p,vendor:e.target.value}))} /></div>
+            <div style={{ marginBottom:14 }}><label style={LS}>Description</label><input style={IS} value={newInvoice.description} onChange={e=>setNewInvoice(p=>({...p,description:e.target.value}))} /></div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
+              <div><label style={LS}>Subtotal ($)</label><input style={IS} type="number" value={newInvoice.amount} onChange={e=>setNewInvoice(p=>({...p,amount:e.target.value}))} /></div>
+              <div><label style={LS}>HST / Tax ($)</label><input style={IS} type="number" placeholder="0" value={newInvoice.tax_amount} onChange={e=>setNewInvoice(p=>({...p,tax_amount:e.target.value}))} /></div>
+            </div>
+            {(parseFloat(newInvoice.amount)||0) > 0 && (
+              <div style={{ background:'var(--hover)', borderRadius:8, padding:'10px 14px', marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div style={{ display:'flex', gap:20 }}>
+                  <div><div style={{ fontSize:9, color:'var(--text4)', fontWeight:700, letterSpacing:'0.08em', marginBottom:2 }}>SUBTOTAL</div><div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>${(parseFloat(newInvoice.amount)||0).toFixed(2)}</div></div>
+                  <div><div style={{ fontSize:9, color:'var(--text4)', fontWeight:700, letterSpacing:'0.08em', marginBottom:2 }}>TAX</div><div style={{ fontSize:13, fontWeight:700, color:'var(--text2)' }}>${(parseFloat(newInvoice.tax_amount)||0).toFixed(2)}</div></div>
+                </div>
+                <div><div style={{ fontSize:9, color:'var(--gold)', fontWeight:700, letterSpacing:'0.08em', marginBottom:2 }}>TOTAL</div><div style={{ fontSize:15, fontWeight:800, color:'var(--gold)' }}>${((parseFloat(newInvoice.amount)||0)+(parseFloat(newInvoice.tax_amount)||0)).toFixed(2)}</div></div>
+              </div>
+            )}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14 }}>
+              <div><label style={LS}>Qty</label><input style={IS} type="number" placeholder="1" value={newInvoice.qty} onChange={e=>setNewInvoice(p=>({...p,qty:e.target.value}))} /></div>
+              <div><label style={LS}>Status</label><select style={IS} value={newInvoice.status} onChange={e=>setNewInvoice(p=>({...p,status:e.target.value}))}><option>Unpaid</option><option>Paid</option></select></div>
+              <div><label style={LS}>Date</label><input style={IS} type="date" value={newInvoice.date} onChange={e=>setNewInvoice(p=>({...p,date:e.target.value}))} /></div>
+            </div>
+            <label style={LS}>Invoice File (optional)</label>
+            <div
+              onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--gold)' }}
+              onDragLeave={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
+              onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border)'; const file = e.dataTransfer.files[0]; if (file) setNewInvoice(p => ({ ...p, _file: file } as any)) }}
+              onClick={() => (document.getElementById('inv-file-input') as HTMLInputElement)?.click()}
+              style={{ border: '2px dashed var(--border)', borderRadius: 10, padding: '16px', textAlign: 'center', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+              <div style={{ fontSize: 20, marginBottom: 4 }}>📄</div>
+              <div style={{ fontSize: 12, color: 'var(--text3)' }}>{(newInvoice as any)._file ? (newInvoice as any)._file.name : 'Drag & drop or click to browse'}</div>
+              {(newInvoice as any)._file && <div style={{ fontSize: 11, color: 'var(--green)', marginTop: 4 }}>✓ Ready</div>}
+            </div>
+            <input id="inv-file-input" type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => { const file = e.target.files?.[0]; if (file) setNewInvoice(p => ({ ...p, _file: file } as any)) }} />
+          </Modal>
+        )}
 
       {showCostModal && (
         <Modal title="Add Other Cost" onClose={() => setShowCostModal(false)} onSave={addCost}>
