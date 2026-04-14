@@ -374,6 +374,7 @@ export default function InventoryPage() {
   const [isMobile,      setIsMobile]      = useState(false)
   const [viewMode,      setViewMode]      = useState<'cards' | 'table' | 'quarters'>('table')
   const [sortCol,       setSortCol]       = useState('')
+  const [selectedQuarter, setSelectedQuarter] = useState('all')
   const [sortDir,          setSortDir]       = useState<SortDir>('desc')
   const [colFilters,    setColFilters]    = useState<Partial<Record<keyof Truck, string>>>({})
   const [filterPopup,   setFilterPopup]   = useState<{ col: keyof Truck; x: number; y: number } | null>(null)
@@ -601,12 +602,6 @@ function getQuarter(dateStr: string | null): string | null {
     const [qa, ya] = a.split(' '); const [qb, yb] = b.split(' ')
     return Number(ya) !== Number(yb) ? Number(yb) - Number(ya) : Number(qb[1]) - Number(qa[1])
   })
-
-  const allQuarters = Array.from(new Set(trucks.map(t => getQuarter(t.bought_on)).filter(Boolean) as string[]))
-    .sort((a, b) => {
-      const [qa, ya] = a.split(' '); const [qb, yb] = b.split(' ')
-      return Number(ya) !== Number(yb) ? Number(ya) - Number(yb) : Number(qa[1]) - Number(qb[1])
-    })
   const IS: React.CSSProperties = { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '10px 14px', color: 'var(--text)', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui,sans-serif' }
   const LS: React.CSSProperties = { fontSize: 13, color: 'var(--text2)', marginBottom: 6, display: 'block', fontWeight: 500 }
   const TD: React.CSSProperties = { padding: '12px 14px', color: 'var(--text)', whiteSpace: 'nowrap', fontSize: 15 }
@@ -683,17 +678,6 @@ const cols: Col[] = [
               {s.label} <span style={{ color:s.color, fontWeight:700 }}>{s.value}</span>
             </div>
           ))}
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', width:'100%', marginTop:6 }}>
-            <span style={{ fontSize:10, color:'var(--text4)', fontWeight:700, letterSpacing:'0.1em' }}>BY QUARTER</span>
-            {allQuarters.map(q => (
-              <div key={q} onClick={() => setQuickFilter(qf => qf === q ? '' : q)}
-                style={{ background:'var(--card-bg)', border:`1px solid ${quickFilter === q ? 'var(--gold)' : 'var(--card-border)'}`, borderRadius:99, padding:'4px 10px', fontSize:12, color: quickFilter === q ? 'var(--gold)' : 'var(--text3)', cursor:'pointer', fontWeight: quickFilter === q ? 700 : 400, transition:'all 0.15s' }}>
-                {q}
-                <span style={{ marginLeft:5, color: quickFilter === q ? 'var(--gold)' : 'var(--text4)', fontWeight:700, fontSize:11 }}>
-                  {trucks.filter(t => getQuarter(t.bought_on) === q).length}
-                </span>
-              </div>
-            ))}
           </div>
           {activeFilterCount > 0 && (
             <button onClick={clearAllFilters} style={{ background:'var(--gold-dim)', border:'1px solid var(--gold)', borderRadius:99, padding:'5px 12px', fontSize:11, color:'var(--gold)', fontWeight:700, cursor:'pointer' }}>
@@ -709,7 +693,6 @@ const cols: Col[] = [
           ))}
             </div>
           )}
-        </div>
 
         <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
           <div style={{ position:'relative', flex:1, minWidth: isMobile ? '100%' : 200 }}>
@@ -719,7 +702,23 @@ const cols: Col[] = [
         </div>
         {!loading && !error && viewMode === 'quarters' && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            {quarters.map(q => {
+            {/* Quarter dropdown filter */}
+            <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+              <span style={{ fontSize:13, color:'var(--text3)' }}>Showing</span>
+              <select
+                value={selectedQuarter}
+                onChange={e => setSelectedQuarter(e.target.value)}
+                style={{ background:'var(--input-bg)', border:'1px solid var(--input-border)', borderRadius:8, padding:'8px 14px', color:'var(--text)', fontSize:13, outline:'none', cursor:'pointer', minHeight:38 }}>
+                <option value="all">All quarters</option>
+                {quarters.map(q => (
+                  <option key={q} value={q}>{q}</option>
+                ))}
+              </select>
+              <span style={{ fontSize:12, color:'var(--text4)', background:'var(--hover)', border:'1px solid var(--border)', borderRadius:99, padding:'2px 10px' }}>
+                {selectedQuarter === 'all' ? `${quarters.length} quarters` : `${quarterMap[selectedQuarter]?.length || 0} trucks`}
+              </span>
+            </div>
+            {(selectedQuarter === 'all' ? quarters : quarters.filter(q => q === selectedQuarter)).map(q => {
               const qTrucks = quarterMap[q]
               const totalSpend  = qTrucks.reduce((s,t) => s + (t.purchase_price||0) + (t.recondition_cost||0), 0)
               const totalRev    = qTrucks.filter(t => t.sold_price != null).reduce((s,t) => s + (t.sold_price||0), 0)
