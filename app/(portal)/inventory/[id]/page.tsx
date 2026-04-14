@@ -17,6 +17,7 @@ type Truck = {
   listing_platform: string | null; listing_link: string | null
   listing_date: string | null; asking_price: number | null
   found_by: string | null; delivered_by: string | null; from_location: string | null
+  eta_recon: string | null
 }
 type Part      = { id: string; part: string; category: string; qty: number; unit_cost: number; date: string | null; invoice_url: string | null }
 type Labor     = { id: string; tech: string; hours: number; rate: number; date: string | null; invoice_url: string | null }
@@ -377,7 +378,8 @@ export default function TruckDetailPage() {
         purchase_price: t.purchase_price, recondition_cost: t.recondition_cost, 
         date_sold: t.date_sold, customer: t.customer, payment_status: t.payment_status, 
         sold_price: t.sold_price, horsepower: t.horsepower, ratio: t.ratio,
-        found_by: t.found_by, delivered_by: t.delivered_by, from_location: t.from_location
+        found_by: t.found_by, delivered_by: t.delivered_by, from_location: t.from_location,
+        eta_recon: t.eta_recon || null,      
       })
       setNotesForm({ notes: t.notes || '' })
       setSaleForm({ sold_price: t.sold_price?.toString() || '', date_sold: t.date_sold || '', customer: t.customer || '', payment_status: t.payment_status || 'N/A' })
@@ -422,6 +424,7 @@ export default function TruckDetailPage() {
     found_by: detailsForm.found_by || null,
     delivered_by: detailsForm.delivered_by || null,
     from_location: detailsForm.from_location || null,
+    eta_recon: detailsForm.eta_recon || null,
   }
     await supabase.from('Inventory Data').update(payload).eq('id', id)
     setTruck(prev => prev ? { ...prev, ...payload } : prev)
@@ -682,6 +685,7 @@ export default function TruckDetailPage() {
                   { label:'Found By', value: truck.found_by },
                   { label:'How Delivered', value: truck.delivered_by },
                   { label:'From', value: truck.from_location },
+                  { label:'ETA Recon', value: truck.eta_recon },
                 ].map(row => (
                   <div key={row.label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border2)' }}>
                     <span style={{ fontSize:13, color:'var(--text2)' }}>{row.label}</span>
@@ -1033,56 +1037,59 @@ export default function TruckDetailPage() {
         )}
       </main>
 
-{editingDetails && (
-  <Modal title="Edit Truck Details" onClose={() => setEditingDetails(false)} onSave={saveDetails}>
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-      <div><label style={LS}>Colour</label><input style={IS} placeholder="White" value={detailsForm.colour||''} onChange={e=>setDetailsForm((p:any)=>({...p,colour:e.target.value}))} /></div>
-      <div><label style={LS}>Kilometers</label><input style={IS} type="number" value={detailsForm.kilometers||''} onChange={e=>setDetailsForm((p:any)=>({...p,kilometers:e.target.value}))} /></div>
-    </div>
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-      <div><label style={LS}>Horsepower</label><input style={IS} type="number" placeholder="400" value={detailsForm.horsepower||''} onChange={e=>setDetailsForm((p:any)=>({...p,horsepower:e.target.value}))} /></div>
-      <div><label style={LS}>Ratio</label><input style={IS} placeholder="3.55" value={detailsForm.ratio||''} onChange={e=>setDetailsForm((p:any)=>({...p,ratio:e.target.value}))} /></div>
-    </div>
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-      <div><label style={LS}>Purchase Price ($)</label><input style={IS} type="number" value={detailsForm.purchase_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,purchase_price:e.target.value}))} /></div>
-      <div><label style={LS}>Recondition Cost ($)</label><input style={IS} type="number" value={detailsForm.recondition_cost||''} onChange={e=>setDetailsForm((p:any)=>({...p,recondition_cost:e.target.value}))} /></div>
-    </div>
-    <div style={{ marginBottom:14 }}><label style={LS}>Bought From</label><input style={IS} value={detailsForm.bought_from||''} onChange={e=>setDetailsForm((p:any)=>({...p,bought_from:e.target.value}))} /></div>
-    <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
-    <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.12em', fontWeight:700, marginBottom:12 }}>ACQUISITION DETAILS</div>
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-      <div>
-        <label style={LS}>Found By</label>
-        <select style={{ ...IS, cursor:'pointer' }} value={detailsForm.found_by||''} onChange={e=>setDetailsForm((p:any)=>({...p,found_by:e.target.value}))}>
-          <option value="">— Select —</option>
-          {TEAM.map(m=><option key={m}>{m}</option>)}
-        </select>
+  {editingDetails && (
+    <Modal title="Edit Truck Details" onClose={() => setEditingDetails(false)} onSave={saveDetails}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+        <div><label style={LS}>Colour</label><input style={IS} placeholder="White" value={detailsForm.colour||''} onChange={e=>setDetailsForm((p:any)=>({...p,colour:e.target.value}))} /></div>
+        <div><label style={LS}>Kilometers</label><input style={IS} type="number" value={detailsForm.kilometers||''} onChange={e=>setDetailsForm((p:any)=>({...p,kilometers:e.target.value}))} /></div>
       </div>
-      <div>
-        <label style={LS}>How Delivered</label>
-        <select style={{ ...IS, cursor:'pointer' }} value={detailsForm.delivered_by||''} onChange={e=>setDetailsForm((p:any)=>({...p,delivered_by:e.target.value}))}>
-          <option value="">— Select —</option>
-          {['Delivered','Towed','Driven In'].map(m=><option key={m}>{m}</option>)}
-        </select>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+        <div><label style={LS}>Horsepower</label><input style={IS} type="number" placeholder="400" value={detailsForm.horsepower||''} onChange={e=>setDetailsForm((p:any)=>({...p,horsepower:e.target.value}))} /></div>
+        <div><label style={LS}>Ratio</label><input style={IS} placeholder="3.55" value={detailsForm.ratio||''} onChange={e=>setDetailsForm((p:any)=>({...p,ratio:e.target.value}))} /></div>
+      </div> 
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+        <div><label style={LS}>Purchase Price ($)</label><input style={IS} type="number" value={detailsForm.purchase_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,purchase_price:e.target.value}))} /></div>
+        <div><label style={LS}>Recondition Cost ($)</label><input style={IS} type="number" value={detailsForm.recondition_cost||''} onChange={e=>setDetailsForm((p:any)=>({...p,recondition_cost:e.target.value}))} /></div>
       </div>
-    </div>
-    <div style={{ marginBottom:14 }}><label style={LS}>From (Location)</label><input style={IS} placeholder="e.g. Hamilton, ON" value={detailsForm.from_location||''} onChange={e=>setDetailsForm((p:any)=>({...p,from_location:e.target.value}))} /></div>
-    <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-      <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" value={detailsForm.sold_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,sold_price:e.target.value}))} /></div>
-      <div><label style={LS}>Date Sold</label><input style={IS} type="date" value={detailsForm.date_sold||''} onChange={e=>setDetailsForm((p:any)=>({...p,date_sold:e.target.value}))} /></div>
-    </div>
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-      <div><label style={LS}>Customer</label><input style={IS} value={detailsForm.customer||''} onChange={e=>setDetailsForm((p:any)=>({...p,customer:e.target.value}))} /></div>
-      <div><label style={LS}>Payment Status</label>
-        <select style={{ ...IS, cursor:'pointer' }} value={detailsForm.payment_status||'N/A'} onChange={e=>setDetailsForm((p:any)=>({...p,payment_status:e.target.value}))}>
-          {['N/A','Paid','Unpaid'].map(s=><option key={s}>{s}</option>)}
-        </select>
+      <div style={{ marginBottom:14 }}><label style={LS}>Bought From</label><input style={IS} value={detailsForm.bought_from||''} onChange={e=>setDetailsForm((p:any)=>({...p,bought_from:e.target.value}))} /></div>
+      <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
+      <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.12em', fontWeight:700, marginBottom:12 }}>ACQUISITION DETAILS</div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+        <div>
+          <label style={LS}>Found By</label>
+          <select style={{ ...IS, cursor:'pointer' }} value={detailsForm.found_by||''} onChange={e=>setDetailsForm((p:any)=>({...p,found_by:e.target.value}))}>
+            <option value="">— Select —</option>
+            {TEAM.map(m=><option key={m}>{m}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={LS}>How Delivered</label>
+          <select style={{ ...IS, cursor:'pointer' }} value={detailsForm.delivered_by||''} onChange={e=>setDetailsForm((p:any)=>({...p,delivered_by:e.target.value}))}>
+            <option value="">— Select —</option>
+            {['Delivered','Towed','Driven In'].map(m=><option key={m}>{m}</option>)}
+          </select>
+        </div>
       </div>
-    </div>
-  </Modal>
-)}
-
+      <div style={{ marginBottom:14 }}><label style={LS}>From (Location)</label><input style={IS} placeholder="e.g. Hamilton, ON" value={detailsForm.from_location||''} onChange={e=>setDetailsForm((p:any)=>({...p,from_location:e.target.value}))} /></div>
+      <div style={{ marginBottom:14 }}>
+        <label style={LS}>ETA Recon Complete</label>
+        <input style={IS} type="date" value={detailsForm.eta_recon||''} onChange={e=>setDetailsForm((p:any)=>({...p,eta_recon:e.target.value}))} />
+      </div>
+      <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+        <div><label style={LS}>Sold Price ($)</label><input style={IS} type="number" value={detailsForm.sold_price||''} onChange={e=>setDetailsForm((p:any)=>({...p,sold_price:e.target.value}))} /></div>
+        <div><label style={LS}>Date Sold</label><input style={IS} type="date" value={detailsForm.date_sold||''} onChange={e=>setDetailsForm((p:any)=>({...p,date_sold:e.target.value}))} /></div>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+        <div><label style={LS}>Customer</label><input style={IS} value={detailsForm.customer||''} onChange={e=>setDetailsForm((p:any)=>({...p,customer:e.target.value}))} /></div>
+        <div><label style={LS}>Payment Status</label>
+          <select style={{ ...IS, cursor:'pointer' }} value={detailsForm.payment_status||'N/A'} onChange={e=>setDetailsForm((p:any)=>({...p,payment_status:e.target.value}))}>
+            {['N/A','Paid','Unpaid'].map(s=><option key={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+    </Modal>
+  )}
       {editingNotes && (
         <Modal title="Edit Notes" onClose={() => setEditingNotes(false)} onSave={saveNotes}>
           <textarea style={{ ...IS, height:120, resize:'vertical', minHeight:120 }} placeholder="Add notes..." value={notesForm.notes} onChange={e=>setNotesForm({notes:e.target.value})} />

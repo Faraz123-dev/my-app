@@ -12,6 +12,7 @@ type Truck = {
   payment_status: string | null; notes: string | null; photo_url: string | null
   horsepower: number | null; ratio: string | null
   delivered_by: string | null; from_location: string | null; found_by: string | null
+  eta_recon: string | null 
   stock_number: string | null; asking_price: number | null
   towed_by: string | null
 }
@@ -625,6 +626,7 @@ const cols: Col[] = [
   { key: 'bought_from',      label: 'Bought From',   sortKey: 'bought_from',      filterable: true },
   { key: 'purchase_price',   label: 'Purchase',      sortKey: 'purchase_price' },
   { key: 'recondition_cost', label: 'Recon',         sortKey: 'recondition_cost' },
+  { key: 'eta_recon',        label: 'ETA Recon',     sortKey: 'eta_recon' },
   { key: 'allIn',            label: 'All-In' },
   { key: 'asking_price',     label: 'Asking Price',  sortKey: 'asking_price' },
   { key: 'date_sold',        label: 'Date Sold',     sortKey: 'date_sold',        filterable: true },
@@ -962,6 +964,7 @@ const cols: Col[] = [
                           <td style={TD}>{truck.bought_from || '—'}</td>
                           <td style={TD}>{money(truck.purchase_price||0)}</td>
                           <td style={TD}>{money(truck.recondition_cost||0)}</td>
+                          <td style={TD}>{truck.eta_recon ? fmt(truck.eta_recon) : '—'}</td>
                           <td style={TD}>{money(allIn)}</td>
                           <td style={{ ...TD, color:'var(--blue)', fontWeight:600 }}>{money(truck.asking_price)}</td>
                           <td style={TD}>{truck.date_sold ? fmt(truck.date_sold) : '—'}</td>
