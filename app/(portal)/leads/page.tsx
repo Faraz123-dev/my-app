@@ -458,6 +458,7 @@ async function promoteToInventory(leadId: string, data: ReturnType<typeof buildP
             { label: 'Total',    value: counts.total,    color: 'var(--text)',  filter: '' },
             { label: 'Offer Sent',     value: counts.sent,     color: 'var(--gold)',   filter: 'Offer Sent' },
             { label: 'Accepted', value: counts.accepted, color: 'var(--green)',  filter: 'Offer Accepted' },
+            { label: 'Rejected', value: leads.filter(l => l.status === 'Offer Rejected').length, color: 'var(--red)', filter: 'Offer Rejected' },
           ].map(s => (
             <div key={s.label} onClick={() => setQuickFilter(qf => qf === s.filter ? '' : s.filter)}
               style={{ background: 'var(--card-bg)', border: `1px solid ${quickFilter === s.filter ? s.color : 'var(--card-border)'}`, borderRadius: 99, padding: '5px 12px', fontSize: 14, color: 'var(--text)', cursor: 'pointer', transition: 'all 0.15s' }}>
