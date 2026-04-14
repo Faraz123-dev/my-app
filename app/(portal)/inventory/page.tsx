@@ -368,6 +368,7 @@ export default function InventoryPage() {
   const [trucks,        setTrucks]        = useState<Truck[]>([])
   const [photoMap,      setPhotoMap]      = useState<Record<string, TruckPhoto[]>>({})
   const [reconMap,      setReconMap]      = useState<Record<string, ReconPhoto[]>>({})
+  const [profitMap, setProfitMap] = useState<Record<string, number | null>>({})
   const [loading,       setLoading]       = useState(true)
   const [error,         setError]         = useState<string | null>(null)
   const [search,        setSearch]        = useState('')
@@ -415,10 +416,11 @@ export default function InventoryPage() {
 
   async function loadAll() {
     setLoading(true)
-    const [{ data: truckData, error: truckErr }, { data: photoData }, { data: reconData }] = await Promise.all([
+    const [{ data: truckData, error: truckErr }, { data: photoData }, { data: reconData }, { data: profitData }] = await Promise.all([
       supabase.from('Inventory Data').select('*'),
       supabase.from('truck_photos').select('*').order('sort_order'),
       supabase.from('truck_recon_photos').select('*').order('sort_order'),
+      supabase.from('truck_profit_summary').select('truck_id, net_profit'),
     ])
     if (truckErr) { setError(truckErr.message); setLoading(false); return }
     setTrucks(truckData || [])
@@ -432,6 +434,9 @@ export default function InventoryPage() {
     for (const p of (reconData || []) as ReconPhoto[]) {
       if (!rMap[p.truck_id]) rMap[p.truck_id] = []
       rMap[p.truck_id].push(p)
+    const pftMap: Record<string, number | null> = {}
+    for (const p of (profitData || []) as any[]) { pftMap[p.truck_id] = p.net_profit }
+    setProfitMap(pftMap)
     }
     setReconMap(rMap)
     const { count } = await supabase.from('alert_queue').select('*', { count: 'exact', head: true })
@@ -752,7 +757,7 @@ const cols: Col[] = [
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))', gap:1, background:'var(--border2)' }}>
                     {qTrucks.sort((a,b) => (a.bought_on||'').localeCompare(b.bought_on||'')).map(truck => {
                       const allIn  = (truck.purchase_price||0) + (truck.recondition_cost||0)
-                      const profit = truck.sold_price != null ? truck.sold_price - allIn : null
+                      const profit = profitMap[truck.id] !== undefined ? profitMap[truck.id] : (truck.sold_price != null ? truck.sold_price - allIn : null)                      
                       const sc     = statusColors[truck.status] || { bg:'rgba(255,255,255,0.04)', color:'#888', border:'rgba(255,255,255,0.1)' }
                       const photos = photoMap[truck.id] || []
                       return (
