@@ -372,9 +372,9 @@ export default function InventoryPage() {
   const [search,        setSearch]        = useState('')
   const [showAddModal,  setShowAddModal]  = useState(false)
   const [isMobile,      setIsMobile]      = useState(false)
-  const [viewMode,      setViewMode]      = useState<'cards' | 'table'>('table')
-  const [sortCol,       setSortCol]       = useState<keyof Truck>('stock_number')
-  const [sortDir,       setSortDir]       = useState<SortDir>('desc')
+  const [viewMode,      setViewMode]      = useState<'cards' | 'table' | 'quarters'>('table')
+  const [sortCol,       setSortCol]       = useState('')
+  const [sortDir,          setSortDir]       = useState<SortDir>('desc')
   const [colFilters,    setColFilters]    = useState<Partial<Record<keyof Truck, string>>>({})
   const [filterPopup,   setFilterPopup]   = useState<{ col: keyof Truck; x: number; y: number } | null>(null)
   const [filterSearch,  setFilterSearch]  = useState('')
@@ -552,7 +552,7 @@ export default function InventoryPage() {
     setSendingAlerts(false)
   }
 
-  const filtered = trucks
+const filtered = trucks
     .filter(t => {
       const q = search.toLowerCase()
       if (q && ![t.vin, t.make, t.model, t.customer, t.bought_from, t.stock_number].some(v => v?.toLowerCase().includes(q))) return false
@@ -566,6 +566,7 @@ export default function InventoryPage() {
       if (quickFilter === 'instock') return t.status !== 'Sold'
       if (quickFilter === 'sold') return t.status === 'Sold'
       if (quickFilter === 'pending') return t.payment_status === 'Unpaid'
+      if (quickFilter.startsWith('Q')) return getQuarter(t.bought_on) === quickFilter
       return true
     })
     .sort((a, b) => {
@@ -582,6 +583,30 @@ export default function InventoryPage() {
   const activeFilterCount = Object.values(colFilters).filter(Boolean).length
   function clearAllFilters() { setColFilters({}) }
 
+function getQuarter(dateStr: string | null): string | null {
+    if (!dateStr) return null
+    const d = new Date(dateStr + 'T12:00:00')
+    if (isNaN(d.getTime())) return null
+    return `Q${Math.ceil((d.getMonth() + 1) / 3)} ${d.getFullYear()}`
+  }
+
+  const quarterMap: Record<string, Truck[]> = {}
+  for (const t of filtered) {
+    const q = getQuarter(t.bought_on) || 'Unknown'
+    if (!quarterMap[q]) quarterMap[q] = []
+    quarterMap[q].push(t)
+  }
+  const quarters = Object.keys(quarterMap).sort((a, b) => {
+    if (a === 'Unknown') return 1; if (b === 'Unknown') return -1
+    const [qa, ya] = a.split(' '); const [qb, yb] = b.split(' ')
+    return Number(ya) !== Number(yb) ? Number(yb) - Number(ya) : Number(qb[1]) - Number(qa[1])
+  })
+
+  const allQuarters = Array.from(new Set(trucks.map(t => getQuarter(t.bought_on)).filter(Boolean) as string[]))
+    .sort((a, b) => {
+      const [qa, ya] = a.split(' '); const [qb, yb] = b.split(' ')
+      return Number(ya) !== Number(yb) ? Number(ya) - Number(yb) : Number(qa[1]) - Number(qb[1])
+    })
   const IS: React.CSSProperties = { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '10px 14px', color: 'var(--text)', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui,sans-serif' }
   const LS: React.CSSProperties = { fontSize: 13, color: 'var(--text2)', marginBottom: 6, display: 'block', fontWeight: 500 }
   const TD: React.CSSProperties = { padding: '12px 14px', color: 'var(--text)', whiteSpace: 'nowrap', fontSize: 15 }
@@ -658,6 +683,18 @@ const cols: Col[] = [
               {s.label} <span style={{ color:s.color, fontWeight:700 }}>{s.value}</span>
             </div>
           ))}
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', width:'100%', marginTop:6 }}>
+            <span style={{ fontSize:10, color:'var(--text4)', fontWeight:700, letterSpacing:'0.1em' }}>BY QUARTER</span>
+            {allQuarters.map(q => (
+              <div key={q} onClick={() => setQuickFilter(qf => qf === q ? '' : q)}
+                style={{ background:'var(--card-bg)', border:`1px solid ${quickFilter === q ? 'var(--gold)' : 'var(--card-border)'}`, borderRadius:99, padding:'4px 10px', fontSize:12, color: quickFilter === q ? 'var(--gold)' : 'var(--text3)', cursor:'pointer', fontWeight: quickFilter === q ? 700 : 400, transition:'all 0.15s' }}>
+                {q}
+                <span style={{ marginLeft:5, color: quickFilter === q ? 'var(--gold)' : 'var(--text4)', fontWeight:700, fontSize:11 }}>
+                  {trucks.filter(t => getQuarter(t.bought_on) === q).length}
+                </span>
+              </div>
+            ))}
+          </div>
           {activeFilterCount > 0 && (
             <button onClick={clearAllFilters} style={{ background:'var(--gold-dim)', border:'1px solid var(--gold)', borderRadius:99, padding:'5px 12px', fontSize:11, color:'var(--gold)', fontWeight:700, cursor:'pointer' }}>
               {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''} × clear
@@ -665,11 +702,11 @@ const cols: Col[] = [
           )}
           {!isMobile && (
             <div style={{ marginLeft:'auto', display:'flex', background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:8, overflow:'hidden' }}>
-              {(['cards','table'] as const).map(m => (
-                <button key={m} onClick={() => setViewMode(m)} style={{ padding:'6px 14px', fontSize:13, cursor:'pointer', border:'none', background: viewMode===m ? 'var(--gold)' : 'transparent', color: viewMode===m ? '#000' : 'var(--text3)', fontWeight: viewMode===m ? 700 : 400, transition:'all 0.15s' }}>
-                  {m === 'cards' ? '▦' : '☰'}
-                </button>
-              ))}
+          {(['cards','table','quarters'] as const).map(m => (
+            <button key={m} onClick={() => setViewMode(m)} style={{ padding:'6px 14px', fontSize:13, cursor:'pointer', border:'none', background: viewMode===m ? 'var(--gold)' : 'transparent', color: viewMode===m ? '#000' : 'var(--text3)', fontWeight: viewMode===m ? 700 : 400, transition:'all 0.15s' }}>
+            {m === 'cards' ? '▦' : m === 'table' ? '☰' : '⊞'}
+            </button>
+          ))}
             </div>
           )}
         </div>
@@ -680,7 +717,82 @@ const cols: Col[] = [
             <input style={{ ...IS, paddingLeft:36, minHeight:44 }} placeholder="Search VIN, Make, Model, Stock #..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
         </div>
-
+        {!loading && !error && viewMode === 'quarters' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+            {quarters.map(q => {
+              const qTrucks = quarterMap[q]
+              const totalSpend  = qTrucks.reduce((s,t) => s + (t.purchase_price||0) + (t.recondition_cost||0), 0)
+              const totalRev    = qTrucks.filter(t => t.sold_price != null).reduce((s,t) => s + (t.sold_price||0), 0)
+              const totalProfit = qTrucks.filter(t => t.sold_price != null).reduce((s,t) => s + (t.sold_price||0) - (t.purchase_price||0) - (t.recondition_cost||0), 0)
+              const soldCount   = qTrucks.filter(t => t.status === 'Sold').length
+              const inStockQ    = qTrucks.filter(t => t.status !== 'Sold').length
+              return (
+                <div key={q} style={{ background:'var(--card-bg)', border:'1px solid var(--card-border)', borderRadius:14, overflow:'hidden' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', borderBottom:'1px solid var(--border)', background:'var(--surface)' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                      <span style={{ fontSize:16, fontWeight:800, color:'var(--gold)', letterSpacing:'-0.02em' }}>{q}</span>
+                      <span style={{ fontSize:12, color:'var(--text4)', fontWeight:500 }}>{qTrucks.length} truck{qTrucks.length !== 1 ? 's' : ''}</span>
+                      {inStockQ > 0 && <span style={{ background:'var(--gold-dim)', color:'var(--gold)', border:'1px solid var(--gold)', borderRadius:99, padding:'2px 8px', fontSize:10, fontWeight:700 }}>{inStockQ} in stock</span>}
+                      {soldCount > 0 && <span style={{ background:'var(--green-dim)', color:'var(--green)', border:'1px solid var(--green)', borderRadius:99, padding:'2px 8px', fontSize:10, fontWeight:700 }}>{soldCount} sold</span>}
+                    </div>
+                    <div style={{ display:'flex', gap:20, alignItems:'center' }}>
+                      {[
+                        { l:'SPEND',   v: `$${totalSpend.toLocaleString('en-CA',{minimumFractionDigits:0})}`, c:'var(--text2)' },
+                        { l:'REVENUE', v: totalRev > 0 ? `$${totalRev.toLocaleString('en-CA',{minimumFractionDigits:0})}` : '—', c:'var(--blue)' },
+                        { l:'PROFIT',  v: soldCount > 0 ? `${totalProfit<0?'-':''}$${Math.abs(totalProfit).toLocaleString('en-CA',{minimumFractionDigits:0})}` : '—', c: totalProfit>=0 ? 'var(--green)' : 'var(--red)' },
+                      ].map(s => (
+                        <div key={s.l} style={{ textAlign:'right' }}>
+                          <div style={{ fontSize:9, color:'var(--text4)', letterSpacing:'0.1em', fontWeight:700, marginBottom:2 }}>{s.l}</div>
+                          <div style={{ fontSize:14, fontWeight:800, color:s.c }}>{s.v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))', gap:1, background:'var(--border2)' }}>
+                    {qTrucks.sort((a,b) => (a.bought_on||'').localeCompare(b.bought_on||'')).map(truck => {
+                      const allIn  = (truck.purchase_price||0) + (truck.recondition_cost||0)
+                      const profit = truck.sold_price != null ? truck.sold_price - allIn : null
+                      const sc     = statusColors[truck.status] || { bg:'rgba(255,255,255,0.04)', color:'#888', border:'rgba(255,255,255,0.1)' }
+                      const photos = photoMap[truck.id] || []
+                      return (
+                        <div key={truck.id} onClick={() => window.location.href = `/inventory/${truck.id}`}
+                          style={{ background:'var(--card-bg)', padding:'12px 14px', cursor:'pointer', transition:'background 0.15s' }}
+                          onMouseEnter={e => (e.currentTarget.style.background='var(--hover)')}
+                          onMouseLeave={e => (e.currentTarget.style.background='var(--card-bg)')}>
+                          <div style={{ display:'flex', alignItems:'flex-start', gap:10, marginBottom:8 }}>
+                            {photos[0] && <img src={photos[0].url} alt="" style={{ width:48, height:36, objectFit:'cover', borderRadius:6, flexShrink:0, border:'1px solid var(--border)' }} />}
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2, flexWrap:'wrap' }}>
+                                {truck.stock_number && <span style={{ fontSize:9, fontFamily:'monospace', fontWeight:800, color:'var(--gold)', background:'var(--gold-dim)', border:'1px solid var(--gold)', borderRadius:4, padding:'1px 5px' }}>{truck.stock_number}</span>}
+                                <span style={{ background:sc.bg, color:sc.color, border:`1px solid ${sc.border}`, borderRadius:99, padding:'1px 7px', fontSize:9, fontWeight:600 }}>{truck.status}</span>
+                              </div>
+                              <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{truck.year} {truck.make} {truck.model}</div>
+                              <div style={{ fontSize:11, color:'var(--text4)', fontFamily:'monospace', marginTop:1 }}>{truck.vin}</div>
+                            </div>
+                          </div>
+                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6 }}>
+                            {[
+                              { l:'ALL-IN', v:`$${allIn.toLocaleString('en-CA',{minimumFractionDigits:0})}`, c:'var(--text2)' },
+                              { l:'SOLD',   v: truck.sold_price ? `$${truck.sold_price.toLocaleString('en-CA',{minimumFractionDigits:0})}` : '—', c:'var(--text2)' },
+                              { l:'PROFIT', v: profit==null ? '—' : `${profit<0?'-':''}$${Math.abs(profit).toLocaleString('en-CA',{minimumFractionDigits:0})}`, c: profit==null?'var(--text4)':profit>=0?'var(--green)':'var(--red)' },
+                            ].map(s => (
+                              <div key={s.l} style={{ background:'var(--hover)', borderRadius:6, padding:'5px 7px' }}>
+                                <div style={{ fontSize:8, color:'var(--text4)', letterSpacing:'0.08em', fontWeight:700, marginBottom:2 }}>{s.l}</div>
+                                <div style={{ fontSize:12, fontWeight:700, color:s.c }}>{s.v}</div>
+                              </div>
+                            ))}
+                          </div>
+                          {truck.customer && <div style={{ fontSize:11, color:'var(--text3)', marginTop:6 }}>→ {truck.customer}</div>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+            <div style={{ textAlign:'center', padding:'12px 0', fontSize:12, color:'var(--text4)' }}>{filtered.length} of {trucks.length} trucks across {quarters.length} quarters</div>
+          </div>
+        )}
         {loading ? (
           <div style={{ display:'flex', justifyContent:'center', padding:60 }}>
             <div style={{ width:36, height:36, border:'2px solid transparent', borderTopColor:'var(--gold)', borderRadius:'50%', animation:'spin 0.7s linear infinite' }} />
