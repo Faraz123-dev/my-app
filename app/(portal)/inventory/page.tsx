@@ -816,7 +816,7 @@ const cols: Col[] = [
                 const photos      = photoMap[truck.id] || []
                 const reconPhotos = reconMap[truck.id] || []
                 const allIn  = (truck.purchase_price||0) + (truck.recondition_cost||0)
-                const profit = truck.sold_price != null ? truck.sold_price - allIn : null
+                const profit = profitMap[truck.id] !== undefined ? profitMap[truck.id] : (truck.sold_price != null ? truck.sold_price - allIn : null)
                 const sc = statusColors[truck.status] || { bg:'rgba(255,255,255,0.04)', color:'#888', border:'rgba(255,255,255,0.1)' }
                 return (
                   <div key={truck.id} className="inv-card" onClick={() => window.location.href = `/inventory/${truck.id}`}>
@@ -940,7 +940,7 @@ const cols: Col[] = [
                       const photos      = photoMap[truck.id] || []
                       const reconPhotos = reconMap[truck.id] || []
                       const allIn  = (truck.purchase_price||0) + (truck.recondition_cost||0)
-                      const profit = truck.sold_price != null ? truck.sold_price - allIn : null
+                      const profit = profitMap[truck.id] !== undefined ? profitMap[truck.id] : (truck.sold_price != null ? truck.sold_price - allIn : null)
                       const sc = statusColors[truck.status] || { bg:'rgba(255,255,255,0.04)', color:'#888', border:'rgba(255,255,255,0.1)' }
                       return (
                         <tr key={truck.id} onClick={() => window.location.href = `/inventory/${truck.id}`} style={{ borderBottom:'1px solid var(--border2)', cursor:'pointer', transition:'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background='var(--hover)')} onMouseLeave={e => (e.currentTarget.style.background='transparent')}><td style={{ padding:'10px 12px', fontFamily:'monospace', fontSize:13, fontWeight:700, color:'var(--gold)', whiteSpace:'nowrap' }}>
