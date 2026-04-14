@@ -318,42 +318,60 @@ export default function InvoicesPage() {
           </div>
         )}
 
-        {/* ADD MODAL */}
-        {showModal && (
-          <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(10px)', padding: 20 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Add Vendor Invoice</h2>
-                <button onClick={() => setShowModal(false)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', width: 32, height: 32, borderRadius: '50%', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+    {/* ADD MODAL */}
+    {showModal && (
+      <div onClick={() => setShowModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(10px)', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 20, padding: 28, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Add Vendor Invoice</h2>
+            <button onClick={() => setShowModal(false)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', width: 32, height: 32, borderRadius: '50%', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={LS}>Linked Truck *</label>
+            <select style={{ ...IS, cursor: 'pointer' }} value={form.truck_id} onChange={e => setForm(p => ({ ...p, truck_id: e.target.value }))}>
+              <option value="">— Select a truck —</option>
+              {trucks.map(t => <option key={t.id} value={t.id}>{truckLabel(t)}</option>)}
+            </select>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div><label style={LS}>Vendor *</label><input style={IS} placeholder="e.g. Ryder Parts" value={form.vendor} onChange={e => setForm(p => ({ ...p, vendor: e.target.value }))} /></div>
+            <div><label style={LS}>Subtotal *</label><input style={IS} type="number" placeholder="5000" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} /></div>
+          </div>
+          {form.amount && parseFloat(form.amount) > 0 && (
+            <div style={{ background: 'var(--hover)', border: '1px solid var(--border2)', borderRadius: 10, padding: '12px 16px', marginBottom: 14, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 4 }}>SUBTOTAL</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>${parseFloat(form.amount).toLocaleString('en-CA', { minimumFractionDigits: 2 })}</div>
               </div>
-              <div style={{ marginBottom: 14 }}>
-                <label style={LS}>Linked Truck *</label>
-                <select style={{ ...IS, cursor: 'pointer' }} value={form.truck_id} onChange={e => setForm(p => ({ ...p, truck_id: e.target.value }))}>
-                  <option value="">— Select a truck —</option>
-                  {trucks.map(t => <option key={t.id} value={t.id}>{truckLabel(t)}</option>)}
-                </select>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 4 }}>HST (13%)</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--gold)' }}>${(parseFloat(form.amount) * 0.13).toLocaleString('en-CA', { minimumFractionDigits: 2 })}</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-                <div><label style={LS}>Vendor *</label><input style={IS} placeholder="e.g. Ryder Parts" value={form.vendor} onChange={e => setForm(p => ({ ...p, vendor: e.target.value }))} /></div>
-                <div><label style={LS}>Amount *</label><input style={IS} type="number" placeholder="5000" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} /></div>
-              </div>
-              <div style={{ marginBottom: 14 }}><label style={LS}>Description</label><input style={IS} placeholder="e.g. Engine repair parts" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 22 }}>
-                <div><label style={LS}>Date</label><input style={IS} type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} /></div>
-                <div><label style={LS}>Status</label>
-                  <select style={{ ...IS, cursor: 'pointer' }} value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
-                    <option>Unpaid</option><option>Paid</option><option>Overdue</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => setShowModal(false)} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '13px', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
-                <button onClick={saveInvoice} disabled={saving} style={{ flex: 2, background: saving ? 'var(--hover)' : 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: saving ? 'var(--text3)' : '#000', borderRadius: 12, padding: '13px', fontSize: 13, fontWeight: 800, cursor: saving ? 'default' : 'pointer' }}>{saving ? 'Saving...' : 'Add Invoice'}</button>
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text4)', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 4 }}>TOTAL</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--green)' }}>${(parseFloat(form.amount) * 1.13).toLocaleString('en-CA', { minimumFractionDigits: 2 })}</div>
               </div>
             </div>
+          )}
+          <div style={{ marginBottom: 14 }}>
+            <label style={LS}>Description</label>
+            <input style={IS} placeholder="e.g. Engine repair parts" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
           </div>
-        )}
-
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 22 }}>
+            <div><label style={LS}>Date</label><input style={IS} type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} /></div>
+            <div><label style={LS}>Status</label>
+              <select style={{ ...IS, cursor: 'pointer' }} value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
+                <option>Unpaid</option><option>Paid</option><option>Overdue</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setShowModal(false)} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '13px', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>Cancel</button>
+            <button onClick={saveInvoice} disabled={saving} style={{ flex: 2, background: saving ? 'var(--hover)' : 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: saving ? 'var(--text3)' : '#000', borderRadius: 12, padding: '13px', fontSize: 13, fontWeight: 800, cursor: saving ? 'default' : 'pointer' }}>{saving ? 'Saving...' : 'Add Invoice'}</button>
+          </div>
+        </div>
+      </div>
+    )}
         {/* EDIT MODAL */}
         {editInv && (
           <div onClick={() => setEditInv(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, backdropFilter: 'blur(10px)', padding: 20 }}>

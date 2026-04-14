@@ -373,7 +373,7 @@ export default function InventoryPage() {
   const [showAddModal,  setShowAddModal]  = useState(false)
   const [isMobile,      setIsMobile]      = useState(false)
   const [viewMode,      setViewMode]      = useState<'cards' | 'table'>('table')
-  const [sortCol,       setSortCol]       = useState<keyof Truck>('bought_on')
+  const [sortCol,       setSortCol]       = useState<keyof Truck>('stock_number')
   const [sortDir,       setSortDir]       = useState<SortDir>('desc')
   const [colFilters,    setColFilters]    = useState<Partial<Record<keyof Truck, string>>>({})
   const [filterPopup,   setFilterPopup]   = useState<{ col: keyof Truck; x: number; y: number } | null>(null)
@@ -445,7 +445,7 @@ export default function InventoryPage() {
       .from('Inventory Data')
       .select('stock_number')
       .not('stock_number', 'is', null)
-      .order('stock_number', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1)
     const last = data?.[0]?.stock_number
     if (last && /^A&S-\d{6}$/.test(last)) {
@@ -600,7 +600,7 @@ const cols: Col[] = [
   { key: 'ratio',            label: 'Ratio',         sortKey: 'ratio' },
   { key: 'found_by',         label: 'Found By',      sortKey: 'found_by',         filterable: true },
   { key: 'delivered_by',     label: 'Brought In',    sortKey: 'delivered_by',     filterable: true },
-  { key: 'towed_by',         label: 'Towed By',      sortKey: 'towed_by' },        // ← ADD THIS
+  { key: 'towed_by',         label: 'Towed By',      sortKey: 'towed_by' },        
   { key: 'from_location',    label: 'From (Location)',          sortKey: 'from_location' },
   { key: 'bought_from',      label: 'Bought From',   sortKey: 'bought_from',      filterable: true },
   { key: 'purchase_price',   label: 'Purchase',      sortKey: 'purchase_price' },
@@ -902,83 +902,136 @@ const cols: Col[] = [
           </div>
         )}
 
-        {/* ── ADD MODAL ── */}
-        {showAddModal && (
-          <div onClick={() => setShowAddModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(8px)', padding: isMobile ? 0 : 20 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width:'100%', maxWidth: isMobile ? '100%' : 580, maxHeight:'92vh', overflowY:'auto' }}>
-              {isMobile && <div style={{ width:36, height:4, background:'var(--border)', borderRadius:99, margin:'0 auto 20px' }} />}
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-                <h2 style={{ fontSize:20, fontWeight:800, color:'var(--text)' }}>Add New Truck</h2>
-                <button onClick={() => setShowAddModal(false)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:18, width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+{/* ── ADD MODAL ── */}
+      {showAddModal && (
+        <div onClick={() => setShowAddModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(8px)', padding:20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:20, padding:28, width:'100%', maxWidth:860, maxHeight:'92vh', overflowY:'auto' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+              <h2 style={{ fontSize:20, fontWeight:800, color:'var(--text)' }}>Add New Truck</h2>
+              <button onClick={() => setShowAddModal(false)} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:18, width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center' }}>×</button>
+            </div>
+
+            {/* Row 1: Stock, Status, Bought On */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:14 }}>
+              <div>
+                <label style={LS}>Stock Number <span style={{ color:'var(--text4)', fontWeight:400 }}>(auto if blank)</span></label>
+                <input style={{ ...IS, minHeight:44, fontFamily:'monospace' }} placeholder="A&S-000001" value={newTruck.stock_number} onChange={e => setNewTruck(p=>({...p,stock_number:e.target.value}))} />
               </div>
+              <div>
+                <label style={LS}>Status</label>
+                <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={newTruck.status} onChange={e => setNewTruck(p=>({...p,status:e.target.value}))}>
+                  {['Purchased','In Reconditioning','Ready to List','Listed','Deal Pending','Sold'].map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={LS}>Bought On</label>
+                <input type="date" style={{ ...IS, minHeight:44 }} value={newTruck.bought_on} onChange={e => setNewTruck(p=>({...p,bought_on:e.target.value}))} />
+              </div>
+            </div>
+
+            {/* Row 2: VIN, Year, Make, Model */}
+            <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:12, marginBottom:14 }}>
+              <div>
+                <label style={LS}>VIN *</label>
+                <input style={{ ...IS, minHeight:44, fontFamily:'monospace' }} placeholder="17-CHARACTER VIN" value={newTruck.vin} onChange={e => setNewTruck(p=>({...p,vin:e.target.value}))} maxLength={17} />
+              </div>
+              <div>
+                <label style={LS}>Year</label>
+                <input style={{ ...IS, minHeight:44 }} placeholder="2020" value={newTruck.year} onChange={e => setNewTruck(p=>({...p,year:e.target.value}))} />
+              </div>
+              <div>
+                <label style={LS}>Make</label>
+                <input style={{ ...IS, minHeight:44 }} placeholder="Freightliner" value={newTruck.make} onChange={e => setNewTruck(p=>({...p,make:e.target.value}))} />
+              </div>
+              <div>
+                <label style={LS}>Model</label>
+                <input style={{ ...IS, minHeight:44 }} placeholder="Cascadia" value={newTruck.model} onChange={e => setNewTruck(p=>({...p,model:e.target.value}))} />
+              </div>
+            </div>
+
+            {/* Row 3: Colour, KMs, HP, Ratio */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:12, marginBottom:14 }}>
+              <div>
+                <label style={LS}>Colour</label>
+                <input style={{ ...IS, minHeight:44 }} placeholder="White" value={newTruck.colour} onChange={e => setNewTruck(p=>({...p,colour:e.target.value}))} />
+              </div>
+              <div>
+                <label style={LS}>KMs</label>
+                <input style={{ ...IS, minHeight:44 }} type="number" placeholder="450000" value={newTruck.kilometers} onChange={e => setNewTruck(p=>({...p,kilometers:e.target.value}))} />
+              </div>
+              <div>
+                <label style={LS}>Horsepower</label>
+                <input style={{ ...IS, minHeight:44 }} type="number" placeholder="400" value={newTruck.horsepower} onChange={e => setNewTruck(p=>({...p,horsepower:e.target.value}))} />
+              </div>
+              <div>
+                <label style={LS}>Ratio</label>
+                <input style={{ ...IS, minHeight:44 }} placeholder="3.55" value={newTruck.ratio} onChange={e => setNewTruck(p=>({...p,ratio:e.target.value}))} />
+              </div>
+            </div>
+
+            {/* Row 4: Bought From, How Brought In, From Location */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:14 }}>
+              <div>
+                <label style={LS}>Bought From</label>
+                <input style={{ ...IS, minHeight:44 }} placeholder="e.g. Lussicam Inc." value={newTruck.bought_from} onChange={e => setNewTruck(p=>({...p,bought_from:e.target.value}))} />
+              </div>
+              <div>
+                <label style={LS}>How Was It Brought In?</label>
+                <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={newTruck.delivered_by} onChange={e => setNewTruck(p=>({...p,delivered_by:e.target.value}))}>
+                  <option value="">— Select —</option>
+                  {DELIVERY_METHODS.map(m => <option key={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={LS}>From (Location)</label>
+                <input style={{ ...IS, minHeight:44 }} placeholder="e.g. Hamilton, ON" value={newTruck.from_location} onChange={e => setNewTruck(p=>({...p,from_location:e.target.value}))} />
+              </div>
+            </div>
+
+            {/* Towed By (conditional) */}
+            {newTruck.delivered_by === 'Towed' && (
               <div style={{ marginBottom:14 }}>
-                <label style={LS}>Stock Number <span style={{ color:'var(--text4)', fontWeight:400 }}>(auto-generated if blank)</span></label>
-                <input style={{ ...IS, minHeight:44, fontFamily:'monospace' }} placeholder="e.g. A&S-000001" value={newTruck.stock_number} onChange={e => setNewTruck(p=>({...p,stock_number:e.target.value}))} />
+                <label style={LS}>Towed By</label>
+                <input style={{ ...IS, minHeight:44 }} placeholder="e.g. ABC Towing" value={newTruck.towed_by} onChange={e => setNewTruck(p=>({...p,towed_by:e.target.value}))} />
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-                <div><label style={LS}>Status</label>
-                  <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={newTruck.status} onChange={e => setNewTruck(p=>({...p,status:e.target.value}))}>
-                    {['Purchased','In Reconditioning','Ready to List','Listed','Deal Pending','Sold'].map(s=><option key={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div><label style={LS}>Bought On</label><input type="date" style={{ ...IS, minHeight:44 }} value={newTruck.bought_on} onChange={e => setNewTruck(p=>({...p,bought_on:e.target.value}))} /></div>
-              </div>
-              <div style={{ marginBottom:14 }}><label style={LS}>VIN *</label><input style={{ ...IS, minHeight:44, fontFamily:'monospace' }} placeholder="17-CHARACTER VIN" value={newTruck.vin} onChange={e => setNewTruck(p=>({...p,vin:e.target.value}))} maxLength={17} /></div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14 }}>
-                {([['Year','year','2020'],['Make','make','Freightliner'],['Model','model','Cascadia']] as const).map(([l,k,ph]) => (
-                  <div key={k}><label style={LS}>{l}</label><input style={{ ...IS, minHeight:44 }} placeholder={ph} value={(newTruck as any)[k]} onChange={e => setNewTruck(prev=>({...prev,[k]:e.target.value}))} /></div>
-                ))}
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-                <div><label style={LS}>Colour</label><input style={{ ...IS, minHeight:44 }} placeholder="White" value={newTruck.colour} onChange={e => setNewTruck(p=>({...p,colour:e.target.value}))} /></div>
-                <div><label style={LS}>KMs</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="450000" value={newTruck.kilometers} onChange={e => setNewTruck(p=>({...p,kilometers:e.target.value}))} /></div>
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-                <div><label style={LS}>Horsepower</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="400" value={newTruck.horsepower} onChange={e => setNewTruck(p=>({...p,horsepower:e.target.value}))} /></div>
-                <div><label style={LS}>Ratio</label><input style={{ ...IS, minHeight:44 }} placeholder="3.55" value={newTruck.ratio} onChange={e => setNewTruck(p=>({...p,ratio:e.target.value}))} /></div>
-              </div>
-              <div style={{ marginBottom:14 }}><label style={LS}>Bought From</label><input style={{ ...IS, minHeight:44 }} placeholder="e.g. Lussicam Inc." value={newTruck.bought_from} onChange={e => setNewTruck(p=>({...p,bought_from:e.target.value}))} /></div>
-              <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
-              <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.12em', fontWeight:700, marginBottom:12 }}>ACQUISITION DETAILS</div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-                <div>
-                  <label style={LS}>How Was It Brought In?</label>
-                  <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={newTruck.delivered_by} onChange={e => setNewTruck(p=>({...p,delivered_by:e.target.value}))}>
-                    <option value="">— Select —</option>
-                    {DELIVERY_METHODS.map(m => <option key={m}>{m}</option>)}
-                  </select>
-                </div>
-                <div><label style={LS}>From (Location)</label><input style={{ ...IS, minHeight:44 }} placeholder="e.g. Hamilton, ON" value={newTruck.from_location} onChange={e => setNewTruck(p=>({...p,from_location:e.target.value}))} /></div>              </div>
-                {newTruck.delivered_by === 'Towed' && (
-                  <div style={{ marginBottom:14 }}>
-                    <label style={LS}>Towed By</label>
-                    <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={newTruck.towed_by} onChange={e => setNewTruck(p=>({...p,towed_by:e.target.value}))}>
-                      <option value="">— Select —</option>
-                      {TEAM.map(m => <option key={m}>{m}</option>)}
-                    </select>                  </div>
-              )}
-              <div style={{ marginBottom:14 }}>
+            )}
+
+            {/* Row 5: Found By, Purchase, Recon, Asking */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:12, marginBottom:14 }}>
+              <div>
                 <label style={LS}>Found By</label>
                 <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={newTruck.found_by} onChange={e => setNewTruck(p=>({...p,found_by:e.target.value}))}>
                   <option value="">— Select —</option>
                   {TEAM.map(m => <option key={m}>{m}</option>)}
                 </select>
               </div>
-              <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-                <div><label style={LS}>Purchase Price ($)</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="35000" value={newTruck.purchase_price} onChange={e => setNewTruck(p=>({...p,purchase_price:e.target.value}))} /></div>
-                <div><label style={LS}>Recondition ($)</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="0" value={newTruck.recondition_cost} onChange={e => setNewTruck(p=>({...p,recondition_cost:e.target.value}))} /></div>
+              <div>
+                <label style={LS}>Purchase Price ($)</label>
+                <input style={{ ...IS, minHeight:44 }} type="number" placeholder="35000" value={newTruck.purchase_price} onChange={e => setNewTruck(p=>({...p,purchase_price:e.target.value}))} />
               </div>
-              <div style={{ marginBottom:14 }}><label style={LS}>Asking Price ($)</label><input style={{ ...IS, minHeight:44 }} type="number" placeholder="65000" value={newTruck.asking_price} onChange={e => setNewTruck(p=>({...p,asking_price:e.target.value}))} /></div>
-              <div style={{ marginBottom:20 }}><label style={LS}>Notes</label><textarea style={{ ...IS, height:70, resize:'vertical' }} placeholder="Any purchase notes..." value={newTruck.notes} onChange={e => setNewTruck(p=>({...p,notes:e.target.value}))} /></div>
-              <div style={{ display:'flex', gap:10 }}>
-                <button onClick={() => setShowAddModal(false)} style={{ flex:1, background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', borderRadius:12, padding:'14px', fontSize:14, cursor:'pointer', fontWeight:500, minHeight:50 }}>Cancel</button>
-                <button onClick={addTruck} style={{ flex:2, background:'linear-gradient(135deg,#EAB308,#d97706)', border:'none', color:'#000', borderRadius:12, padding:'14px', fontSize:14, fontWeight:800, cursor:'pointer', minHeight:50 }}>Add Truck</button>
+              <div>
+                <label style={LS}>Recondition ($)</label>
+                <input style={{ ...IS, minHeight:44 }} type="number" placeholder="0" value={newTruck.recondition_cost} onChange={e => setNewTruck(p=>({...p,recondition_cost:e.target.value}))} />
+              </div>
+              <div>
+                <label style={LS}>Asking Price ($)</label>
+                <input style={{ ...IS, minHeight:44 }} type="number" placeholder="65000" value={newTruck.asking_price} onChange={e => setNewTruck(p=>({...p,asking_price:e.target.value}))} />
               </div>
             </div>
-          </div>
-        )}
 
+            {/* Notes */}
+            <div style={{ marginBottom:20 }}>
+              <label style={LS}>Notes</label>
+              <textarea style={{ ...IS, height:70, resize:'vertical' }} placeholder="Any purchase notes..." value={newTruck.notes} onChange={e => setNewTruck(p=>({...p,notes:e.target.value}))} />
+            </div>
+
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setShowAddModal(false)} style={{ flex:1, background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', borderRadius:12, padding:'14px', fontSize:14, cursor:'pointer', fontWeight:500, minHeight:50 }}>Cancel</button>
+              <button onClick={addTruck} style={{ flex:2, background:'linear-gradient(135deg,#EAB308,#d97706)', border:'none', color:'#000', borderRadius:12, padding:'14px', fontSize:14, fontWeight:800, cursor:'pointer', minHeight:50 }}>Add Truck</button>
+            </div>
+          </div>
+        </div>
+      )}
         {/* ── EDIT MODAL ── */}
         {editTruck && (
           <div onClick={() => setEditTruck(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', zIndex:200, backdropFilter:'blur(10px)', padding: isMobile ? 0 : 20 }}>
@@ -1055,12 +1108,9 @@ const cols: Col[] = [
               {editForm.delivered_by === 'Towed' && (
                 <div style={{ marginBottom:14 }}>
                   <label style={LS}>Towed By</label>
-                  <select style={{ ...IS, minHeight:44, cursor:'pointer' }} value={editForm.towed_by||''} onChange={e => setEditForm(p=>({...p,towed_by:e.target.value}))}>
-                    <option value="">— Select —</option>
-                    {TEAM.map(m => <option key={m}>{m}</option>)}
-                  </select>                </div>
+                  <input style={{ ...IS, minHeight:44 }} placeholder="e.g. ABC Towing" value={editForm.towed_by||''} onChange={e => setEditForm(p=>({...p,towed_by:e.target.value}))} />
+                </div>
               )}
-
               <div style={{ height:1, background:'var(--border2)', marginBottom:14 }} />
 
               {/* Purchase + Recon */}

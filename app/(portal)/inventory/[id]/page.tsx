@@ -9,6 +9,9 @@ type Truck = {
   year: number | null; make: string | null; model: string | null
   colour: string | null; kilometers: number | null; bought_from: string | null
   purchase_price: number | null; recondition_cost: number | null
+  stock_number: string | null
+  horsepower: number | null
+  ratio: string | null
   date_sold: string | null; sold_price: number | null; customer: string | null
   payment_status: string | null; notes: string | null; photo_url: string | null
   listing_platform: string | null; listing_link: string | null
@@ -119,10 +122,11 @@ function UploadButton({ table, rowId, currentUrl, onUploaded }: { table: string;
         onDragLeave={() => setDragging(false)}
         onDrop={e => { e.preventDefault(); setDragging(false); const file = e.dataTransfer.files[0]; if (file) handleFile(file) }}
         onClick={() => fileRef.current?.click()}
-        style={{ border: `2px dashed ${dragging ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 10, padding: '12px 16px', cursor: 'pointer', textAlign: 'center', transition: 'border-color 0.15s', background: dragging ? 'var(--gold-dim)' : 'transparent' }}>
-        <div style={{ fontSize: 13, color: uploading ? 'var(--text4)' : dragging ? 'var(--gold)' : 'var(--text2)', fontWeight: 500 }}>
-          {uploading ? 'Uploading...' : currentUrl ? '🔄 Drop to replace or click to browse' : '📎 Drop file or click to upload'}
-        </div>
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: `1.5px dashed ${dragging ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 8, padding: '5px 12px', cursor: 'pointer', transition: 'all 0.15s', background: dragging ? 'var(--gold-dim)' : 'transparent', marginTop: 4 }}>
+        <span style={{ fontSize: 12 }}>📎</span>
+        <span style={{ fontSize: 12, color: uploading ? 'var(--text4)' : dragging ? 'var(--gold)' : 'var(--text3)', fontWeight: 500 }}>
+          {uploading ? 'Uploading...' : currentUrl ? 'Replace file' : 'Drop file or click to upload'}
+        </span>
       </div>
       <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }}
         onChange={e => { const file = e.target.files?.[0]; if (file) handleFile(file) }} />
@@ -569,8 +573,14 @@ export default function TruckDetailPage() {
             <div style={{ display:'flex', alignItems:'center', gap:12, minWidth:0 }}>
               <button onClick={() => router.push('/inventory')} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text2)', cursor:'pointer', fontSize:16, width:36, height:36, borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>←</button>
               <div style={{ minWidth:0 }}>
-                <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight:700, color:'var(--text)', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{truck.year} {truck.make} {truck.model}</h1>
-                <div style={{ display:'flex', gap:10, alignItems:'center', marginTop:3, flexWrap:'wrap' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                    {(truck as any).stock_number && (
+                      <span style={{ fontSize:11, fontFamily:'monospace', fontWeight:800, color:'var(--gold)', background:'var(--gold-dim)', border:'1px solid var(--gold)', borderRadius:6, padding:'2px 8px', flexShrink:0, letterSpacing:'0.05em' }}>
+                        {(truck as any).stock_number}
+                      </span>
+                    )}
+                    <h1 style={{ fontSize: isMobile ? 18 : 22, fontWeight:700, color:'var(--text)', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{truck.year} {truck.make} {truck.model}</h1>
+                  </div>                <div style={{ display:'flex', gap:10, alignItems:'center', marginTop:3, flexWrap:'wrap' }}>
                   <div style={{ fontSize:13, color:'var(--text)', fontFamily:'monospace', letterSpacing:'0.05em' }}>{truck.vin}</div>
                   {truck.found_by && <span style={{ fontSize:11, color:'var(--gold)', fontWeight:600, background:'var(--gold-dim)', borderRadius:99, padding:'1px 8px' }}>🔍 {truck.found_by}</span>}
                   {truck.delivered_by && <span style={{ fontSize:11, color:'var(--text3)' }}>{truck.delivered_by}{truck.from_location ? ` · ${truck.from_location}` : ''}</span>}
@@ -727,24 +737,7 @@ export default function TruckDetailPage() {
                   <UploadButton table="labor" rowId={l.id} currentUrl={l.invoice_url} onUploaded={url => setLabors(prev => prev.map(x => x.id===l.id ? {...x,invoice_url:url} : x))} />
                 </div>
               )},
-              { title:'Vendor Invoices', items: invoices, onAdd: () => setShowInvoiceModal(true), render: (inv: Invoice) => (
-                <div key={inv.id} className="cost-row" style={{ flexDirection:'column' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', width:'100%' }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:16, fontWeight:700, color:'#fff', marginBottom:2 }}>{inv.vendor}{inv.description ? ` — ${inv.description}` : ''}</div>
-                      <div style={{ fontSize:13, color:'var(--text2)' }}>{inv.date || 'No date'}</div>  
-                      <span style={{ background: inv.status==='Paid' ? 'var(--green-dim)' : 'var(--red-dim)', color: inv.status==='Paid' ? 'var(--green)' : 'var(--red)', borderRadius:99, padding:'2px 8px', fontSize:10, fontWeight:600, display:'inline-block', marginTop:4 }}>{inv.status}</span>
-                    </div>
-                    <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0, marginLeft:12 }}>
-                      <span style={{ fontSize:15, fontWeight:700, color:'var(--gold)' }}>${inv.amount.toLocaleString()}</span>
-                      <button onClick={() => setEditInvoice(inv)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:14, padding:4, minWidth:32, minHeight:32 }}>✏️</button>
-                      <button onClick={() => deleteRow('vendor_invoices', inv.id)} style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:16, padding:4, minWidth:32, minHeight:32 }}>🗑</button>
-                    </div>
-                  </div>
-                  <UploadButton table="vendor_invoices" rowId={inv.id} currentUrl={inv.invoice_url} onUploaded={url => setInvoices(prev => prev.map(x => x.id===inv.id ? {...x,invoice_url:url} : x))} />
-                </div>
-              )},
-            ].map(section => (
+].map(section => (
               <div key={section.title} style={SS}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
                   <h3 style={{ fontSize:15, fontWeight:700, color:'var(--text)', margin:0 }}>{section.title}</h3>
@@ -755,6 +748,92 @@ export default function TruckDetailPage() {
                   : (section.items as any[]).map(item => section.render(item))}
               </div>
             ))}
+{/* Vendor Invoices — grouped by vendor */}
+<div style={SS}>
+  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+    <h3 style={{ fontSize:15, fontWeight:700, color:'var(--text)', margin:0 }}>Vendor Invoices</h3>
+    <button onClick={() => setShowInvoiceModal(true)} style={{ background:'linear-gradient(135deg,#EAB308,#d97706)', border:'none', color:'#000', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:800, cursor:'pointer', minHeight:36 }}>+ Add</button>
+  </div>
+  {invoices.length === 0 ? (
+    <div style={{ textAlign:'center', padding:'20px 0', color:'var(--text4)', fontSize:13 }}>Nothing added yet</div>
+  ) : (
+    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      {Object.entries(
+        invoices.reduce<Record<string, Invoice[]>>((acc, inv) => {
+          if (!acc[inv.vendor]) acc[inv.vendor] = []
+          acc[inv.vendor].push(inv)
+          return acc
+        }, {})
+      ).map(([vendor, vendorInvoices]) => {
+        const vendorTotal = vendorInvoices.reduce((s, i) => s + i.amount, 0)
+        const allPaid = vendorInvoices.every(i => i.status === 'Paid')
+        return (
+          <div key={vendor} style={{ border:'1px solid var(--card-border)', borderRadius:12, overflow:'hidden' }}>
+            {/* Vendor header bar */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 16px', background:'linear-gradient(135deg, rgba(234,179,8,0.08), rgba(234,179,8,0.03))', borderBottom:'1px solid var(--gold)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ fontSize:13 }}>🏢</span>
+                <span style={{ fontSize:13, fontWeight:800, color:'var(--text)', letterSpacing:'0.02em' }}>{vendor}</span>
+                <span style={{ fontSize:11, color:'var(--text4)', marginLeft:4 }}>{vendorInvoices.length} invoice{vendorInvoices.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <span style={{ fontSize:11, fontWeight:700, color: allPaid ? 'var(--green)' : 'var(--orange)', background: allPaid ? 'var(--green-dim)' : 'var(--orange-dim)', borderRadius:99, padding:'2px 10px' }}>
+                  {allPaid ? '✓ All Paid' : 'Has Unpaid'}
+                </span>
+                <span style={{ fontSize:15, fontWeight:800, color:'var(--gold)' }}>${vendorTotal.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Table header */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 80px 90px', gap:0, padding:'8px 16px', background:'var(--hover)', borderBottom:'1px solid var(--border2)' }}>
+              {['Description', 'Date', 'Status', 'Amount'].map(h => (
+                <div key={h} style={{ fontSize:10, fontWeight:700, color:'var(--text4)', letterSpacing:'0.1em' }}>{h.toUpperCase()}</div>
+              ))}
+            </div>
+
+            {/* Invoice rows */}
+            {vendorInvoices.map((inv, idx) => (
+              <div key={inv.id}
+                style={{ display:'grid', gridTemplateColumns:'1fr 100px 80px 90px', gap:0, padding:'12px 16px', borderBottom: idx < vendorInvoices.length - 1 ? '1px solid var(--border2)' : 'none', background:'var(--card-bg)', transition:'background 0.15s', alignItems:'center' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--card-bg)')}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{inv.description || <span style={{ color:'var(--text4)', fontStyle:'italic' }}>—</span>}</div>
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                    {inv.invoice_url && (
+                      <a href={inv.invoice_url} target="_blank" rel="noreferrer"
+                        style={{ fontSize:10, fontWeight:600, color:'var(--blue)', background:'var(--blue-dim)', border:'1px solid var(--blue)', borderRadius:99, padding:'1px 8px', textDecoration:'none' }}>📄 View</a>
+                    )}
+                    <UploadButton table="vendor_invoices" rowId={inv.id} currentUrl={inv.invoice_url} onUploaded={url => setInvoices(prev => prev.map(x => x.id===inv.id ? {...x,invoice_url:url} : x))} />
+                  </div>
+                </div>
+                <div style={{ fontSize:12, color:'var(--text2)' }}>{inv.date || '—'}</div>
+                <div>
+                  <span style={{ fontSize:11, fontWeight:700, color: inv.status==='Paid' ? 'var(--green)' : 'var(--orange)', background: inv.status==='Paid' ? 'var(--green-dim)' : 'var(--orange-dim)', borderRadius:99, padding:'2px 8px' }}>
+                    {inv.status}
+                  </span>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:6, justifyContent:'space-between' }}>
+                  <span style={{ fontSize:14, fontWeight:800, color:'var(--gold)' }}>${inv.amount.toLocaleString()}</span>
+                  <div style={{ display:'flex', gap:2 }}>
+                    <button onClick={() => setEditInvoice(inv)}
+                      style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
+                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>✏️</button>
+                    <button onClick={() => deleteRow('vendor_invoices', inv.id)}
+                      style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
+                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })}
+    </div>
+  )}
+</div>
 
             {/* ── COMMISSIONS (after vendor invoices) ── */}
             <CommissionSection
@@ -865,8 +944,7 @@ export default function TruckDetailPage() {
               </div>
               <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(5,1fr)', gap:16 }}>
                 {[
-                  { label:'SOLD PRICE', value: truck.sold_price ? `$${truck.sold_price.toLocaleString()}` : null },
-                  { label:'SOLD DATE',  value: truck.date_sold },
+                  { label:'SOLD PRICE', value: truck.sold_price ? `$${truck.sold_price.toLocaleString()}` : '—', color: truck.sold_price ? 'var(--text)' : 'var(--text4)' },                  { label:'SOLD DATE',  value: truck.date_sold },
                   { label:'CUSTOMER',   value: truck.customer },
                   { label:'PAYMENT',    value: truck.payment_status },
                   { label:'STATUS',     value: truck.status, badge: true },
@@ -903,8 +981,26 @@ export default function TruckDetailPage() {
               {DOC_CATEGORIES.map(cat => {
                 const catDocs = docsByCategory[cat] || []
                 return (
-                  <div key={cat} style={{ background:'var(--card-bg)', border:`1px solid ${catDocs.length > 0 ? 'var(--gold)' : 'var(--card-border)'}`, borderRadius:12, padding:'14px' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+              <div key={cat}
+                onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--gold)'; e.currentTarget.style.background = 'var(--gold-dim)' }}
+                onDragLeave={e => { e.currentTarget.style.borderColor = catDocs.length > 0 ? 'var(--gold)' : 'var(--card-border)'; e.currentTarget.style.background = 'var(--card-bg)' }}
+                onDrop={async e => {
+                  e.preventDefault()
+                  e.currentTarget.style.borderColor = catDocs.length > 0 ? 'var(--gold)' : 'var(--card-border)'
+                  e.currentTarget.style.background = 'var(--card-bg)'
+                  const file = e.dataTransfer.files[0]
+                  if (!file) return
+                  setUploadingDoc(true)
+                  const path = `docs/${id}/${cat}/${Date.now()}-${file.name}`
+                  const { error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true })
+                  if (!error) {
+                    const { data } = supabase.storage.from('invoices').getPublicUrl(path)
+                    await supabase.from('truck_documents').insert([{ truck_id: id, category: cat, name: file.name, url: data.publicUrl }])
+                    await fetchAll(false)
+                  }
+                  setUploadingDoc(false)
+                }}
+                style={{ background:'var(--card-bg)', border:`1px solid ${catDocs.length > 0 ? 'var(--gold)' : 'var(--card-border)'}`, borderRadius:12, padding:'14px', transition:'all 0.15s' }}>                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
                       <span style={{ fontSize:18, color: catDocs.length > 0 ? 'var(--gold)' : 'var(--text4)' }}>📁</span>
                       <div style={{ flex:1 }}>
                         <div style={{ fontSize:12, fontWeight:700, color:'var(--text)' }}>{cat}</div>
@@ -913,7 +1009,7 @@ export default function TruckDetailPage() {
                       <button onClick={() => { setDocCategory(cat); docFileRef.current?.click() }} style={{ background:'var(--hover)', border:'1px solid var(--border)', color:'var(--text3)', borderRadius:99, padding:'3px 10px', fontSize:11, cursor:'pointer', fontWeight:600 }}>+ Add</button>
                     </div>
                     {catDocs.length === 0
-                      ? <div style={{ fontSize:11, color:'var(--text4)', fontStyle:'italic' }}>No files yet.</div>
+                    ? <div style={{ fontSize:11, color:'var(--text4)', fontStyle:'italic' }}>Drop a file here or click + Add</div>
                       : catDocs.map(doc => {
                           const isImage = /\.(jpg|jpeg|png|gif|webp|heic)$/i.test(doc.name)
                           return (

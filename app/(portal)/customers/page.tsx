@@ -36,7 +36,6 @@ const fmt = (d: string | null) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
-// ── CUSTOMER FORM (outside page component to avoid hydration error) ───────────
 function CustomerForm({ form, setForm, saving, onSave, onCancel }: {
   form: any; setForm: any; saving: boolean; onSave: () => void; onCancel: () => void
 }) {
@@ -62,7 +61,6 @@ function CustomerForm({ form, setForm, saving, onSave, onCancel }: {
   )
 }
 
-// ── PAGE ──────────────────────────────────────────────────────────────────────
 export default function CustomersPage() {
   const [customers,    setCustomers]    = useState<Customer[]>([])
   const [trucks,       setTrucks]       = useState<TruckPurchase[]>([])
@@ -91,6 +89,21 @@ export default function CustomersPage() {
     setCustomers(cData || [])
     setTrucks(tData || [])
     setLoading(false)
+  }
+
+  async function importFromInventory() {
+    const newOnes = trucks.filter(t =>
+      t.customer &&
+      !customers.some(c => c.name.toLowerCase().trim() === t.customer!.toLowerCase().trim())
+    )
+    if (newOnes.length === 0) return alert('All inventory customers are already in the system.')
+    if (!confirm(`Import ${newOnes.length} new customer${newOnes.length > 1 ? 's' : ''} from inventory?`)) return
+    const toInsert = Array.from(new Map(newOnes.map(t => [t.customer!.toLowerCase().trim(), t])).values())
+      .map(t => ({ name: t.customer! }))
+    const { error } = await supabase.from('customers').insert(toInsert)
+    if (error) { alert('Error: ' + error.message); return }
+    loadAll()
+    alert(`✅ Imported ${toInsert.length} customer${toInsert.length > 1 ? 's' : ''}!`)
   }
 
   function getTrucksForCustomer(customer: Customer): TruckPurchase[] {
@@ -149,21 +162,25 @@ export default function CustomersPage() {
       <style>{`@keyframes spin { to { transform:rotate(360deg) } }`}</style>
       <main style={{ padding: isMobile ? '16px' : '24px 20px', background: 'var(--bg)', minHeight: '100vh', color: 'var(--text)', fontFamily: 'system-ui,sans-serif' }}>
 
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 14 : 20 }}>
           <div>
             <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', fontWeight: 700, marginBottom: 4, opacity: 0.7 }}>CRM</div>
             <h1 style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.03em' }}>Customers</h1>
           </div>
-          <button onClick={() => { resetForm(); setShowAdd(true) }}
-            style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 99, padding: '9px 20px', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 16px rgba(234,179,8,0.35)', minHeight: 44 }}>
-            + Add Customer
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={importFromInventory}
+              style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 99, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', minHeight: 44 }}>
+              ⬇ Import from Inventory
+            </button>
+            <button onClick={() => { resetForm(); setShowAdd(true) }}
+              style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 99, padding: '9px 20px', fontSize: 13, fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 16px rgba(234,179,8,0.35)', minHeight: 44 }}>
+              + Add Customer
+            </button>
+          </div>
         </div>
 
         <div style={{ height: 1, background: 'linear-gradient(90deg,var(--gold),transparent)', marginBottom: isMobile ? 14 : 20 }} />
 
-        {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
           {[
             { label: 'Total Customers', value: customers.length, color: 'var(--text2)' },
@@ -176,14 +193,12 @@ export default function CustomersPage() {
           ))}
         </div>
 
-        {/* Search */}
         <div style={{ position: 'relative', marginBottom: 16 }}>
           <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)', fontSize: 15 }}>🔍</span>
           <input style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '10px 14px 10px 36px', color: 'var(--text)', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', minHeight: 44 } as React.CSSProperties}
             placeholder="Search name, company, phone, email..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
 
-        {/* List */}
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
             <div style={{ width: 36, height: 36, border: '2px solid transparent', borderTopColor: 'var(--gold)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -196,7 +211,7 @@ export default function CustomersPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {filtered.map(c => {
               const purchases = getTrucksForCustomer(c)
-              const totalSpent = purchases.reduce((s, t) => s + (t.sold_price || 0), 0)
+              const isImported = !c.phone && !c.email && !c.company && !c.address
               return (
                 <div key={c.id}
                   style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 14, padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}
@@ -211,6 +226,12 @@ export default function CustomersPage() {
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{c.name}</div>
                         {c.company && <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{c.company}</div>}
+                        {isImported && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                            <span style={{ background: 'var(--gold-dim)', color: 'var(--gold)', border: '1px solid var(--gold)', borderRadius: 99, padding: '1px 8px', fontSize: 10, fontWeight: 700 }}>Imported</span>
+                            <span style={{ fontSize: 11, color: 'var(--text4)' }}>No contact info — click Edit to add</span>
+                          </div>
+                        )}
                         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6 }}>
                           {c.phone && <span style={{ fontSize: 12, color: 'var(--text2)' }}>📞 {c.phone}</span>}
                           {c.email && <span style={{ fontSize: 12, color: 'var(--text2)' }}>✉️ {c.email}</span>}
@@ -218,14 +239,11 @@ export default function CustomersPage() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        {purchases.length > 0 && (
-                          <span style={{ background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid var(--green)', borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>
-                            {purchases.length} truck{purchases.length !== 1 ? 's' : ''}
-                          </span>
-                        )}
-                        {totalSpent > 0 && <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--gold)' }}>${totalSpent.toLocaleString()}</span>}
-                      </div>
+                      {purchases.length > 0 && (
+                        <span style={{ background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid var(--green)', borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>
+                          {purchases.length} truck{purchases.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
                       <div style={{ display: 'flex', gap: 6 }} onClick={e => e.stopPropagation()}>
                         <button onClick={() => openEdit(c)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text3)', borderRadius: 6, padding: '5px 10px', fontSize: 12, cursor: 'pointer' }}>✏️ Edit</button>
                         <button onClick={() => deleteCustomer(c.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, padding: '5px 8px' }}>🗑</button>
@@ -288,7 +306,6 @@ export default function CustomersPage() {
                       </div>
                       <button onClick={() => setViewCustomer(null)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
                     </div>
-
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
                       {[
                         { label: 'TRUCKS BOUGHT', value: String(purchases.length), color: 'var(--text)' },
@@ -300,7 +317,6 @@ export default function CustomersPage() {
                         </div>
                       ))}
                     </div>
-
                     <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
                       <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10 }}>CONTACT INFO</div>
                       {[
@@ -315,7 +331,6 @@ export default function CustomersPage() {
                       ))}
                       {viewCustomer.notes && <div style={{ marginTop: 10, fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>{viewCustomer.notes}</div>}
                     </div>
-
                     {purchases.length > 0 && (
                       <div>
                         <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10 }}>PURCHASE HISTORY</div>
@@ -337,7 +352,6 @@ export default function CustomersPage() {
                         </div>
                       </div>
                     )}
-
                     <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                       <button onClick={() => { setViewCustomer(null); openEdit(viewCustomer) }} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '12px', fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>✏️ Edit</button>
                       <button onClick={() => setViewCustomer(null)} style={{ flex: 1, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '12px', fontSize: 14, cursor: 'pointer', fontWeight: 800 }}>Close</button>
