@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type Truck = {
-  id: string; year: number | null; make: string | null; model: string | null
+  id: string; stock_number: string | null; year: number | null; make: string | null; model: string | null
   vin: string; colour: string | null; kilometers: number | null
   sold_price: number | null; customer: string | null; date_sold: string | null
 }
@@ -13,7 +13,7 @@ type BOS = {
   id: string; created_at: string; truck_id: string | null
   truck_year: number | null; truck_make: string | null; truck_model: string | null
   truck_vin: string | null; truck_colour: string | null; truck_km: number | null
-  buyer_name: string | null; buyer_address: string | null; buyer_phone: string | null
+  buyer_name: string | null; buyer_address: string | null; buyer_phone: string | null; buyer_company: string | null; sold_with_safety: boolean
   price: number; tax_rate: number; tax_amount: number; total: number
   deposit: number; sale_date: string | null; notes: string | null; invoice_number: string | null
 }
@@ -25,7 +25,7 @@ const TD: React.CSSProperties = { padding: '12px 14px', color: 'var(--text)', wh
 const emptyForm = {
   truck_id: '',
   truck_year: '', truck_make: '', truck_model: '', truck_vin: '', truck_colour: '', truck_km: '',
-  buyer_name: '', buyer_address: '',
+  buyer_name: '', buyer_address: '', buyer_phone: '',
   price: '', tax_rate: '13', deposit: '0', sale_date: new Date().toISOString().split('T')[0], notes: '',
   invoice_number: '',
   sold_with_safety: false,
