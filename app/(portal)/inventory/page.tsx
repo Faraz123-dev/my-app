@@ -374,7 +374,7 @@ export default function InventoryPage() {
   const [showAddModal,  setShowAddModal]  = useState(false)
   const [isMobile,      setIsMobile]      = useState(false)
   const [viewMode,      setViewMode]      = useState<'cards' | 'table' | 'quarters'>('table')
-  const [sortCol,       setSortCol]       = useState('')
+  const [sortCol,       setSortCol]       = useState('stock_number')
   const [selectedQuarter, setSelectedQuarter] = useState('all')
   const [sortDir,          setSortDir]       = useState<SortDir>('desc')
   const [colFilters,    setColFilters]    = useState<Partial<Record<keyof Truck, string>>>({})
