@@ -784,7 +784,7 @@ export default function TruckDetailPage() {
                 <span style={{ fontSize:11, fontWeight:700, color: allPaid ? 'var(--green)' : 'var(--orange)', background: allPaid ? 'var(--green-dim)' : 'var(--orange-dim)', borderRadius:99, padding:'2px 10px' }}>
                   {allPaid ? '✓ All Paid' : 'Has Unpaid'}
                 </span>
-                <span style={{ fontSize:15, fontWeight:800, color:'var(--gold)' }}>${vendorTotal.toLocaleString()}</span>
+                <span style={{ fontSize:15, fontWeight:800, color:'var(--gold)' }}>${vendorTotal.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
               </div>
             </div>
 
@@ -818,7 +818,7 @@ export default function TruckDetailPage() {
                   </span>
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:6, justifyContent:'space-between' }}>
-                  <span style={{ fontSize:14, fontWeight:800, color:'var(--gold)' }}>${inv.amount.toLocaleString()}</span>
+                  <span style={{ fontSize:14, fontWeight:800, color:'var(--gold)' }}>${inv.amount.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
                   <div style={{ display:'flex', gap:2 }}>
                     <button onClick={() => setEditInvoice(inv)}
                       style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
