@@ -757,105 +757,102 @@ export default function TruckDetailPage() {
                   : (section.items as any[]).map(item => section.render(item))}
               </div>
             ))}
-{/* Vendor Invoices — grouped by vendor */}
-<div style={SS}>
-  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-    <h3 style={{ fontSize:15, fontWeight:700, color:'var(--text)', margin:0 }}>Vendor Invoices</h3>
-    <button onClick={() => setShowInvoiceModal(true)} style={{ background:'linear-gradient(135deg,#EAB308,#d97706)', border:'none', color:'#000', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:800, cursor:'pointer', minHeight:36 }}>+ Add</button>
-  </div>
-  {invoices.length === 0 ? (
-    <div style={{ textAlign:'center', padding:'20px 0', color:'var(--text4)', fontSize:13 }}>Nothing added yet</div>
-  ) : (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-{(() => {
-        const grouped = invoices.reduce<Record<string, Invoice[]>>((acc, inv) => {
-          if (!acc[inv.vendor]) acc[inv.vendor] = []
-          acc[inv.vendor].push(inv)
-          return acc
-        }, {})
-        const order = vendorOrder.filter(v => grouped[v]).concat(Object.keys(grouped).filter(v => !vendorOrder.includes(v)))
-        return order.map(vendor => {
-        const vendorInvoices = grouped[vendor]
-        const vendorTotal = vendorInvoices.reduce((s, i) => s + i.amount, 0)
-        const allPaid = vendorInvoices.every(i => i.status === 'Paid')
-        return (
-<div key={vendor}
-  draggable
-  onDragStart={() => setDragVendor(vendor)}
-  onDragEnter={() => setDragOverVendor(vendor)}
-  onDragOver={e => e.preventDefault()}
-  onDragEnd={() => {
-    if (dragVendor && dragOverVendor && dragVendor !== dragOverVendor) {
-      const newOrder = [...vendorOrder.filter(v => Object.keys(grouped).includes(v)).concat(Object.keys(grouped).filter(v => !vendorOrder.includes(v)))]
-      const fromIdx = newOrder.indexOf(dragVendor)
-      const toIdx = newOrder.indexOf(dragOverVendor)
-      const reordered = [...newOrder]
-      const [moved] = reordered.splice(fromIdx, 1)
-      reordered.splice(toIdx, 0, moved)
-      setVendorOrder(reordered)
-    }
-    setDragVendor(null); setDragOverVendor(null)
-  }}
-  style={{ border:`2px solid ${dragOverVendor === vendor ? 'var(--gold)' : 'var(--card-border)'}`, borderRadius:12, overflow:'hidden', cursor:'grab', opacity: dragVendor === vendor ? 0.5 : 1, transition:'all 0.15s' }}>            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 16px', background:'linear-gradient(135deg, rgba(234,179,8,0.08), rgba(234,179,8,0.03))', borderBottom:'1px solid var(--gold)' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <span style={{ fontSize:13 }}>🏢</span>
-                <span style={{ fontSize:13, fontWeight:800, color:'var(--text)', letterSpacing:'0.02em' }}>{vendor}</span>
-                <span style={{ fontSize:11, color:'var(--text4)', marginLeft:4 }}>{vendorInvoices.length} invoice{vendorInvoices.length !== 1 ? 's' : ''}</span>
+            {/* Vendor Invoices — grouped by vendor */}
+            <div style={SS}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+                <h3 style={{ fontSize:15, fontWeight:700, color:'var(--text)', margin:0 }}>Vendor Invoices</h3>
+                <button onClick={() => setShowInvoiceModal(true)} style={{ background:'linear-gradient(135deg,#EAB308,#d97706)', border:'none', color:'#000', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:800, cursor:'pointer', minHeight:36 }}>+ Add</button>
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <span style={{ fontSize:11, fontWeight:700, color: allPaid ? 'var(--green)' : 'var(--orange)', background: allPaid ? 'var(--green-dim)' : 'var(--orange-dim)', borderRadius:99, padding:'2px 10px' }}>
-                  {allPaid ? '✓ All Paid' : 'Has Unpaid'}
-                </span>
-                <span style={{ fontSize:15, fontWeight:800, color:'var(--gold)' }}>${vendorTotal.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
-              </div>
-            </div>
-
-            {/* Table header */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 80px 90px', gap:0, padding:'8px 16px', background:'var(--hover)', borderBottom:'1px solid var(--border2)' }}>
-              {['Description', 'Date', 'Status', 'Amount'].map(h => (
-                <div key={h} style={{ fontSize:10, fontWeight:700, color:'var(--text4)', letterSpacing:'0.1em' }}>{h.toUpperCase()}</div>
-              ))}
-            </div>
-
-                  {/* Invoice rows */}
-                  {vendorInvoices.map((inv, idx) => (
-                    <div key={inv.id}
-                      style={{ display:'grid', gridTemplateColumns:'1fr 100px 80px 130px', gap:0, padding:'12px 16px', borderBottom: idx < vendorInvoices.length - 1 ? '1px solid var(--border2)' : 'none', background:'var(--card-bg)', transition:'background 0.15s', alignItems:'center' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'var(--card-bg)')}>
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{inv.description || <span style={{ color:'var(--text4)', fontStyle:'italic' }}>—</span>}</div>
-                        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                          <UploadButton table="vendor_invoices" rowId={inv.id} currentUrl={inv.invoice_url} onUploaded={url => setInvoices(prev => prev.map(x => x.id===inv.id ? {...x,invoice_url:url} : x))} />
+              {invoices.length === 0 ? (
+                <div style={{ textAlign:'center', padding:'20px 0', color:'var(--text4)', fontSize:13 }}>Nothing added yet</div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  {(() => {
+                    const grouped = invoices.reduce<Record<string, Invoice[]>>((acc, inv) => {
+                      if (!acc[inv.vendor]) acc[inv.vendor] = []
+                      acc[inv.vendor].push(inv)
+                      return acc
+                    }, {})
+                    const order = vendorOrder.filter(v => grouped[v]).concat(Object.keys(grouped).filter(v => !vendorOrder.includes(v)))
+                    return order.map(vendor => {
+                      const vendorInvoices = grouped[vendor]
+                      const vendorTotal = vendorInvoices.reduce((s, i) => s + i.amount, 0)
+                      const allPaid = vendorInvoices.every(i => i.status === 'Paid')
+                      return (
+                        <div key={vendor}
+                          draggable
+                          onDragStart={() => setDragVendor(vendor)}
+                          onDragEnter={() => setDragOverVendor(vendor)}
+                          onDragOver={e => e.preventDefault()}
+                          onDragEnd={() => {
+                            if (dragVendor && dragOverVendor && dragVendor !== dragOverVendor) {
+                              const base = vendorOrder.filter(v => grouped[v]).concat(Object.keys(grouped).filter(v => !vendorOrder.includes(v)))
+                              const fromIdx = base.indexOf(dragVendor)
+                              const toIdx = base.indexOf(dragOverVendor)
+                              const reordered = [...base]
+                              const [moved] = reordered.splice(fromIdx, 1)
+                              reordered.splice(toIdx, 0, moved)
+                              setVendorOrder(reordered)
+                            }
+                            setDragVendor(null); setDragOverVendor(null)
+                          }}
+                          style={{ border:`2px solid ${dragOverVendor === vendor ? 'var(--gold)' : 'var(--card-border)'}`, borderRadius:12, overflow:'hidden', cursor:'grab', opacity: dragVendor === vendor ? 0.5 : 1, transition:'all 0.15s' }}>
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 16px', background:'linear-gradient(135deg, rgba(234,179,8,0.08), rgba(234,179,8,0.03))', borderBottom:'1px solid var(--gold)' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                              <span style={{ fontSize:13 }}>⠿</span>
+                              <span style={{ fontSize:13 }}>🏢</span>
+                              <span style={{ fontSize:13, fontWeight:800, color:'var(--text)', letterSpacing:'0.02em' }}>{vendor}</span>
+                              <span style={{ fontSize:11, color:'var(--text4)', marginLeft:4 }}>{vendorInvoices.length} invoice{vendorInvoices.length !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                              <span style={{ fontSize:11, fontWeight:700, color: allPaid ? 'var(--green)' : 'var(--orange)', background: allPaid ? 'var(--green-dim)' : 'var(--orange-dim)', borderRadius:99, padding:'2px 10px' }}>
+                                {allPaid ? '✓ All Paid' : 'Has Unpaid'}
+                              </span>
+                              <span style={{ fontSize:15, fontWeight:800, color:'var(--gold)' }}>${vendorTotal.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                            </div>
+                          </div>
+                          <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 80px 130px', gap:0, padding:'8px 16px', background:'var(--hover)', borderBottom:'1px solid var(--border2)' }}>
+                            {['Description', 'Date', 'Status', 'Amount'].map(h => (
+                              <div key={h} style={{ fontSize:10, fontWeight:700, color:'var(--text4)', letterSpacing:'0.1em' }}>{h.toUpperCase()}</div>
+                            ))}
+                          </div>
+                          {vendorInvoices.map((inv, idx) => (
+                            <div key={inv.id}
+                              style={{ display:'grid', gridTemplateColumns:'1fr 100px 80px 130px', gap:0, padding:'12px 16px', borderBottom: idx < vendorInvoices.length - 1 ? '1px solid var(--border2)' : 'none', background:'var(--card-bg)', transition:'background 0.15s', alignItems:'center' }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'var(--card-bg)')}>
+                              <div>
+                                <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{inv.description || <span style={{ color:'var(--text4)', fontStyle:'italic' }}>—</span>}</div>
+                                <UploadButton table="vendor_invoices" rowId={inv.id} currentUrl={inv.invoice_url} onUploaded={url => setInvoices(prev => prev.map(x => x.id===inv.id ? {...x,invoice_url:url} : x))} />
+                              </div>
+                              <div style={{ fontSize:12, color:'var(--text2)' }}>{inv.date || '—'}</div>
+                              <div>
+                                <span style={{ fontSize:11, fontWeight:700, color: inv.status==='Paid' ? 'var(--green)' : 'var(--orange)', background: inv.status==='Paid' ? 'var(--green-dim)' : 'var(--orange-dim)', borderRadius:99, padding:'2px 8px' }}>
+                                  {inv.status}
+                                </span>
+                              </div>
+                              <div style={{ display:'flex', alignItems:'center', gap:6, justifyContent:'space-between' }}>
+                                <span style={{ fontSize:14, fontWeight:800, color:'var(--gold)' }}>${inv.amount.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                                <div style={{ display:'flex', gap:2 }}>
+                                  <button onClick={() => setEditInvoice(inv)}
+                                    style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
+                                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
+                                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>✏️</button>
+                                  <button onClick={() => deleteRow('vendor_invoices', inv.id)}
+                                    style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
+                                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')}
+                                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                      <div style={{ fontSize:12, color:'var(--text2)' }}>{inv.date || '—'}</div>
-                      <div>
-                        <span style={{ fontSize:11, fontWeight:700, color: inv.status==='Paid' ? 'var(--green)' : 'var(--orange)', background: inv.status==='Paid' ? 'var(--green-dim)' : 'var(--orange-dim)', borderRadius:99, padding:'2px 8px' }}>
-                          {inv.status}
-                        </span>
-                      </div>
-                      <div style={{ display:'flex', alignItems:'center', gap:6, justifyContent:'space-between' }}>
-                        <span style={{ fontSize:14, fontWeight:800, color:'var(--gold)' }}>${inv.amount.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
-                        <div style={{ display:'flex', gap:2 }}>
-                          <button onClick={() => setEditInvoice(inv)}
-                            style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
-                            onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
-                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>✏️</button>
-                          <button onClick={() => deleteRow('vendor_invoices', inv.id)}
-                            style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
-                            onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')}
-                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                      )
+                    })
+                  })()}
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+              )}
+            </div>            
 
             {/* ── COMMISSIONS (after vendor invoices) ── */}
             <CommissionSection
