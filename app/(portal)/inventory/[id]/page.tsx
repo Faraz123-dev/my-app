@@ -798,16 +798,12 @@ export default function TruckDetailPage() {
             {/* Invoice rows */}
             {vendorInvoices.map((inv, idx) => (
               <div key={inv.id}
-                style={{ display:'grid', gridTemplateColumns:'1fr 100px 80px 90px', gap:0, padding:'12px 16px', borderBottom: idx < vendorInvoices.length - 1 ? '1px solid var(--border2)' : 'none', background:'var(--card-bg)', transition:'background 0.15s', alignItems:'center' }}
+                style={{ display:'grid', gridTemplateColumns:'1fr 100px 80px 130px', gap:0, padding:'12px 16px', borderBottom: idx < vendorInvoices.length - 1 ? '1px solid var(--border2)' : 'none', background:'var(--card-bg)', transition:'background 0.15s', alignItems:'center' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'var(--card-bg)')}>
                 <div>
                   <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{inv.description || <span style={{ color:'var(--text4)', fontStyle:'italic' }}>—</span>}</div>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                    {inv.invoice_url && (
-                      <a href={inv.invoice_url} target="_blank" rel="noreferrer"
-                        style={{ fontSize:10, fontWeight:600, color:'var(--blue)', background:'var(--blue-dim)', border:'1px solid var(--blue)', borderRadius:99, padding:'1px 8px', textDecoration:'none' }}>📄 View</a>
-                    )}
                     <UploadButton table="vendor_invoices" rowId={inv.id} currentUrl={inv.invoice_url} onUploaded={url => setInvoices(prev => prev.map(x => x.id===inv.id ? {...x,invoice_url:url} : x))} />
                   </div>
                 </div>
