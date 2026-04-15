@@ -336,6 +336,9 @@ export default function TruckDetailPage() {
   const [editLabor,        setEditLabor]                = useState<Labor | null>(null)
   const [editInvoice,      setEditInvoice]            = useState<Invoice | null>(null)
   const [editCost,         setEditCost]                  = useState<OtherCost | null>(null)
+  const [dragVendor, setDragVendor] = useState<string | null>(null)
+  const [dragOverVendor, setDragOverVendor] = useState<string | null>(null)
+  const [vendorOrder, setVendorOrder] = useState<string[]>([])
 
   const [detailsForm, setDetailsForm] = useState<any>({})
   const [notesForm,   setNotesForm]   = useState({ notes: '' })
@@ -386,6 +389,8 @@ export default function TruckDetailPage() {
       setListingForm({ listing_platform: t.listing_platform || '', listing_link: t.listing_link || '', listing_date: t.listing_date || '', asking_price: t.asking_price?.toString() || '' })
     }
     setParts(p || []); setLabors(l || []); setInvoices(i || [])
+    const vendors = Array.from(new Set((i || []).map((inv: any) => inv.vendor)))
+  setVendorOrder(vendors)
     setOtherCosts(o || []); setOffers(of || []); setDocs(d || [])
     setCommissions((com || []) as Commission[])
     setLoading(false)
@@ -762,19 +767,36 @@ export default function TruckDetailPage() {
     <div style={{ textAlign:'center', padding:'20px 0', color:'var(--text4)', fontSize:13 }}>Nothing added yet</div>
   ) : (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      {Object.entries(
-        invoices.reduce<Record<string, Invoice[]>>((acc, inv) => {
+{(() => {
+        const grouped = invoices.reduce<Record<string, Invoice[]>>((acc, inv) => {
           if (!acc[inv.vendor]) acc[inv.vendor] = []
           acc[inv.vendor].push(inv)
           return acc
         }, {})
-      ).map(([vendor, vendorInvoices]) => {
+        const order = vendorOrder.filter(v => grouped[v]).concat(Object.keys(grouped).filter(v => !vendorOrder.includes(v)))
+        return order.map(vendor => {
+        const vendorInvoices = grouped[vendor]
         const vendorTotal = vendorInvoices.reduce((s, i) => s + i.amount, 0)
         const allPaid = vendorInvoices.every(i => i.status === 'Paid')
         return (
-          <div key={vendor} style={{ border:'1px solid var(--card-border)', borderRadius:12, overflow:'hidden' }}>
-            {/* Vendor header bar */}
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 16px', background:'linear-gradient(135deg, rgba(234,179,8,0.08), rgba(234,179,8,0.03))', borderBottom:'1px solid var(--gold)' }}>
+<div key={vendor}
+  draggable
+  onDragStart={() => setDragVendor(vendor)}
+  onDragEnter={() => setDragOverVendor(vendor)}
+  onDragOver={e => e.preventDefault()}
+  onDragEnd={() => {
+    if (dragVendor && dragOverVendor && dragVendor !== dragOverVendor) {
+      const newOrder = [...vendorOrder.filter(v => Object.keys(grouped).includes(v)).concat(Object.keys(grouped).filter(v => !vendorOrder.includes(v)))]
+      const fromIdx = newOrder.indexOf(dragVendor)
+      const toIdx = newOrder.indexOf(dragOverVendor)
+      const reordered = [...newOrder]
+      const [moved] = reordered.splice(fromIdx, 1)
+      reordered.splice(toIdx, 0, moved)
+      setVendorOrder(reordered)
+    }
+    setDragVendor(null); setDragOverVendor(null)
+  }}
+  style={{ border:`2px solid ${dragOverVendor === vendor ? 'var(--gold)' : 'var(--card-border)'}`, borderRadius:12, overflow:'hidden', cursor:'grab', opacity: dragVendor === vendor ? 0.5 : 1, transition:'all 0.15s' }}>            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 16px', background:'linear-gradient(135deg, rgba(234,179,8,0.08), rgba(234,179,8,0.03))', borderBottom:'1px solid var(--gold)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                 <span style={{ fontSize:13 }}>🏢</span>
                 <span style={{ fontSize:13, fontWeight:800, color:'var(--text)', letterSpacing:'0.02em' }}>{vendor}</span>
@@ -795,45 +817,45 @@ export default function TruckDetailPage() {
               ))}
             </div>
 
-            {/* Invoice rows */}
-            {vendorInvoices.map((inv, idx) => (
-              <div key={inv.id}
-                style={{ display:'grid', gridTemplateColumns:'1fr 100px 80px 130px', gap:0, padding:'12px 16px', borderBottom: idx < vendorInvoices.length - 1 ? '1px solid var(--border2)' : 'none', background:'var(--card-bg)', transition:'background 0.15s', alignItems:'center' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'var(--card-bg)')}>
-                <div>
-                  <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{inv.description || <span style={{ color:'var(--text4)', fontStyle:'italic' }}>—</span>}</div>
-                  <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                    <UploadButton table="vendor_invoices" rowId={inv.id} currentUrl={inv.invoice_url} onUploaded={url => setInvoices(prev => prev.map(x => x.id===inv.id ? {...x,invoice_url:url} : x))} />
-                  </div>
+                  {/* Invoice rows */}
+                  {vendorInvoices.map((inv, idx) => (
+                    <div key={inv.id}
+                      style={{ display:'grid', gridTemplateColumns:'1fr 100px 80px 130px', gap:0, padding:'12px 16px', borderBottom: idx < vendorInvoices.length - 1 ? '1px solid var(--border2)' : 'none', background:'var(--card-bg)', transition:'background 0.15s', alignItems:'center' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--hover)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'var(--card-bg)')}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600, color:'var(--text)', marginBottom:4 }}>{inv.description || <span style={{ color:'var(--text4)', fontStyle:'italic' }}>—</span>}</div>
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                          <UploadButton table="vendor_invoices" rowId={inv.id} currentUrl={inv.invoice_url} onUploaded={url => setInvoices(prev => prev.map(x => x.id===inv.id ? {...x,invoice_url:url} : x))} />
+                        </div>
+                      </div>
+                      <div style={{ fontSize:12, color:'var(--text2)' }}>{inv.date || '—'}</div>
+                      <div>
+                        <span style={{ fontSize:11, fontWeight:700, color: inv.status==='Paid' ? 'var(--green)' : 'var(--orange)', background: inv.status==='Paid' ? 'var(--green-dim)' : 'var(--orange-dim)', borderRadius:99, padding:'2px 8px' }}>
+                          {inv.status}
+                        </span>
+                      </div>
+                      <div style={{ display:'flex', alignItems:'center', gap:6, justifyContent:'space-between' }}>
+                        <span style={{ fontSize:14, fontWeight:800, color:'var(--gold)' }}>${inv.amount.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                        <div style={{ display:'flex', gap:2 }}>
+                          <button onClick={() => setEditInvoice(inv)}
+                            style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
+                            onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
+                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>✏️</button>
+                          <button onClick={() => deleteRow('vendor_invoices', inv.id)}
+                            style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
+                            onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')}
+                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div style={{ fontSize:12, color:'var(--text2)' }}>{inv.date || '—'}</div>
-                <div>
-                  <span style={{ fontSize:11, fontWeight:700, color: inv.status==='Paid' ? 'var(--green)' : 'var(--orange)', background: inv.status==='Paid' ? 'var(--green-dim)' : 'var(--orange-dim)', borderRadius:99, padding:'2px 8px' }}>
-                    {inv.status}
-                  </span>
-                </div>
-                <div style={{ display:'flex', alignItems:'center', gap:6, justifyContent:'space-between' }}>
-                  <span style={{ fontSize:14, fontWeight:800, color:'var(--gold)' }}>${inv.amount.toLocaleString('en-CA',{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
-                  <div style={{ display:'flex', gap:2 }}>
-                    <button onClick={() => setEditInvoice(inv)}
-                      style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
-                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--gold)')}
-                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>✏️</button>
-                    <button onClick={() => deleteRow('vendor_invoices', inv.id)}
-                      style={{ background:'none', border:'none', color:'var(--text4)', cursor:'pointer', fontSize:13, padding:'4px 5px', borderRadius:6 }}
-                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--red)')}
-                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text4)')}>🗑</button>
-                  </div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
-        )
-      })}
-    </div>
-  )}
-</div>
+        )}
+      </div>
 
             {/* ── COMMISSIONS (after vendor invoices) ── */}
             <CommissionSection
