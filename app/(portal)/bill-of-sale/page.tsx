@@ -363,8 +363,7 @@ function BOSDocument({ bos }: { bos: BOS }) {
   const secT: React.CSSProperties = { fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.14em', borderBottom: '2px solid #000', paddingBottom: 3, marginBottom: 8 }
 
   return (
-    <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: 12, color: '#000', padding: '28px 40px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '3px double #000', paddingBottom: 14, marginBottom: 18 }}>
+      <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: 12, color: '#000', padding: '20px 40px' }}>      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '3px double #000', paddingBottom: 14, marginBottom: 18 }}>
         <img src={LOGO_SRC} style={{ height: 80, width: 'auto', objectFit: 'contain' }} alt="Logo" />
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 1 }}>Sales Agreement</div>
@@ -442,14 +441,16 @@ function BOSDocument({ bos }: { bos: BOS }) {
           {bos.notes}
         </div>
       )}
-      <div style={{ paddingTop: 14, borderTop: '1px solid #ccc', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, marginTop: 'auto', paddingBottom: 60 }}>
-        {([["Signature of Seller","Aamir & Sons Trading Ltd."],["Signature of Buyer", bos.buyer_name || '']]).map(([label, name]) => (
-          <div key={label}>
-            <div style={{ height: 40, borderBottom: '1.5px solid #000', marginBottom: 6 }} />
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#555' }}>{label}</div>
-            <div style={{ fontSize: 11, color: '#444', marginTop: 3 }}>{name}</div>
-          </div>
-        ))}
+        <div style={{ paddingTop: 14, borderTop: '1px solid #ccc', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48 }}>      {([
+        ["Signature of Seller", "Aamir & Sons Trading Ltd.", null],
+        ["Signature of Buyer", (bos as any).buyer_company || bos.buyer_name || '', null],      ] as [string,string,string|null][]).map(([label, name, company]) => (
+        <div key={label}>
+          <div style={{ height: 40, borderBottom: '1.5px solid #000', marginBottom: 6 }} />
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#555' }}>{label}</div>
+          <div style={{ fontSize: 11, color: '#444', marginTop: 3 }}>{name}</div>
+          {company && <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{company}</div>}
+        </div>
+      ))}
       </div>
     </div>
   )
@@ -510,9 +511,22 @@ export default function OfSalePagBille() {
     style.id = 'bos-print-style'
     style.innerHTML = `
       @media print {
+        @page {
+          margin: 0 !important;
+          size: A4;
+        }
         body * { visibility: hidden !important; }
         .no-print { display: none !important; }
-        #bos-print-root { display: block !important; visibility: visible !important; position: fixed !important; inset: 0 !important; background: #fff !important; z-index: 9999 !important; }
+        #bos-print-root {
+          display: block !important;
+          visibility: visible !important;
+          position: fixed !important;
+          inset: 0 !important;
+          background: #fff !important;
+          z-index: 9999 !important;
+          width: 100% !important;
+          height: 100% !important;
+        }
         #bos-print-root * { visibility: visible !important; }
       }
     `
