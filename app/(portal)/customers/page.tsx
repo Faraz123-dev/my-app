@@ -233,7 +233,7 @@ export default function CustomersPage() {
                           </div>
                         )}
                         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 6 }}>
-                          {c.phone && <span style={{ fontSize: 12, color: 'var(--text2)' }}>📞 {c.phone}</span>}
+                          {c.phone && <span style={{ fontSize: 12, color: 'var(--text2)' }}>📞 {c.phone.replace(/\D/g, '').replace(/^(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3') || c.phone}</span>}                          
                           {c.email && <span style={{ fontSize: 12, color: 'var(--text2)' }}>✉️ {c.email}</span>}
                         </div>
                       </div>
@@ -320,8 +320,7 @@ export default function CustomersPage() {
                     <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
                       <div style={{ fontSize: 10, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10 }}>CONTACT INFO</div>
                       {[
-                        { icon: '📞', label: 'Phone', value: viewCustomer.phone },
-                        { icon: '✉️', label: 'Email', value: viewCustomer.email },
+                        { icon: '📞', label: 'Phone', value: viewCustomer.phone ? viewCustomer.phone.replace(/\D/g, '').replace(/^(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3') || viewCustomer.phone : null },                        { icon: '✉️', label: 'Email', value: viewCustomer.email },
                         { icon: '📍', label: 'Address', value: viewCustomer.address },
                       ].map(row => (
                         <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border2)' }}>
