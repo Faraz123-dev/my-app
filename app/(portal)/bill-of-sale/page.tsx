@@ -13,7 +13,7 @@ type BOS = {
   id: string; created_at: string; truck_id: string | null
   truck_year: number | null; truck_make: string | null; truck_model: string | null
   truck_vin: string | null; truck_colour: string | null; truck_km: number | null
-  buyer_name: string | null; buyer_address: string | null; buyer_phone: string | null; buyer_company: string | null; sold_with_safety: boolean
+  buyer_name: string | null; buyer_address: string | null; buyer_phone: string | null; buyer_company: string | null; buyer_email: string | null; sold_with_safety: boolean
   price: number; tax_rate: number; tax_amount: number; total: number
   deposit: number; sale_date: string | null; notes: string | null; invoice_number: string | null
 }
@@ -30,6 +30,7 @@ const emptyForm = {
   invoice_number: '',
   sold_with_safety: false,
   buyer_company: '',
+  buyer_email: '',
 }
 
 type FormType = typeof emptyForm
@@ -213,6 +214,7 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
     invoice_number: initial.invoice_number || '',
     sold_with_safety: (initial as any).sold_with_safety || false,
     buyer_company: (initial as any).buyer_company || '',
+    buyer_email: (initial as any).buyer_email || '',
   } : { ...emptyForm })
   const [saving, setSaving] = useState(false)
 
@@ -253,6 +255,7 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
       invoice_number: form.invoice_number || null,
       sold_with_safety: form.sold_with_safety,
       buyer_company: form.buyer_company || null,
+      buyer_email: form.buyer_email || null,
     })
     setSaving(false)
   }
@@ -277,7 +280,7 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
             onChange={e => {
               const c = customers.find((c: any) => c.id === e.target.value)
               if (!c) return
-              setForm(f => ({ ...f, buyer_name: c.name || '', buyer_phone: c.phone || '', buyer_address: c.address || '' }))
+              setForm(f => ({ ...f, buyer_name: c.name || '', buyer_phone: c.phone || '', buyer_address: c.address || '', buyer_company: c.company || '', buyer_email: c.email || '' }))
             }}>
             <option value="">— Select customer —</option>
             {customers.map((c: any) => <option key={c.id} value={c.id}>{c.name}{c.company ? ` — ${c.company}` : ''}</option>)}
@@ -299,6 +302,10 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
         <div><label style={LS}>Full Name *</label><input style={{ ...IS, minHeight: 44 }} placeholder="John Smith" value={form.buyer_name} onChange={e => setForm(f => ({ ...f, buyer_name: e.target.value }))} /></div>
         <div><label style={LS}>Company Name</label><input style={{ ...IS, minHeight: 44 }} placeholder="ABC Trucking Inc." value={form.buyer_company} onChange={e => setForm(f => ({ ...f, buyer_company: e.target.value }))} /></div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div><label style={LS}>Email</label><input style={{ ...IS, minHeight: 44 }} placeholder="john@example.com" type="email" value={form.buyer_email} onChange={e => setForm(f => ({ ...f, buyer_email: e.target.value }))} /></div>
+        <div><label style={LS}>Phone</label><input style={{ ...IS, minHeight: 44 }} placeholder="416-555-0100" value={form.buyer_phone} onChange={e => setForm(f => ({ ...f, buyer_phone: e.target.value }))} /></div>
       </div>
       <div style={{ marginBottom: 20 }}>
         <label style={LS}>Address</label>
@@ -670,6 +677,13 @@ async function saveBOS(data: any) {
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           {bos.truck_id && <button onClick={() => window.location.href = `/inventory/${bos.truck_id}`} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🚛 View Truck</button>}
                           <button onClick={() => setPreviewBOS(bos)} style={{ background: 'var(--blue-dim)', border: '1px solid var(--blue)', color: 'var(--blue)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Preview</button>
+                          {bos.buyer_email && (
+                            <button onClick={() => {
+                              const subject = encodeURIComponent(`Sales Agreement - ${bos.invoice_number || 'Invoice'} - ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}`)
+                              const body = encodeURIComponent(`Dear ${bos.buyer_name},\n\nPlease find attached your Sales Agreement for the following vehicle:\n\nVehicle: ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}\nVIN: ${bos.truck_vin}\nInvoice #: ${bos.invoice_number || '—'}\nTotal: $${bos.total.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD\n\nPlease don't hesitate to reach out if you have any questions.\n\nBest regards,\nAamir & Sons Trading Ltd.\n647-563-5783\naamirandsons@hotmail.com`)
+                              window.open(`mailto:${bos.buyer_email}?subject=${subject}&body=${body}`)
+                            }} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>✉️ Email</button>
+                          )}
                           <button onClick={() => { setPrintBOS(bos); setTimeout(() => { window.print(); setPrintBOS(null) }, 500) }} style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🖨 Print</button>
                           <button onClick={() => setEditBOS(bos)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13, padding: 4 }}>✏️</button>
                           <button onClick={() => deleteBOS(bos.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, padding: 4 }}>🗑</button>
@@ -701,7 +715,7 @@ async function saveBOS(data: any) {
             <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: isMobile ? '20px 20px 0 0' : 20, padding: isMobile ? '20px 20px 32px' : 28, width: '100%', maxWidth: isMobile ? '100%' : 660, maxHeight: '92vh', overflowY: 'auto' }}>
               {isMobile && <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 99, margin: '0 auto 20px' }} />}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Edit Sales Agreement</h2>
+                <h2 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Edit Sales Agreement</h2>
                 <button onClick={() => setEditBOS(null)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
               <BOSForm trucks={trucks} customers={customers} onSave={(data) => updateBOS(editBOS!.id, data)} onCancel={() => setEditBOS(null)} initial={editBOS} />
