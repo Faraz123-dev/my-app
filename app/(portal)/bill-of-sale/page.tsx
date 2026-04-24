@@ -72,29 +72,28 @@ function bosHTML(bos: BOS): string {
   .header-logo { height: 110px; width: auto; object-fit: contain; }
   .header-title { font-size: 38px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1; text-align: right; }
   .header-company { font-size: 15px; font-weight: 700; margin-top: 4px; text-align: right; }
-  .header-sub { font-size: 12px; color: #444; margin-top: 2px; text-align: right; }
+  .header-sub { font-size: 12px; color: #000; margin-top: 2px; text-align: right; }
   .date-bar { background: #f5f5f5; border: 1px solid #ccc; padding: 8px 16px; font-size: 14px; margin-bottom: 16px; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 14px; }
   .section-title { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 8px; }
   .row { display: flex; justify-content: space-between; font-size: 14px; padding: 5px 0; border-bottom: 1px dotted #ccc; }
   .row:last-child { border-bottom: none; }
-  .row-lbl { color: #555; }
+  .row-lbl { color: #000; }
   .row-val { font-weight: 600; }
   .pay-table { width: 100%; border-collapse: collapse; }
   .pay-table td { padding: 8px 10px; font-size: 14px; border: 1px solid #ccc; }
-  .pay-table .lbl { color: #444; width: 58%; }
+  .pay-table .lbl { color: #000; width: 58%; }
   .pay-table .amt { text-align: right; font-weight: 600; }
   .pay-table .subtotal td { background: #f5f5f5; font-weight: 700; }
-  .pay-table .deposit-row td { color: #666; font-style: italic; }
-  .pay-table .grand td { background: #000; color: #fff; font-weight: 900; font-size: 16px; }
-  .divider { border: none; border-top: 1px solid #ddd; margin: 12px 0; }
+  .pay-table .deposit-row td { color: #000; font-style: italic; }
+  .pay-table .grand td { background: #000; color: #fff; font-weight: 900; font-size: 16px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }  .pay-table tr td { color: #000 !important; font-weight: 600; }  .divider { border: none; border-top: 1px solid #ddd; margin: 12px 0; }
   .disclaimer-box { border: 2px solid #000; text-align: center; font-weight: 900; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; padding: 12px; margin-bottom: 8px; }
-  .validity-box { border: 1px dashed #666; text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 6px; margin-bottom: 14px; color: #333; }
-  .legal-box { border-left: 3px solid #999; padding: 10px 14px; background: #fafafa; font-size: 13px; line-height: 1.8; color: #333; margin-bottom: 14px; }
+  .validity-box { border: 1px dashed #000; text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 6px; margin-bottom: 14px; color: #333; }
+  .legal-box { border-left: 3px solid #000; padding: 10px 14px; background: #fafafa; font-size: 13px; line-height: 1.8; color: #333; margin-bottom: 14px; }
   .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; padding-top: 14px; border-top: 1px solid #ccc; margin-top: 40px; }
   .sig-space { height: 50px; border-bottom: 1.5px solid #000; margin-bottom: 6px; }
-  .sig-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #555; }
-  .sig-name { font-size: 13px; color: #444; margin-top: 3px; }
+  .sig-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #000; }
+  .sig-name { font-size: 13px; color: #000; margin-top: 3px; }
   @media print {
     .page { padding: 24px 44px; }
     @page { size: letter portrait; margin: 0; }
@@ -675,7 +674,7 @@ async function saveBOS(data: any) {
                             <button onClick={() => {
                               const subject = encodeURIComponent(`Sales Agreement - ${bos.invoice_number || 'Invoice'} - ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}`)
                               const body = encodeURIComponent(`Dear ${bos.buyer_name},\n\nPlease find attached your Sales Agreement for the following vehicle:\n\nVehicle: ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}\nVIN: ${bos.truck_vin}\nInvoice #: ${bos.invoice_number || '—'}\nTotal: $${bos.total.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD\n\nPlease don't hesitate to reach out if you have any questions.\n\nBest regards,\nAamir & Sons Trading Ltd.\n647-563-5783\naamirandsons@hotmail.com`)
-                              window.open(`mailto:${bos.buyer_email}?subject=${subject}&body=${body}`)
+                              window.open(`https://outlook.live.com/mail/0/deeplink/compose?to=${encodeURIComponent(bos.buyer_email!)}&subject=${subject}&body=${body}`, '_blank')
                             }} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>✉️ Email</button>
                           )}
                           <button onClick={() => openBOS(bos)} style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🖨 Print</button>
