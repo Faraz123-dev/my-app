@@ -193,14 +193,9 @@ function bosHTML(bos: BOS): string {
 function openBOS(bos: BOS) {
   const blob = new Blob([bosHTML(bos)], { type: 'text/html' })
   const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.target = '_blank'
-  a.rel = 'noopener noreferrer'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  const w = window.open(url, '_blank')
+  if (!w) { alert('Please allow popups for this site to print the Sales Agreement.'); return }
+  w.onload = () => { w.print(); URL.revokeObjectURL(url) }
 }
 
 function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
