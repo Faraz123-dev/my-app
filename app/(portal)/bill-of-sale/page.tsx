@@ -58,6 +58,7 @@ function bosHTML(bos: BOS): string {
     const validTill = addBusinessDays(saleDateObj, 5)
     validTillStr = validTill.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()
   }
+  const formattedPhone = bos.buyer_phone ? bos.buyer_phone.replace(/\D/g, '').replace(/^(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3') || bos.buyer_phone : '___________________________'
 
   return `<!DOCTYPE html>
 <html>
@@ -65,35 +66,35 @@ function bosHTML(bos: BOS): string {
 <title>Sales Agreement</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; font-family: 'Times New Roman', Times, serif; font-size: 12px; color: #000; }
+  html, body { height: 100%; font-family: 'Times New Roman', Times, serif; font-size: 14px; color: #000; }
   .page { width: 100%; min-height: 100vh; padding: 36px 54px; display: flex; flex-direction: column; }
-  .header { display: flex; alignx-items: center; justify-content: space-between; border-bottom: 3px double #000; padding-bottom: 14px; margin-bottom: 18px; }
-  .header-logo { height: 80px; width: auto; object-fit: contain; }
-  .header-title { font-size: 32px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1; text-align: right; }
-  .header-company { font-size: 13px; font-weight: 700; margin-top: 4px; text-align: right; }
-  .header-sub { font-size: 10px; color: #444; margin-top: 2px; text-align: right; }
-  .date-bar { background: #f5f5f5; border: 1px solid #ccc; padding: 7px 14px; font-size: 12px; margin-bottom: 16px; }
+  .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px double #000; padding-bottom: 14px; margin-bottom: 18px; }
+  .header-logo { height: 110px; width: auto; object-fit: contain; }
+  .header-title { font-size: 38px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1; text-align: right; }
+  .header-company { font-size: 15px; font-weight: 700; margin-top: 4px; text-align: right; }
+  .header-sub { font-size: 12px; color: #444; margin-top: 2px; text-align: right; }
+  .date-bar { background: #f5f5f5; border: 1px solid #ccc; padding: 8px 16px; font-size: 14px; margin-bottom: 16px; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 14px; }
-  .section-title { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 8px; }
-  .row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px dotted #ccc; }
+  .section-title { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; border-bottom: 2px solid #000; padding-bottom: 3px; margin-bottom: 8px; }
+  .row { display: flex; justify-content: space-between; font-size: 14px; padding: 5px 0; border-bottom: 1px dotted #ccc; }
   .row:last-child { border-bottom: none; }
   .row-lbl { color: #555; }
   .row-val { font-weight: 600; }
   .pay-table { width: 100%; border-collapse: collapse; }
-  .pay-table td { padding: 6px 10px; font-size: 12px; border: 1px solid #ccc; }
+  .pay-table td { padding: 8px 10px; font-size: 14px; border: 1px solid #ccc; }
   .pay-table .lbl { color: #444; width: 58%; }
   .pay-table .amt { text-align: right; font-weight: 600; }
   .pay-table .subtotal td { background: #f5f5f5; font-weight: 700; }
   .pay-table .deposit-row td { color: #666; font-style: italic; }
-  .pay-table .grand td { background: #000; color: #fff; font-weight: 900; font-size: 14px; }
+  .pay-table .grand td { background: #000; color: #fff; font-weight: 900; font-size: 16px; }
   .divider { border: none; border-top: 1px solid #ddd; margin: 12px 0; }
-  .disclaimer-box { border: 2px solid #000; text-align: center; font-weight: 900; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; padding: 10px; margin-bottom: 8px; }
-  .validity-box { border: 1px dashed #666; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 6px; margin-bottom: 14px; color: #333; }
-  .legal-box { border-left: 3px solid #999; padding: 10px 14px; background: #fafafa; font-size: 11px; line-height: 1.8; color: #333; margin-bottom: 14px; }
-  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; padding-top: 14px; border-top: 1px solid #ccc; margin-top: auto; padding-bottom: 60px; }
-  .sig-space { height: 40px; border-bottom: 1.5px solid #000; margin-bottom: 6px; }
-  .sig-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: #555; }
-  .sig-name { font-size: 11px; color: #444; margin-top: 3px; }
+  .disclaimer-box { border: 2px solid #000; text-align: center; font-weight: 900; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; padding: 12px; margin-bottom: 8px; }
+  .validity-box { border: 1px dashed #666; text-align: center; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 6px; margin-bottom: 14px; color: #333; }
+  .legal-box { border-left: 3px solid #999; padding: 10px 14px; background: #fafafa; font-size: 13px; line-height: 1.8; color: #333; margin-bottom: 14px; }
+  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; padding-top: 14px; border-top: 1px solid #ccc; margin-top: 40px; }
+  .sig-space { height: 50px; border-bottom: 1.5px solid #000; margin-bottom: 6px; }
+  .sig-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: #555; }
+  .sig-name { font-size: 13px; color: #444; margin-top: 3px; }
   @media print {
     .page { padding: 24px 44px; }
     @page { size: letter portrait; margin: 0; }
@@ -112,7 +113,10 @@ function bosHTML(bos: BOS): string {
     </div>
   </div>
 
-  <div class="date-bar" style="display:flex;justify-content:space-between;"><span>Date of Sale: &nbsp;<strong>${saleDate}</strong></span><span>Invoice #: &nbsp;<strong>${bos.invoice_number || '—'}</strong></span></div>
+  <div class="date-bar" style="display:flex;justify-content:space-between;">
+    <span>Date of Sale: &nbsp;<strong>${saleDate}</strong></span>
+    <span>Invoice #: &nbsp;<strong>${bos.invoice_number || '—'}</strong></span>
+  </div>
 
   <div class="two-col">
     <div>
@@ -120,13 +124,13 @@ function bosHTML(bos: BOS): string {
       <div class="row"><span class="row-lbl">Company</span><span class="row-val">Aamir &amp; Sons Trading Ltd.</span></div>
       <div class="row"><span class="row-lbl">Address</span><span class="row-val">2 Blair Dr, Brampton, ON L6T 2H5</span></div>
       <div class="row"><span class="row-lbl">HST #</span><span class="row-val">704391101RT0001</span></div>
-      <div class="row"><span class="row-lbl">Company</span><span class="row-val">${bos.buyer_company || '___________________________'}</span></div>
     </div>
     <div>
       <div class="section-title">Buyer</div>
       <div class="row"><span class="row-lbl">Name</span><span class="row-val">${bos.buyer_name || '___________________________'}</span></div>
+      <div class="row"><span class="row-lbl">Company</span><span class="row-val">${(bos as any).buyer_company || '___________________________'}</span></div>
       <div class="row"><span class="row-lbl">Address</span><span class="row-val">${bos.buyer_address || '___________________________'}</span></div>
-      <div class="row"><span class="row-lbl">Phone</span><span class="row-val">${bos.buyer_phone || '___________________________'}</span></div>
+      <div class="row"><span class="row-lbl">Phone</span><span class="row-val">${formattedPhone}</span></div>
     </div>
   </div>
 
@@ -139,7 +143,7 @@ function bosHTML(bos: BOS): string {
       <div class="row"><span class="row-lbl">Make</span><span class="row-val">${bos.truck_make || '___________'}</span></div>
       <div class="row"><span class="row-lbl">Model</span><span class="row-val">${bos.truck_model || '___________'}</span></div>
       <div class="row"><span class="row-lbl">Color</span><span class="row-val">${bos.truck_colour || '___________'}</span></div>
-      <div class="row"><span class="row-lbl">VIN</span><span class="row-val" style="font-family:monospace;font-size:11px;">${bos.truck_vin || '___________________'}</span></div>
+      <div class="row"><span class="row-lbl">VIN</span><span class="row-val" style="font-family:monospace;font-size:12px;">${bos.truck_vin || '___________________'}</span></div>
       <div class="row"><span class="row-lbl">Odometer</span><span class="row-val">${bos.truck_km ? bos.truck_km.toLocaleString() + ' km' : '___________'}</span></div>
     </div>
     <div>
@@ -160,15 +164,15 @@ function bosHTML(bos: BOS): string {
 
   <hr class="divider" />
 
-<div class="disclaimer-box">${bos.sold_with_safety ? 'SOLD WITH SAFETY' : 'Sold As-Is Where-Is &mdash; No Guarantee &mdash; No Warranty'}</div>
-  ${validTillStr ? `<div class="validity-box">&#9432;&nbsp; Deposit receipt valid until &nbsp;${validTillStr}&nbsp; (5 business days)</div>` : ''}
+  <div class="disclaimer-box">${(bos as any).sold_with_safety ? 'SOLD WITH SAFETY' : 'Sold As-Is Where-Is &mdash; No Guarantee &mdash; No Warranty'}</div>
+  ${validTillStr ? `<div class="validity-box">&#9432;&nbsp; This Sales Agreement is Valid until &nbsp;${validTillStr}&nbsp; (5 business days)</div>` : ''}
 
   <div class="legal-box">
     I am the legal owner of the above-described vehicle as evidenced by the attached Registration (and where applicable, the title) for the vehicle or equipment. The above-described vehicle/equipment is clear title: there are no liens or encumbrances against this vehicle/equipment. The buyer acknowledges they have inspected the vehicle and agree to purchase it in its current as-is condition with no warranties expressed or implied. All sales are final.<br/><br/>
     Agreed to this on <strong>${saleDate}</strong>, in the city of Brampton, Ontario.
   </div>
 
-  ${bos.notes ? `<div style="font-size:11px;color:#555;margin-bottom:12px;font-style:italic;border-left:2px solid #bbb;padding:4px 10px;">${bos.notes}</div>` : ''}
+  ${(bos as any).notes ? `<div style="font-size:12px;color:#555;margin-bottom:12px;font-style:italic;border-left:2px solid #bbb;padding:4px 10px;">${(bos as any).notes}</div>` : ''}
 
   <div class="sig-grid">
     <div>
@@ -179,7 +183,7 @@ function bosHTML(bos: BOS): string {
     <div>
       <div class="sig-space"></div>
       <div class="sig-label">Signature of Buyer</div>
-      <div class="sig-name">${bos.buyer_name || ''}</div>
+      <div class="sig-name">${(bos as any).buyer_company || bos.buyer_name || ''}</div>
     </div>
   </div>
 </div>
@@ -366,12 +370,12 @@ function BOSDocument({ bos }: { bos: BOS }) {
     validTillStr = validTill.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()
   }
 
-  const rowS: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', fontSize: 17, padding: '5px 0', borderBottom: '1px dotted #ccc' }
+  const rowS: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px dotted #ccc' }
   const secT: React.CSSProperties = { fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em', borderBottom: '2px solid #000', paddingBottom: 3, marginBottom: 8 }
 
   return (
-    <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: 13, color: '#000', padding: '24px 40px', position: 'relative', minHeight: '100vh', boxSizing: 'border-box' }}>
-      {/* Header */}
+      <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: 13, color: '#000', padding: '24px 40px', position: 'relative', boxSizing: 'border-box' }}>
+        {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '3px double #000', paddingBottom: 12, marginBottom: 14 }}>
         <img src={LOGO_SRC} style={{ height: 150, width: 'auto', objectFit: 'contain' }} alt="Logo" />
         <div style={{ textAlign: 'right' }}>
@@ -428,11 +432,11 @@ function BOSDocument({ bos }: { bos: BOS }) {
               { l: 'Total', v: `$${bos.total.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD`, bold: true, bg: '#f5f5f5' },
               ...(deposit > 0 ? [{ l: 'Nonrefundable Deposit Paid', v: `− $${deposit.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, bold: false, bg: '#fff', italic: true, color: '#666' }] : []),
             ] as any[]).map((row: any) => (
-              <div key={row.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 10px', background: row.bg, borderBottom: '1px solid #ccc', fontWeight: row.bold ? 700 : 400, fontSize: 18, color: row.color || '#000', fontStyle: row.italic ? 'italic' : 'normal' }}>
+              <div key={row.l} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 10px', background: row.bg, borderBottom: '1px solid #ccc', fontWeight: row.bold ? 700 : 400, fontSize: 13, color: row.color || '#000', fontStyle: row.italic ? 'italic' : 'normal' }}>
                 <span>{row.l}</span><span>{row.v}</span>
               </div>
             ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 10px', background: '#000', color: '#fff', fontWeight: 900, fontSize: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 10px', background: '#000', color: '#fff', fontWeight: 900, fontSize: 14 }}>
               <span>{deposit > 0 ? 'BALANCE DUE' : 'AMOUNT DUE'}</span>
               <span>${totalRemaining.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD</span>
             </div>
@@ -454,27 +458,27 @@ function BOSDocument({ bos }: { bos: BOS }) {
       )}
 
       {/* Legal text */}
-      <div style={{ borderLeft: '3px solid #999', padding: '10px 14px', background: '#fafafa', fontSize: 16, lineHeight: 1.8, color: '#333', marginBottom: 10 }}>
+      <div style={{ borderLeft: '3px solid #999', padding: '10px 14px', background: '#fafafa', fontSize: 11, lineHeight: 1.8, color: '#333', marginBottom: 10 }}>
         I am the legal owner of the above-described vehicle as evidenced by the attached Registration (and where applicable, the title) for the vehicle or equipment. The above-described vehicle/equipment is clear title: there are no liens or encumbrances against this vehicle/equipment. The buyer acknowledges they have inspected the vehicle and agree to purchase it in its current as-is condition with no warranties expressed or implied. All sales are final.<br /><br />
         Agreed to this on <strong>{saleDate}</strong>, in the city of Brampton, Ontario.
       </div>
 
       {bos.notes && (
-        <div style={{ fontSize: 16, color: '#555', marginBottom: 10, fontStyle: 'italic', borderLeft: '2px solid #bbb', paddingLeft: 10, paddingTop: 4, paddingBottom: 4 }}>
+        <div style={{ fontSize: 11, color: '#555', marginBottom: 10, fontStyle: 'italic', borderLeft: '2px solid #bbb', paddingLeft: 10, paddingTop: 4, paddingBottom: 4 }}>
           {bos.notes}
         </div>
       )}
 
       {/* Signatures - pinned to bottom */}
-      <div style={{ paddingTop: 14, borderTop: '1px solid #ccc', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, position: 'absolute', bottom: 32, left: 40, right: 40 }}>
-        {([
+          <div style={{ paddingTop: 14, borderTop: '1px solid #ccc', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, marginTop: 20 }}>
+          {([
           ["Signature of Seller", "Aamir & Sons Trading Ltd.", null],
           ["Signature of Buyer", (bos as any).buyer_company || bos.buyer_name || '', null],
         ] as [string,string,string|null][]).map(([label, name]) => (
           <div key={label}>
             <div style={{ height: 50, borderBottom: '1.5px solid #000', marginBottom: 6 }} />
-            <div style={{ fontSize: 18, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#555' }}>{label}</div>
-            <div style={{ fontSize: 18, color: '#444', marginTop: 3 }}>{name}</div>
+            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#555' }}>{label}</div>
+            <div style={{ fontSize: 11, color: '#444', marginTop: 3 }}>{name}</div>
           </div>
         ))}
       </div>
@@ -536,25 +540,15 @@ export default function OfSalePagBille() {
     style.id = 'bos-print-style'
     style.innerHTML = `
       @media print {
-        @page {
-          margin: 0 !important;
-          size: A4;
-        }
+        @page { margin: 0; size: A4; }
         body * { visibility: hidden !important; }
         .no-print { display: none !important; }
-        #bos-print-root {
-          display: block !important;
-          visibility: visible !important;
-          position: fixed !important;
-          inset: 0 !important;
-          background: #fff !important;
-          z-index: 9999 !important;
-          width: 100% !important;
-          height: 100% !important;
-        }
+        #bos-print-root { display: block !important; visibility: visible !important; position: fixed !important; inset: 0 !important; background: #fff !important; z-index: 9999 !important; }
         #bos-print-root * { visibility: visible !important; }
       }
     `
+    document.head.appendChild(style)
+
     document.head.appendChild(style)
     return () => document.getElementById('bos-print-style')?.remove()
   }, [])
@@ -684,9 +678,7 @@ async function saveBOS(data: any) {
                               window.open(`mailto:${bos.buyer_email}?subject=${subject}&body=${body}`)
                             }} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>✉️ Email</button>
                           )}
-                          <button onClick={() => { setPrintBOS(bos); setTimeout(() => { window.print(); setPrintBOS(null) }, 500) }} style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🖨 Print</button>
-                          <button onClick={() => setEditBOS(bos)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13, padding: 4 }}>✏️</button>
-                          <button onClick={() => deleteBOS(bos.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, padding: 4 }}>🗑</button>
+                        <button onClick={() => openBOS(bos)} style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🖨 Print</button>
                         </div>
                         </td>
                       </tr>
@@ -722,11 +714,14 @@ async function saveBOS(data: any) {
             </div>
           </div>
         )}
-  {previewBOS && <BOSPreviewModal bos={previewBOS} onClose={() => setPreviewBOS(null)} />}
-  <div id="bos-print-root" style={{ display: printBOS ? 'block' : 'none', position: 'fixed', inset: 0, background: '#fff', zIndex: 9999 }}>
-    {printBOS && <BOSDocument bos={printBOS} />}
-  </div>
-  </main>
+        {previewBOS && !printBOS && (
+          <div className="no-print">
+            <BOSPreviewModal bos={previewBOS} onClose={() => setPreviewBOS(null)} />
+          </div>
+        )}
+          <div id="bos-print-root" style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 9999, visibility: printBOS ? 'visible' : 'hidden', display: 'block' }}>            {printBOS && <BOSDocument bos={printBOS} />}
+          </div>
+      </main>
     </>
   )
 }
