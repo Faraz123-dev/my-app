@@ -670,13 +670,17 @@ async function saveBOS(data: any) {
                         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           {bos.truck_id && <button onClick={() => window.location.href = `/inventory/${bos.truck_id}`} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🚛 View Truck</button>}
                           <button onClick={() => setPreviewBOS(bos)} style={{ background: 'var(--blue-dim)', border: '1px solid var(--blue)', color: 'var(--blue)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Preview</button>
-                          {bos.buyer_email && (
-                            <button onClick={() => {
-                              const subject = encodeURIComponent(`Sales Agreement - ${bos.invoice_number || 'Invoice'} - ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}`)
-                              const body = encodeURIComponent(`Dear ${bos.buyer_name},\n\nPlease find attached your Sales Agreement for the following vehicle:\n\nVehicle: ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}\nVIN: ${bos.truck_vin}\nInvoice #: ${bos.invoice_number || '—'}\nTotal: $${bos.total.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD\n\nPlease don't hesitate to reach out if you have any questions.\n\nBest regards,\nAamir & Sons Trading Ltd.\n647-563-5783\naamirandsons@hotmail.com`)
-                              window.open(`https://outlook.live.com/owa/?path=/mail/action/compose&to=${encodeURIComponent(bos.buyer_email!)}&subject=${subject}&body=${body}`, '_blank')
-                            }} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>✉️ Email</button>
-                          )}
+                          {bos.buyer_email && (() => {
+                            const emailSubject = encodeURIComponent(`Sales Agreement - ${bos.invoice_number || 'Invoice'} - ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}`)
+                            const emailBody = encodeURIComponent(`Dear ${bos.buyer_name},\n\nPlease find attached your Sales Agreement for the following vehicle:\n\nVehicle: ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}\nVIN: ${bos.truck_vin}\nInvoice #: ${bos.invoice_number || '—'}\nTotal: $${bos.total.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD\n\nPlease don't hesitate to reach out if you have any questions.\n\nBest regards,\nAamir & Sons Trading Ltd.\n647-563-5783\naamirandsons@hotmail.com`)
+                            const emailHref = `https://outlook.live.com/owa/?path=/mail/action/compose&to=${encodeURIComponent(bos.buyer_email!)}&subject=${emailSubject}&body=${emailBody}`
+                            return (
+                              <a href={emailHref} target="_blank" rel="noopener noreferrer"
+                                style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none', display: 'inline-block' }}>
+                                ✉️ Email
+                              </a>
+                            )
+                          })()}
                           <button onClick={() => openBOS(bos)} style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🖨 Print</button>
                           <button onClick={() => setEditBOS(bos)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13, padding: 4 }}>✏️</button>
                           <button onClick={() => deleteBOS(bos.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, padding: 4 }}>🗑</button>
