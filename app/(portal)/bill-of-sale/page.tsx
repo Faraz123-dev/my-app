@@ -678,7 +678,9 @@ async function saveBOS(data: any) {
                               window.open(`mailto:${bos.buyer_email}?subject=${subject}&body=${body}`)
                             }} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>✉️ Email</button>
                           )}
-                        <button onClick={() => openBOS(bos)} style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🖨 Print</button>
+                          <button onClick={() => openBOS(bos)} style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🖨 Print</button>
+                          <button onClick={() => setEditBOS(bos)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13, padding: 4 }}>✏️</button>
+                          <button onClick={() => deleteBOS(bos.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, padding: 4 }}>🗑</button>
                         </div>
                         </td>
                       </tr>
