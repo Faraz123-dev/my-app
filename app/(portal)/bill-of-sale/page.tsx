@@ -241,6 +241,9 @@ function BOSForm({ trucks, customers, onSave, onCancel, onCustomerCreated, initi
       truck_colour: t.colour || '', truck_km: t.kilometers ? String(t.kilometers) : '',
       buyer_name: t.customer || '', price: t.sold_price ? String(t.sold_price) : '',
       sale_date: t.date_sold || new Date().toISOString().split('T')[0],
+      invoice_number: t.stock_number && /^A&S-\d+$/.test(t.stock_number)
+      ? `INV#-${t.stock_number.replace('A&S-', '')}`
+      : f.invoice_number,
     }))
   }
 
