@@ -204,8 +204,8 @@ function openBOS(bos: BOS) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
-  trucks: Truck[]; customers: any[]; onSave: (data: any) => Promise<void>; onCancel: () => void; initial?: BOS
+function BOSForm({ trucks, customers, onSave, onCancel, onCustomerCreated, initial }: {
+  trucks: Truck[]; customers: any[]; onSave: (data: any) => Promise<void>; onCancel: () => void; onCustomerCreated: () => Promise<void>; initial?: BOS
 }) {
   const [form, setForm] = useState<FormType>(initial ? {
     truck_id: initial.truck_id || '',
@@ -226,6 +226,9 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
     buyer_email: (initial as any).buyer_email || '',
   } : { ...emptyForm })
   const [saving, setSaving] = useState(false)
+  const [showAddCustomer, setShowAddCustomer] = useState(false)
+  const [newCust, setNewCust] = useState({ name: '', company: '', phone: '', email: '', address: '' })
+  const [savingCust, setSavingCust] = useState(false)
 
   function onTruckSelect(id: string) {
     if (!id) { setForm(f => ({ ...f, truck_id: '' })); return }
@@ -247,6 +250,18 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
   const taxAmount = price * (taxRate / 100)
   const total = price + taxAmount
   const balanceDue = total - deposit
+
+  async function handleAddCustomer() {
+  if (!newCust.name) return alert('Name is required.')
+  setSavingCust(true)
+  const { data, error } = await supabase.from('customers').insert([newCust]).select().single()
+  if (error) { alert('Error: ' + error.message); setSavingCust(false); return }
+  await onCustomerCreated()
+  setForm(f => ({ ...f, buyer_name: data.name || '', buyer_phone: data.phone || '', buyer_address: data.address || '', buyer_company: data.company || '', buyer_email: data.email || '' }))
+  setNewCust({ name: '', company: '', phone: '', email: '', address: '' })
+  setShowAddCustomer(false)
+  setSavingCust(false)
+  }
 
   async function handleSave() {
     if (!form.buyer_name) return alert('Buyer name is required.')
@@ -277,91 +292,110 @@ function BOSForm({ trucks, customers, onSave, onCancel, initial }: {
     </div>
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
       <div>
-        <label style={LS}>Link to Inventory (optional)</label>
+        <label style={LS}>Inventory</label>
           <select style={{ ...IS, minHeight: 44 }} value={form.truck_id} onChange={e => onTruckSelect(e.target.value)}>
             <option value="">— Enter manually —</option>
           {trucks.map(t => <option key={t.id} value={t.id}>{t.stock_number || t.vin} {'-'} {t.year} {t.make} {t.model}</option>)}
           </select>
         </div>
-        <div>         
-           <label style={LS}>Auto-fill from Customer DB (optional)</label>
-          <select style={{ ...IS, minHeight: 44 }} defaultValue=""
-            onChange={e => {
-              const c = customers.find((c: any) => c.id === e.target.value)
-              if (!c) return
-              setForm(f => ({ ...f, buyer_name: c.name || '', buyer_phone: c.phone || '', buyer_address: c.address || '', buyer_company: c.company || '', buyer_email: c.email || '' }))
-            }}>
-            <option value="">— Select customer —</option>
-            {customers.map((c: any) => <option key={c.id} value={c.id}>{c.name}{c.company ? ` — ${c.company}` : ''}</option>)}
-          </select>
-        </div>
-      </div>
-      <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>VEHICLE</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <div><label style={LS}>Year</label><input style={{ ...IS, minHeight: 44 }} placeholder="2019" value={form.truck_year} onChange={e => setForm(f => ({ ...f, truck_year: e.target.value }))} /></div>
-        <div><label style={LS}>Make</label><input style={{ ...IS, minHeight: 44 }} placeholder="Freightliner" value={form.truck_make} onChange={e => setForm(f => ({ ...f, truck_make: e.target.value }))} /></div>
-        <div><label style={LS}>Model</label><input style={{ ...IS, minHeight: 44 }} placeholder="Cascadia" value={form.truck_model} onChange={e => setForm(f => ({ ...f, truck_model: e.target.value }))} /></div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
-        <div><label style={LS}>Colour</label><input style={{ ...IS, minHeight: 44 }} placeholder="White" value={form.truck_colour} onChange={e => setForm(f => ({ ...f, truck_colour: e.target.value }))} /></div>
-        <div><label style={LS}>KM</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="450000" value={form.truck_km} onChange={e => setForm(f => ({ ...f, truck_km: e.target.value }))} /></div>
-        <div><label style={LS}>VIN</label><input style={{ ...IS, minHeight: 44, fontFamily: 'monospace' }} placeholder="17-char VIN" value={form.truck_vin} onChange={e => setForm(f => ({ ...f, truck_vin: e.target.value }))} /></div>
-      </div>
-      <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>BUYER</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-        <div><label style={LS}>Full Name *</label><input style={{ ...IS, minHeight: 44 }} placeholder="John Smith" value={form.buyer_name} onChange={e => setForm(f => ({ ...f, buyer_name: e.target.value }))} /></div>
-        <div><label style={LS}>Company Name</label><input style={{ ...IS, minHeight: 44 }} placeholder="ABC Trucking Inc." value={form.buyer_company} onChange={e => setForm(f => ({ ...f, buyer_company: e.target.value }))} /></div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-        <div><label style={LS}>Email</label><input style={{ ...IS, minHeight: 44 }} placeholder="john@example.com" type="email" value={form.buyer_email} onChange={e => setForm(f => ({ ...f, buyer_email: e.target.value }))} /></div>
-        <div><label style={LS}>Phone</label><input style={{ ...IS, minHeight: 44 }} placeholder="416-555-0100" value={form.buyer_phone} onChange={e => setForm(f => ({ ...f, buyer_phone: e.target.value }))} /></div>
-      </div>
-      <div style={{ marginBottom: 20 }}>
-        <label style={LS}>Address</label>
-        <input style={{ ...IS, minHeight: 44 }} placeholder="123 Main St, Toronto, ON" value={form.buyer_address} onChange={e => setForm(f => ({ ...f, buyer_address: e.target.value }))} />
-      </div>
-      <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>FINANCIALS</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
-        <div><label style={LS}>Sale Price ($) *</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="45000" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} /></div>
-        <div><label style={LS}>Tax Rate (%)</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="13" value={form.tax_rate} onChange={e => setForm(f => ({ ...f, tax_rate: e.target.value }))} /></div>
-        <div><label style={LS}>Deposit ($)</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="0" value={form.deposit} onChange={e => setForm(f => ({ ...f, deposit: e.target.value }))} /></div>
-        <div><label style={LS}>Date of Sale</label><input style={{ ...IS, minHeight: 44 }} type="date" value={form.sale_date} onChange={e => setForm(f => ({ ...f, sale_date: e.target.value }))} /></div>
-      </div>
-      {price > 0 && (
-        <div style={{ background: 'var(--hover)', borderRadius: 10, padding: '14px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
-          {[
-            { l: 'PRICE', v: `$${price.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text)' },
-            { l: `HST (${taxRate}%)`, v: `$${taxAmount.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text2)' },
-            { l: 'TOTAL', v: `$${total.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text)' },
-            { l: 'BALANCE DUE', v: `$${balanceDue.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--gold)' },
-          ].map(s => (
-            <div key={s.l} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 9, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 4 }}>{s.l}</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.v}</div>
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <button onClick={() => setShowAddCustomer(v => !v)}
+              style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: 14, fontWeight: 700, cursor: 'pointer', padding: 3 }}>
+              {showAddCustomer ? '✕ Cancel' : '+ New Customer'}
+            </button>
+          </div>
+          {showAddCustomer ? (
+            <div style={{ background: 'var(--hover)', border: '1px solid var(--border)', borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <input style={{ ...IS, minHeight: 38 }} placeholder="Full Name *" value={newCust.name} onChange={e => setNewCust(c => ({ ...c, name: e.target.value }))} />
+              <input style={{ ...IS, minHeight: 38 }} placeholder="Company" value={newCust.company} onChange={e => setNewCust(c => ({ ...c, company: e.target.value }))} />
+              <input style={{ ...IS, minHeight: 38 }} placeholder="Phone" value={newCust.phone} onChange={e => setNewCust(c => ({ ...c, phone: e.target.value }))} />
+              <input style={{ ...IS, minHeight: 38 }} placeholder="Email" value={newCust.email} onChange={e => setNewCust(c => ({ ...c, email: e.target.value }))} />
+              <input style={{ ...IS, minHeight: 38 }} placeholder="Address" value={newCust.address} onChange={e => setNewCust(c => ({ ...c, address: e.target.value }))} />
+              <button onClick={handleAddCustomer} disabled={savingCust}
+                style={{ background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 8, padding: '9px', fontSize: 13, fontWeight: 800, cursor: 'pointer', opacity: savingCust ? 0.7 : 1 }}>
+                {savingCust ? 'Saving...' : '✓ Save & Auto-fill'}
+              </button>
             </div>
-          ))}
+          ) : (
+            <select style={{ ...IS, minHeight: 44 }} defaultValue=""
+              onChange={e => {
+                const c = customers.find((c: any) => c.id === e.target.value)
+                if (!c) return
+                setForm(f => ({ ...f, buyer_name: c.name || '', buyer_phone: c.phone || '', buyer_address: c.address || '', buyer_company: c.company || '', buyer_email: c.email || '' }))
+              }}>
+              <option value="">— Select customer —</option>
+              {customers.map((c: any) => <option key={c.id} value={c.id}>{c.name}{c.company ? ` — ${c.company}` : ''}</option>)}
+            </select>
+          )}
         </div>
-      )}
-      <div style={{ marginBottom: 16 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
-          <input type="checkbox" checked={form.sold_with_safety} onChange={e => setForm(f => ({ ...f, sold_with_safety: e.target.checked }))}
-            style={{ width: 18, height: 18, accentColor: '#EAB308', cursor: 'pointer' }} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Truck sold with safety</span>
-          <span style={{ fontSize: 12, color: 'var(--text4)' }}>(changes warranty disclaimer on invoice)</span>
-        </label>
-      </div>
-      <div style={{ marginBottom: 20 }}>
-        <label style={LS}>Notes (optional)</label>
-        <textarea style={{ ...IS, height: 60, resize: 'vertical' }} placeholder="Any additional notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-      </div>
-      <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={onCancel} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '14px', fontSize: 14, cursor: 'pointer', fontWeight: 500, minHeight: 50 }}>Cancel</button>
-        <button onClick={handleSave} disabled={saving} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 800, cursor: saving ? 'default' : 'pointer', minHeight: 50, opacity: saving ? 0.7 : 1 }}>
-          {saving ? 'Saving...' : 'Save Sales Agreement'}
-        </button>
-      </div>
     </div>
-  )
+    <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>VEHICLE</div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+      <div><label style={LS}>Year</label><input style={{ ...IS, minHeight: 44 }} placeholder="2019" value={form.truck_year} onChange={e => setForm(f => ({ ...f, truck_year: e.target.value }))} /></div>
+      <div><label style={LS}>Make</label><input style={{ ...IS, minHeight: 44 }} placeholder="Freightliner" value={form.truck_make} onChange={e => setForm(f => ({ ...f, truck_make: e.target.value }))} /></div>
+      <div><label style={LS}>Model</label><input style={{ ...IS, minHeight: 44 }} placeholder="Cascadia" value={form.truck_model} onChange={e => setForm(f => ({ ...f, truck_model: e.target.value }))} /></div>
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+      <div><label style={LS}>Colour</label><input style={{ ...IS, minHeight: 44 }} placeholder="White" value={form.truck_colour} onChange={e => setForm(f => ({ ...f, truck_colour: e.target.value }))} /></div>
+      <div><label style={LS}>KM</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="450000" value={form.truck_km} onChange={e => setForm(f => ({ ...f, truck_km: e.target.value }))} /></div>
+      <div><label style={LS}>VIN</label><input style={{ ...IS, minHeight: 44, fontFamily: 'monospace' }} placeholder="17-char VIN" value={form.truck_vin} onChange={e => setForm(f => ({ ...f, truck_vin: e.target.value }))} /></div>
+    </div>
+    <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>BUYER</div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+      <div><label style={LS}>Full Name *</label><input style={{ ...IS, minHeight: 44 }} placeholder="John Smith" value={form.buyer_name} onChange={e => setForm(f => ({ ...f, buyer_name: e.target.value }))} /></div>
+      <div><label style={LS}>Company Name</label><input style={{ ...IS, minHeight: 44 }} placeholder="ABC Trucking Inc." value={form.buyer_company} onChange={e => setForm(f => ({ ...f, buyer_company: e.target.value }))} /></div>
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+      <div><label style={LS}>Email</label><input style={{ ...IS, minHeight: 44 }} placeholder="john@example.com" type="email" value={form.buyer_email} onChange={e => setForm(f => ({ ...f, buyer_email: e.target.value }))} /></div>
+      <div><label style={LS}>Phone</label><input style={{ ...IS, minHeight: 44 }} placeholder="416-555-0100" value={form.buyer_phone} onChange={e => setForm(f => ({ ...f, buyer_phone: e.target.value }))} /></div>
+    </div>
+    <div style={{ marginBottom: 20 }}>
+      <label style={LS}>Address</label>
+      <input style={{ ...IS, minHeight: 44 }} placeholder="123 Main St, Toronto, ON" value={form.buyer_address} onChange={e => setForm(f => ({ ...f, buyer_address: e.target.value }))} />
+    </div>
+    <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>FINANCIALS</div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+      <div><label style={LS}>Sale Price ($) *</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="45000" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} /></div>
+      <div><label style={LS}>Tax Rate (%)</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="13" value={form.tax_rate} onChange={e => setForm(f => ({ ...f, tax_rate: e.target.value }))} /></div>
+      <div><label style={LS}>Deposit ($)</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="0" value={form.deposit} onChange={e => setForm(f => ({ ...f, deposit: e.target.value }))} /></div>
+      <div><label style={LS}>Date of Sale</label><input style={{ ...IS, minHeight: 44 }} type="date" value={form.sale_date} onChange={e => setForm(f => ({ ...f, sale_date: e.target.value }))} /></div>
+    </div>
+    {price > 0 && (
+      <div style={{ background: 'var(--hover)', borderRadius: 10, padding: '14px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+        {[
+          { l: 'PRICE', v: `$${price.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text)' },
+          { l: `HST (${taxRate}%)`, v: `$${taxAmount.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text2)' },
+          { l: 'TOTAL', v: `$${total.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text)' },
+          { l: 'BALANCE DUE', v: `$${balanceDue.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--gold)' },
+        ].map(s => (
+          <div key={s.l} style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 9, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 4 }}>{s.l}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+    )}
+    <div style={{ marginBottom: 16 }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+        <input type="checkbox" checked={form.sold_with_safety} onChange={e => setForm(f => ({ ...f, sold_with_safety: e.target.checked }))}
+          style={{ width: 18, height: 18, accentColor: '#EAB308', cursor: 'pointer' }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Truck sold with safety</span>
+        <span style={{ fontSize: 12, color: 'var(--text4)' }}>(changes warranty disclaimer on invoice)</span>
+      </label>
+    </div>
+    <div style={{ marginBottom: 20 }}>
+      <label style={LS}>Notes (optional)</label>
+      <textarea style={{ ...IS, height: 60, resize: 'vertical' }} placeholder="Any additional notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+    </div>
+    <div style={{ display: 'flex', gap: 10 }}>
+      <button onClick={onCancel} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '14px', fontSize: 14, cursor: 'pointer', fontWeight: 500, minHeight: 50 }}>Cancel</button>
+      <button onClick={handleSave} disabled={saving} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 800, cursor: saving ? 'default' : 'pointer', minHeight: 50, opacity: saving ? 0.7 : 1 }}>
+        {saving ? 'Saving...' : 'Save Sales Agreement'}
+      </button>
+    </div>
+  </div>
+)    
 }
 // ─── Shared document renderer ───────────────────────────────────────────────
 function BOSDocument({ bos }: { bos: BOS }) {
@@ -384,7 +418,7 @@ function BOSDocument({ bos }: { bos: BOS }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '3px double #000', paddingBottom: 12, marginBottom: 14 }}>
         <img src={LOGO_SRC} style={{ height: 150, width: 'auto', objectFit: 'contain' }} alt="Logo" />
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 36, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 1 }}>Sales Agreement</div>
+          <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 1 }}>Sales Agreement</div>
           <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>Aamir & Sons Trading Ltd.</div>
           <div style={{ fontSize: 11, color: '#444', marginTop: 2 }}>2 Blair Dr, Brampton, ON L6T 2H5 &bull; HST # 704391101RT0001</div>
           <div style={{ fontSize: 11, color: '#444' }}>Tel: 647-563-5783 &bull; aamirandsons@hotmail.com</div>
@@ -463,9 +497,9 @@ function BOSDocument({ bos }: { bos: BOS }) {
       )}
 
       {/* Legal text */}
-      <div style={{ borderLeft: '3px solid #999', padding: '10px 14px', background: '#fafafa', fontSize: 11, lineHeight: 1.8, color: '#333', marginBottom: 10 }}>
-        I am the legal owner of the above-described vehicle as evidenced by the attached Registration (and where applicable, the title) for the vehicle or equipment. The above-described vehicle/equipment is clear title: there are no liens or encumbrances against this vehicle/equipment. The buyer acknowledges they have inspected the vehicle and agree to purchase it in its current as-is condition with no warranties expressed or implied. All sales are final.<br /><br />
-        Agreed to this on <strong>{saleDate}</strong>, in the city of Brampton, Ontario.
+      <div style={{ borderLeft: '3px solid #999', padding: '8px 14px', background: '#fafafa', fontSize: 11, lineHeight: 1.5, color: '#333', marginBottom: 8 }}>
+        I am the legal owner of the above-described vehicle as evidenced by the attached Registration (and where applicable, the title) for the vehicle or equipment. The above-described vehicle/equipment is clear title: there are no liens or encumbrances against this vehicle/equipment. The buyer acknowledges they have inspected the vehicle and agree to purchase it in its current as-is condition with no warranties expressed or implied. All sales are final.
+        {' '}Agreed to this on <strong>{saleDate}</strong>, in the city of Brampton, Ontario.
       </div>
 
       {bos.notes && (
@@ -475,13 +509,12 @@ function BOSDocument({ bos }: { bos: BOS }) {
       )}
 
       {/* Signatures - pinned to bottom */}
-          <div style={{ paddingTop: 14, borderTop: '1px solid #ccc', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, marginTop: 20 }}>
-          {([
+          <div style={{ paddingTop: 8, borderTop: '1px solid #ccc', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, marginTop: 10 }}>          {([
           ["Signature of Seller", "Aamir & Sons Trading Ltd.", null],
           ["Signature of Buyer", (bos as any).buyer_company || bos.buyer_name || '', null],
         ] as [string,string,string|null][]).map(([label, name]) => (
           <div key={label}>
-            <div style={{ height: 50, borderBottom: '1.5px solid #000', marginBottom: 6 }} />
+            <div style={{ height: 36, borderBottom: '1.5px solid #000', marginBottom: 4 }} />
             <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#555' }}>{label}</div>
             <div style={{ fontSize: 11, color: '#444', marginTop: 3 }}>{name}</div>
           </div>
@@ -709,8 +742,7 @@ async function saveBOS(data: any) {
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0 }}>New Sales Agreement</h2>
                 <button onClick={() => setShowAdd(false)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
-              <BOSForm trucks={trucks} customers={customers} onSave={saveBOS} onCancel={() => setShowAdd(false)} />
-            </div>
+              <BOSForm trucks={trucks} customers={customers} onSave={saveBOS} onCancel={() => setShowAdd(false)} onCustomerCreated={async () => { const { data } = await supabase.from('customers').select('*').order('name'); setCustomers(data || []) }} />            </div>
           </div>
         )}
         {editBOS && (
@@ -721,8 +753,7 @@ async function saveBOS(data: any) {
                 <h2 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Edit Sales Agreement</h2>
                 <button onClick={() => setEditBOS(null)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
-              <BOSForm trucks={trucks} customers={customers} onSave={(data) => updateBOS(editBOS!.id, data)} onCancel={() => setEditBOS(null)} initial={editBOS} />
-            </div>
+              <BOSForm trucks={trucks} customers={customers} onSave={(data) => updateBOS(editBOS!.id, data)} onCancel={() => setEditBOS(null)} onCustomerCreated={async () => { const { data } = await supabase.from('customers').select('*').order('name'); setCustomers(data || []) }} initial={editBOS} />            </div>
           </div>
         )}
         {previewBOS && !printBOS && (

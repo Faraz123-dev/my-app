@@ -195,3 +195,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 input[type="date"]::-webkit-calendar-picker-indicator:hover {
   filter: invert(0.8);
 }
+
+@media print {
+  .bos-document {
+    page-break-inside: avoid;
+  }
+}
