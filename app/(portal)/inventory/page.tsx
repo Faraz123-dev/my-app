@@ -430,19 +430,22 @@ export default function InventoryPage() {
       pMap[p.truck_id].push(p)
     }
     setPhotoMap(pMap)
+
     const rMap: Record<string, ReconPhoto[]> = {}
     for (const p of (reconData || []) as ReconPhoto[]) {
       if (!rMap[p.truck_id]) rMap[p.truck_id] = []
       rMap[p.truck_id].push(p)
+    }
+    setReconMap(rMap)
+
     const pftMap: Record<string, number | null> = {}
     for (const p of (profitData || []) as any[]) { pftMap[p.truck_id] = p.net_profit }
     setProfitMap(pftMap)
-    }
-    setReconMap(rMap)
+
     const { count } = await supabase.from('alert_queue').select('*', { count: 'exact', head: true })
     setAlertQueue(count || 0)
     setLoading(false)
-  }
+}
 
   function updatePhotosForTruck(truckId: string, newPhotos: TruckPhoto[]) { setPhotoMap(prev => ({ ...prev, [truckId]: newPhotos })) }
   function updateReconForTruck(truckId: string, newPhotos: ReconPhoto[]) { setReconMap(prev => ({ ...prev, [truckId]: newPhotos })) }
@@ -759,7 +762,9 @@ const cols: Col[] = [
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))', gap:1, background:'var(--border2)' }}>
                     {qTrucks.sort((a,b) => (a.bought_on||'').localeCompare(b.bought_on||'')).map(truck => {
                       const allIn  = (truck.purchase_price||0) + (truck.recondition_cost||0)
-                      const profit = profitMap[truck.id] !== undefined ? profitMap[truck.id] : (truck.sold_price != null ? truck.sold_price - allIn : null)                      
+                      const profit = truck.sold_price != null
+                        ? truck.sold_price - (truck.purchase_price || 0) - (truck.recondition_cost || 0)
+                        : null                 
                       const sc     = statusColors[truck.status] || { bg:'rgba(255,255,255,0.04)', color:'#888', border:'rgba(255,255,255,0.1)' }
                       const photos = photoMap[truck.id] || []
                       return (
