@@ -144,8 +144,7 @@ function bosHTML(bos: BOS): string {
       <div class="row"><span class="row-lbl">Model</span><span class="row-val">${bos.truck_model || '___________'}</span></div>
       <div class="row"><span class="row-lbl">Color</span><span class="row-val">${bos.truck_colour || '___________'}</span></div>
       <div class="row"><span class="row-lbl">VIN</span><span class="row-val" style="font-family:monospace;font-size:12px;">${bos.truck_vin || '___________________'}</span></div>
-      <div class="row"><span class="row-lbl">Odometer</span><span class="row-val">${bos.truck_km ? bos.truck_km.toLocaleString() + ' km' : '___________'}</span></div>
-    </div>
+      <div class="row"><span class="row-lbl">Odometer</span><span class="row-val">${(bos as any).is_parts_truck ? 'PARTS' : (bos.truck_km ? bos.truck_km.toLocaleString() + ' km' : '___________')}</span></div>    </div>
     <div>
       <div class="section-title">Payment Summary</div>
       <table class="pay-table">
@@ -283,6 +282,7 @@ function BOSForm({ trucks, customers, onSave, onCancel, onCustomerCreated, initi
       sold_with_safety: form.sold_with_safety,
       buyer_company: form.buyer_company || null,
       buyer_email: form.buyer_email || null,
+      is_parts_truck: form.is_parts_truck || false,
     })
     setSaving(false)
   }
@@ -341,7 +341,15 @@ function BOSForm({ trucks, customers, onSave, onCancel, onCustomerCreated, initi
     </div>
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
       <div><label style={LS}>Colour</label><input style={{ ...IS, minHeight: 44 }} placeholder="White" value={form.truck_colour} onChange={e => setForm(f => ({ ...f, truck_colour: e.target.value }))} /></div>
-      <div><label style={LS}>KM</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="450000" value={form.truck_km} onChange={e => setForm(f => ({ ...f, truck_km: e.target.value }))} /></div>
+      <div>
+        <label style={LS}>KM</label>
+        <input style={{ ...IS, minHeight: 44 }} type="number" placeholder="450000" value={form.truck_km} onChange={e => setForm(f => ({ ...f, truck_km: e.target.value }))} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, cursor: 'pointer', userSelect: 'none' }}>
+          <input type="checkbox" checked={form.is_parts_truck || false} onChange={e => setForm(f => ({ ...f, is_parts_truck: e.target.checked }))}
+            style={{ width: 14, height: 14, accentColor: '#EAB308', cursor: 'pointer' }} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)' }}>Parts Truck</span>
+        </label>
+      </div>
       <div><label style={LS}>VIN</label><input style={{ ...IS, minHeight: 44, fontFamily: 'monospace' }} placeholder="17-char VIN" value={form.truck_vin} onChange={e => setForm(f => ({ ...f, truck_vin: e.target.value }))} /></div>
     </div>
     <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>BUYER</div>
@@ -461,7 +469,14 @@ function BOSDocument({ bos }: { bos: BOS }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 12 }}>
         <div>
           <div style={secT}>Asset Description</div>
-          {([["Year", String(bos.truck_year || '___')],["Make", bos.truck_make || '___________'],["Model", bos.truck_model || '___________'],["Color", bos.truck_colour || '___________'],["VIN", bos.truck_vin || '___________________'],["Odometer", bos.truck_km ? bos.truck_km.toLocaleString() + ' km' : '___________']] as [string,string][]).map(([l,v]) => (
+          {([
+            ["Year", String(bos.truck_year || '___')],
+            ["Make", bos.truck_make || '___________'],
+            ["Model", bos.truck_model || '___________'],
+            ["Color", bos.truck_colour || '___________'],
+            ["VIN", bos.truck_vin || '___________________'],
+            ["Odometer", (bos as any).is_parts_truck ? 'PARTS' : (bos.truck_km ? bos.truck_km.toLocaleString() + ' km' : '___________')],         
+          ] as [string,string][]).map(([l,v]) => (
             <div key={l} style={rowS}><span style={{ color: '#555' }}>{l}</span><span style={{ fontWeight: 600, fontFamily: l === 'VIN' ? 'monospace' : 'inherit', fontSize: l === 'VIN' ? 14 : 15 }}>{v}</span></div>
           ))}
         </div>
