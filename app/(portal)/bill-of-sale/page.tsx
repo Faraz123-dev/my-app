@@ -13,7 +13,7 @@ type BOS = {
   id: string; created_at: string; truck_id: string | null
   truck_year: number | null; truck_make: string | null; truck_model: string | null
   truck_vin: string | null; truck_colour: string | null; truck_km: number | null
-  buyer_name: string | null; buyer_address: string | null; buyer_phone: string | null; buyer_company: string | null; buyer_email: string | null; sold_with_safety: boolean
+  buyer_name: string | null; buyer_address: string | null; buyer_phone: string | null; buyer_company: string | null; buyer_email: string | null; sold_with_safety: boolean; is_parts_truck?: boolean
   price: number; tax_rate: number; tax_amount: number; total: number
   deposit: number; sale_date: string | null; notes: string | null; invoice_number: string | null
 }
@@ -31,6 +31,7 @@ const emptyForm = {
   sold_with_safety: false,
   buyer_company: '',
   buyer_email: '',
+  is_parts_truck: false,
 }
 
 type FormType = typeof emptyForm
@@ -223,6 +224,7 @@ function BOSForm({ trucks, customers, onSave, onCancel, onCustomerCreated, initi
     sold_with_safety: (initial as any).sold_with_safety || false,
     buyer_company: (initial as any).buyer_company || '',
     buyer_email: (initial as any).buyer_email || '',
+    is_parts_truck: (initial as any).is_parts_truck || false,
   } : { ...emptyForm })
   const [saving, setSaving] = useState(false)
   const [showAddCustomer, setShowAddCustomer] = useState(false)
