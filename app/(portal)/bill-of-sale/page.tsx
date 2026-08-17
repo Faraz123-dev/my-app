@@ -57,14 +57,13 @@ function bosHTML(bos: BOS): string {
   const saleDate = saleDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const deposit = bos.deposit || 0
   const totalRemaining = bos.total - deposit
+  const validDaysLabel = bos.deposit_valid_days ?? 5
   let validTillStr = ''
-  if (deposit > 0 && !bos.is_financed) {
-    const validDays = bos.deposit_valid_days ?? 5
-    const validTill = addBusinessDays(saleDateObj, validDays)
+  if (bos.is_financed) {
+    const validTill = addBusinessDays(saleDateObj, validDaysLabel)
     validTillStr = validTill.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()
   }
   const formattedPhone = bos.buyer_phone ? bos.buyer_phone.replace(/\D/g, '').replace(/^(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3') || bos.buyer_phone : '___________________________'
-  const validDaysLabel = bos.deposit_valid_days ?? 5
 
   return `<!DOCTYPE html>
 <html>
@@ -383,12 +382,6 @@ function BOSForm({ trucks, customers, onSave, onCancel, onCustomerCreated, initi
       <div><label style={LS}>Deposit ($)</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="0" value={form.deposit} onChange={e => setForm(f => ({ ...f, deposit: e.target.value }))} /></div>
       <div><label style={LS}>Date of Sale</label><input style={{ ...IS, minHeight: 44 }} type="date" value={form.sale_date} onChange={e => setForm(f => ({ ...f, sale_date: e.target.value }))} /></div>
     </div>
-    {parseFloat(form.deposit) > 0 && !form.is_financed && (
-      <div style={{ marginBottom: 12, maxWidth: 220 }}>
-        <label style={LS}>Deposit Valid For (business days)</label>
-        <input style={{ ...IS, minHeight: 44 }} type="number" min="1" placeholder="5" value={form.deposit_valid_days} onChange={e => setForm(f => ({ ...f, deposit_valid_days: e.target.value }))} />
-      </div>
-    )}
     {price > 0 && (
       <div style={{ background: 'var(--hover)', borderRadius: 10, padding: '14px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
         {[
@@ -417,8 +410,16 @@ function BOSForm({ trucks, customers, onSave, onCancel, onCustomerCreated, initi
         <input type="checkbox" checked={form.is_financed || false} onChange={e => setForm(f => ({ ...f, is_financed: e.target.checked }))}
           style={{ width: 18, height: 18, accentColor: '#EAB308', cursor: 'pointer' }} />
         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Financed</span>
-        <span style={{ fontSize: 12, color: 'var(--text4)' }}>(hides "valid for X business days" notice)</span>
+        <span style={{ fontSize: 12, color: 'var(--text4)' }}>(adds "valid for X business days" notice to invoice)</span>
       </label>
+      {form.is_financed && (
+        <div style={{ marginTop: 10, marginLeft: 28, maxWidth: 220 }}>
+          <label style={LS}>Deposit Valid For (business days)</label>
+          <input style={{ ...IS, minHeight: 44 }} type="number" min="1" placeholder="5"
+            value={form.deposit_valid_days}
+            onChange={e => setForm(f => ({ ...f, deposit_valid_days: e.target.value }))} />
+        </div>
+      )}
     </div>
     <div style={{ marginBottom: 20 }}>
       <label style={LS}>Notes (optional)</label>
@@ -439,9 +440,9 @@ function BOSDocument({ bos }: { bos: BOS }) {
   const saleDate = saleDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   const deposit = bos.deposit || 0
   const totalRemaining = bos.total - deposit
+  const validDaysLabel = bos.deposit_valid_days ?? 5
   let validTillStr = ''
-  let validDaysLabel = bos.deposit_valid_days ?? 5
-  if (deposit > 0 && !bos.is_financed) {
+  if (bos.is_financed) {
     const validTill = addBusinessDays(saleDateObj, validDaysLabel)
     validTillStr = validTill.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()
   }
