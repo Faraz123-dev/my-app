@@ -39,8 +39,8 @@ const emptyForm = {
 
 type FormType = typeof emptyForm
 
-// Place your logo file at: public/logo.png
-const LOGO_SRC = '/logo.png'
+// Logo file lives at: public/AamirandSons-Logo.png
+const LOGO_SRC = '/AamirandSons-Logo.png'const LOGO_SRC = '/AamirandSons-Logo.png'
 
 // Extracts the trailing numeric portion of an invoice number so that
 // mixed prefixes (INV-000131 / INV#-000131) sort correctly.
