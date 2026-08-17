@@ -42,6 +42,14 @@ type FormType = typeof emptyForm
 // Place your logo file at: public/logo.png
 const LOGO_SRC = '/logo.png'
 
+// Extracts the trailing numeric portion of an invoice number so that
+// mixed prefixes (INV-000131 / INV#-000131) sort correctly.
+function invoiceNum(inv: string | null): number {
+  if (!inv) return -1
+  const m = inv.match(/(\d+)\s*$/)
+  return m ? parseInt(m[1], 10) : -1
+}
+
 function addBusinessDays(startDate: Date, days: number): Date {
   const result = new Date(startDate)
   let added = 0
@@ -686,11 +694,13 @@ export default function OfSalePagBille() {
     await supabase.from('bills_of_sale').delete().eq('id', id); loadAll()
   }
 
-  const filtered = bosList.filter(b => {
-    if (!search) return true
-    const q = search.toLowerCase()
-    return [b.buyer_name, b.truck_make, b.truck_model, b.truck_vin].some(v => v?.toLowerCase().includes(q))
-  })
+  const filtered = bosList
+    .filter(b => {
+      if (!search) return true
+      const q = search.toLowerCase()
+      return [b.buyer_name, b.truck_make, b.truck_model, b.truck_vin].some(v => v?.toLowerCase().includes(q))
+    })
+    .sort((a, b) => invoiceNum(b.invoice_number) - invoiceNum(a.invoice_number))
 
   const fmt = (d: string | null) => {
     if (!d) return '—'
