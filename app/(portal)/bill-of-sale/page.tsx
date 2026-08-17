@@ -18,7 +18,7 @@ type BOS = {
   deposit: number; sale_date: string | null; notes: string | null; invoice_number: string | null
   is_financed?: boolean; deposit_valid_days?: number | null
 }
-   
+
 const IS: React.CSSProperties = { background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '10px 14px', color: 'var(--text)', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'system-ui,sans-serif' }
 const LS: React.CSSProperties = { fontSize: 13, color: 'var(--text2)', marginBottom: 6, display: 'block', fontWeight: 500 }
 const TD: React.CSSProperties = { padding: '12px 14px', color: 'var(--text)', whiteSpace: 'nowrap', fontSize: 15 }
@@ -39,7 +39,8 @@ const emptyForm = {
 
 type FormType = typeof emptyForm
 
-const LOGO_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAB3IAAAVBCAYAAAB2MMpaAAAACXBIWXMAAC4jAAAuIwF4pT92AAANnmlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4gPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iQWRvYmUgWE1QIENvcmUgNi4wLWMwMDIgNzkuMTY0NDYwLCAyMDIwLzA1LzEyLTE2OjA0OjE3ICAgICAgICAiPiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgeG1sbnM6cGhvdG9zaG9wPSJodHRwOi8vbnMuYWRvYmUuY29tL3Bob3Rvc2hvcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RFdnQ9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZUV2ZW50IyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtbG5zOnRpZmY9Imh0dHA6Ly9ucy5hZG9iZS5jb20vdGlmZi8xLjAvIiB4bWxuczpleGlmPSJodHRwOi8vbnMuYWRvYmUuY29tL2V4aWYvMS4wLyIgeG1wOkNyZWF0b3JUb29sPSJBZG9iZSBQaG90b3Nob3AgMjEuMiAoV2luZG93cykiIHhtcDpDcmVhdGVEYXRlPSIyMDI0LTAxLTExVDE4OjI3OjUyKzA1OjAwIiB4bXA6TW9kaWZ5RGF0ZT0iMjAyNC0wNC0xNFQwOToyNjowMSswNTowMCIgeG1wOk1ldGFkYXRhRGF0ZT0iMjAyNC0wNC0xNFQwOToyNjowMSswNTowMCIgZGM6Zm9ybWF0PSJpbWFnZS9wbmciIHBob3Rvc2hvcDpDb2xvck1vZGU9IjMiIHBob3Rvc2hvcDpJQ0NQcm9maWxlPSJzUkdCIElFQzYxOTY2LTIuMSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDoyMDhmYzI0MC04ODRkLTU0NDUtOWVlZC1jZGE3YjNjNmUzODciIHhtcE1NOkRvY3VtZW50SUQ9ImFkb2JlOmRvY2lkOnBob3Rvc2hvcDo4YmQzM2YwNC02MzA4LWEwNGQtYjQ4My02NWUzZTc2NTA5ZTIiIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDo0YTliN2U5OC1jNzdhLWE4NDUtYjA5OS03OTFjMzZkMWQxMDciIHRpZmY6T3JpZW50YXRpb249IjEiIHRpZmY6WFJlc29sdXRpb249IjMwMDAwMDAvMTAwMDAiIHRpZmY6WVJlc29sdXRpb249IjMwMDAwMDAvMTAwMDAiIHRpZmY6UmVzb2x1dGlvblVuaXQ9IjIiIGV4aWY6Q29sb3JTcGFjZT0iMSIgZXhpZjpQaXhlbFhEaW1lbnNpb249IjE5MDYiIGV4aWY6UGl4ZWxZRGltZW5zaW9uPSIxMzQ1Ij4gPHBob3Rvc2hvcDpEb2N1bWVudEFuY2VzdG9ycz4gPHJkZjpCYWc+IDxyZGY6bGk+eG1wLmRpZDo0YTliN2U5OC1jNzdhLWE4NDUtYjA5OS03OTFjMzZkMWQxMDc8L3JkZjpsaT4gPC9yZGY6QmFnPiA8L3Bob3Rvc2hvcDpEb2N1bWVudEFuY2VzdG9ycz4gPHhtcE1NOkhpc3Rvcnk+IDxyZGY6U2VxPiA8cmRmOmxpIHN0RXZ0OmFjdGlvbj0iY3JlYXRlZCIgc3RFdnQ6aW5zdGFuY2VJRD0ieG1wLmlpZDo0YTliN2U5OC1jNzdhLWE4NDUtYjA5OS03OTFjMzZkMWQxMDciIHN0RXZ0OndoZW49IjIwMjQtMDEtMTFUMTg6Mjc6NTIrMDU6MDAiIHN0RXZ0OnNvZnR3YXJlQWdlbnQ9IkFkb2JlIFBob3Rvc2hvcCAyMS4yIChXaW5kb3dzKSIvPiA8cmRmOmxpIHN0RXZ0OmFjdGlvbj0ic2F2ZWQiIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6ZDRmOGYwNmItZDQwMi05ZDQyLWFjNDQtM2E3N2VjNmJiYTBhIiBzdEV2dDp3aGVuPSIyMDI0LTAzLTIzVDE5OjQ0OjM5KzA1OjAwIiBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQaG90b3Nob3AgMjEuMiAoV2luZG93cykiIHN0RXZ0OmNoYW5nZWQ9Ii8iLz4gPHJkZjpsaSBzdEV2dDphY3Rpb249ImNvbnZlcnRlZCIgc3RFdnQ6cGFyYW1ldGVycz0iZnJvbSBpbWFnZS9wbmcgdG8gYXBwbGljYXRpb24vdm5kLmFkb2JlLnBob3Rvc2hvcCIvPiA8cmRmOmxpIHN0RXZ0OmFjdGlvbj0iZGVyaXZlZCIgc3RFdnQ6cGFyYW1ldGVycz0iY29udmVydGVkIGZyb20gaW1hZ2UvcG5nIHRvIGFwcGxpY2F0aW9uL3ZuZC5hZG9iZS5waG90b3Nob3AiLz4gPHJkZjpsaSBzdEV2dDphY3Rpb249InNhdmVkIiBzdEV2dDppbnN0YW5jZUlEPSJ4bXAuaWlkOjVkYTRmMGZmLWI3MGQtZTM0YS04Nzk1LTVlN2M2ZjVlZWEzOSIgc3RFdnQ6d2hlbj0iMjAyNC0wMy0yM1QxOTo0NDozOSswNTowMCIgc3RFdnQ6c29mdHdhcmVBZ2VudD0iQWRvYmUgUGhvdG9zaG9wIDIxLjIgKFdpbmRvd3MpIiBzdEV2dDpjaGFuZ2VkPSIvIi8+IDxyZGY6bGkgc3RFdnQ6YWN0aW9uPSJzYXZlZCIgc3RFdnQ6aW5zdGFuY2VJRD0ieG1wLmlpZDo5YzVjM2U3Ni0xNTFjLTBkNDktOGNmYS1lZjUxYmUzYjYzMDQiIHN0RXZ0OndoZW49IjIwMjQtMDQtMTRUMDk6MTE6MTkrMDU6MDAiIHN0RXZ0OnNvZnR3YXJlQWdlbnQ9IkFkb2JlIFBob3Rvc2hvcCAyMS4yIChXaW5kb3dzKSIgc3RFdnQ6Y2hhbmdlZD0iLyIvPiA8cmRmOmxpIHN0RXZ0OmFjdGlvbj0iY29udmVydGVkIiBzdEV2dDpwYXJhbWV0ZXJzPSJmcm9tIGFwcGxpY2F0aW9uL3ZuZC5hZG9iZS5waG90b3Nob3AgdG8gaW1hZ2UvcG5nIi8+IDxyZGY6bGkgc3RFdnQ6YWN0aW9uPSJzYXZlZCIgc3RFdnQ6aW5zdGFuY2VJRD0ieG1wLmlpZDoxMDJmMzc1Yi01OThjLTVhNDQtYmE4YS1lNDM1NjczNGRmZGYiIHN0RXZ0OndoZW49IjIwMjQtMDQtMTRUMDk6MTE6MTkrMDU6MDAiIHN0RXZ0OnNvZnR3YXJlQWdlbnQ9IkFkb2JlIFBob3Rvc2hvcCAyMS4yIChXaW5kb3dzKSIgc3RFdnQ6Y2hhbmdlZD0iLyIvPiA8cmRmOmxpIHN0RXZ0OmFjdGlvbj0ic2F2ZWQiIHN0RXZ0Omluc3RhbmNlSUQ9InhtcC5paWQ6MjA4ZmMyNDAtODg0ZC01NDQ1LTllZWQtY2RhN2IzYzZlMzg3IiBzdEV2dDp3aGVuPSIyMDI0LTA0LTE0VDA5OjI2OjAxKzA1OjAwIiBzdEV2dDpzb2Z0d2FyZUFnZW50PSJBZG9iZSBQaG90b3Nob3AgMjEuMiAoV2luZG93cykiIHN0RXZ0OmNoYW5nZWQ9Ii8iLz4gPC9yZGY6U2VxPiA8L3htcE1NOkhpc3Rvcnk+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOjljNWMzZTc2LTE1MWMtMGQ0OS04Y2ZhLWVmNTFiZTNiNjMwNCIgc3RSZWY6ZG9jdW1lbnRJRD0iYWRvYmU6ZG9jaWQ6cGhvdG9zaG9wOjViZTBlODExLWQ0NjktOWU0NC1hMWQ5LWI2YTZkN2FjN2FiNiIgc3RSZWY6b3JpZ2luYWxEb2N1bWVudElEPSJ4bXAuZGlkOjRhOWI3ZTk4LWM3N2EtYTg0NS1iMDk5LTc5MWMzNmQxZDEwNyIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/PimhZXhgAAAAOw0lEQVR4nOzdd4BjZdn38e93JmVnZ3sBFmSXojQBRZo0EQSlN+lFEEHhVSyAGkQQlV5EEQsPSlFAelUQEBQQBUS6IqIU6WVh6+xk5jrPP0mmzWSSyU7Pfp8/2Ekmp5wpe66crb3nAF5xrY3AZ2nzZuXsdw6Adu5aOgcAeYRe0PGXd7yuv4EAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADkYCAXAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgLzM1PjhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADmxIhcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAXgxyAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADmxIhcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAXgxyAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADmxIhcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAXhZ0eKzXqCf1WlYlmXpv2LBz8YASEPAcqcmSjNfF5eaFqu6i7SLtot4V/Q9Kf3Xt9nR9YkA9TjcQBTUZfImaawgtCEupZFsldEc9M0G3F6+n5r62r9C0nWJq60x/N+8IE8XY6nk1sZQPeYaXqI3AnB8Nlq5RRVlZM7hLKzZarj2XnvvOb1sHl46Fn9V71QGnnyLdlN70XvXo2Ojrz2wo3aYU8fp1r+/2rG6PptAOTP1+sf+Ml+aIfvI0IdPHXQ5V0T9v6TQQDgTMYQOQCA5RFdKwsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABQnBnIBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALDDoJcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAo1ejF+H//8gwGFy4YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA+xkAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgILoRTgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABQFAO5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoCgGcgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABFMZALAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACgKAZyAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABTFQC4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABQFAO5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoCgGcgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABFMZALAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoCgGcgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABFMZALAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoCgGcgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABF/T8AAAD//+ydV5gU1beF1z5V1RM6TZgcxYAJUFAERQXBHFDMOWfMOWMWc0RyDoIkQQERUZAoKmDAgAJK6DBpuqvOfhh0/JXhDjT0dPfQ6/scGiaeqjm4d51z9m+Bcfqxpb0BdxDolMc3xKgKuALgcMi/xxjWiI9RANuOn9CNjjt9Am6NsWXtV31RvNw4hlz+jK8OATVLNCoo9SG//8pgpi9Vy1uzy/e1Z7Rh6uUD6cH0K6+9y8mJp4WGVX1FVX3F3wl+kIQ5UEfIhI3n1DPvOATg8ymEd8OMxvcmk6nOXbp4CyxaMkkNBQvT8gnPy4/2v5tD8pnAWCIeg2i6VJHnvbCk4mm3Xn+u7wPo5eXlOxYtXvw9ANs4LmjKtCe/6DVs4tR7l2/asL83HmiuADK+xzKvSAG/hOFDl5ycfXGx5vseE7iEwUmiL5RwSkgQINa17mvTgWSSD0R7DL0uxWzcGRVN3xXR+HkAvQTgLYcOZDIe17FIe0mrfKbz3rZC0YW1eGkzT0h5DUxxOMe1LxfoSBHspRC7Cf6HR4kXlBQAvXHnrp6f7iN15xnfP8bTe3ETV2S1PfvOR/x8ULp+j5Njz57kfTFhrMDlB0KMH0Rb8oXgh3ANhoi3EBUYZ9EIH8AXggLggwF8ZlxfnB1qxg44Y8yaJqoxeuSCETOOx19+8dVn3Pf4/JMzOnR6BBTdIQMYokr79EA/BQAvAeh6TXVLg0kOP2rlyw9v1jvFH7VtxwF03bLtaN3zX3Bg2VJEIsFmvcYVLcNi5cvSbnndoQOP7dqrezcdxo1a/EGvzn9PZk/YfOO1lyaFA/6TAdxRUB/HXm86mA9K0zSN60bXW3rlYSuvvSs8+u2Xzhoz9OG1qcuFPnnzuXsPfmjxlwCgIC6b6E2wf/uMi9lOtQGzGdaSBjkl4c4qihi/nDCyz4dfjBl85ldjxxV8sHu60LZ2wm50VLLXCtQvFOTMJHClO+FQeE4CjK4Nb90BEVw6QCUyRDp8LzUJqZ35c72kb5vFQVGrRoZQC5rrOfvE8n7ETMSY0dc95uM7d+PC1s6ZOc/6+RwFY1hZOtcaQvVA1jyLAj6/CJHXwFYYzMy9bnfXpQ8/BiPfF+z2vHBOx6qq16dOvvfKz2zWunevXNCa/9r5VLp06MJXxrmtqu4vLS5cSMKuHDXm3f0/nfl+ozBebrl5S8vevXJBg+PmxCk3Xr3JT9WdRq3l/gVndPnw08nT3vwCwHf5RGWYA6UWlXqzmzE8f4L5tsWt9UqPfPTA/nn5MHTkoo2AIVXTNv50sfW3TR/8ZFmiHtsBLI0AVWEg/HRLQoNRcH0hi/nqIL5aTQeAgAgqA1jXTFtdC0stgFo10DDvLDkYQC1IVBd7q4Xdb3g5+iuqx3D8gr6sqvv4gYd/AwCiv8MOEArIvKNlXAJ7Xh/9v4XlAI4uKJAt9L9ROnzr5/M1btu18eV7/2XXqQTgQVX9BABYtoUw+kfPGnZeuu0GXHt+9pXHOKzoNbQCEbwYU9dY0YFPk9nnrs0xd4tVW+CX9RRQdVMV3f2lp1XHLPjJnH+9Ln7GDD9k1KcS4uPKqmxxZUdusY9M25NCBbaSVOr9jSg8kA55BUP9EJfE9c8/nOs3Vfv/mfnzSp1/nn98MLGmoBEZJcNM2n3v1BdegP0G7SPFP/uMdw9zGvXn4A+eBvvvVXX3+r+7VDwd48d/l/Jj/++D2Q/GXP1BxjP7+r6bMLKUuA9UN5+X89gDR+aiG5gDFQKD/3EnKQ0oCfEuTVdxu7T8Y8pDLnfF6yCr9m3ZeR9uCzMSA/Dz8dHu0VoPMYyoi82F0F+RJqfPfa6yeejjXsMLBnAV8w3dbLsQrN6EGmB2q8DBcnxJvBg3G8ivIlqUlV1SHmS3kBrKn5QQEAoJmqQGgsD70qlaQCEHtZoqU1SoWSFF9zR7ILUqR8AyaeXglQrDMcJyy4mZWU1JS2ck+3wUFB0PSzoLQ6vh1BOaMhrKQZoHkoQqbcqNYAzlAJf0hKgS+1FJKtSZ40S6f3AzsBTHqRr8QP5xrqxYSFcICKC4TwGrpDDCUFHZKk40tqSAj0+lVsK6VXbnCbFWSyFUqXgoZFvcSlqUqjRIC3aFPMKA1YrDMPmC7evOe//1p91zRSDpSMnW1DZS3AbeChSGnLeuwm22R9+z/6oCoZv4NJKuXeKO/2yiVU/EiPESTLL2GNGdQF3E9RhhLp+lVSHFDbHqE8bwOwqW4qZgh9wJgP0IZClDU9E7lWvRxSktZlUpxHFljmuoY+Xd0eHXhI5cHXKUeqhAhw7bPltz/EOfWZlx7ejfEo0YkVJ+aC7kR0EmXvhstU+RKklELF14QVIhhVMOm/1zvhczChYQE8lMQHOTZlYNMYCEZC4b1IZ44xrxk0oCVSb/9DnZUFj7Ncne0HcOgKzcvXeuTdXtRhZ8SjRnRZRW/nrKmk+nDgO40h/wnZoLcZOoqvxs9Ns/rW7g5eSjmm2rEZ8vs93Nl3+GcmXsIxc8pyZ80/8XyPuqRj5VaHzHUsD6NctXAiwe5GTeCDpMHV8kxSDMkTM+B2A6a6QmZaeKlDANP9SXWEA2ETqcxsOTU5ZOnSKtCVwGlyFXaEqOF5jZQ7HxdOF6XkzIwjYU34ZLWaqWQ8FdKmM0/xL6NfvLNpaC8L6OpH7yD3aoQxfmnGRhIXK8+cGkG6oGYqmwXTeVVGZKmxLDppFbLR1eNyEwmMxOxSVdK1/nkFOd2W6xtYuGm52OMjRc09YnRVDkbSXtzRPjeaX0pIcbdEHZnCEd2emj0KA8YlH1yGDbHzGYRl+iSNJvvGkkPGGaTsB+f9U65J71emAj4WVLGf6kZWH3XHZG82c4wxpx+SXkQ0LMcskbo9UeRRWFDFCqxb2c8k02Aiix0F5b/UOWzYyDD5RTd3xASN6R95c50EomMZK1LZLUFIeGXlaX7XxSPWD5+U+7YvLzXKG1G0zK6mB69MFXK0FMRHzsPWx1oemvLu9zeUbz/nQtNiSDe6cDsvA7+i/HqPomLyaERyEnQrwPzS2N4y6Byx0Zdgc/pMS/nkoxSk4Da/UnQfg1IcxKVApnR76qGGE6NmXVLTgXBTHYW23hcRAJvydxD2CxfnrKvbmA/HpFF4Snp8H1CvKTgkOB8FBB6y9zTsQwG6vHBQ1MDsOgMKMcx0ZmS9Fy2vE8DFRWzhdyc8bECXm4A/j2NGtCXvXIQm0nBcVwSK5cCUE8p6O2S3PbmZ5+2b98mmzYbfZaKu3zdusrKcgH+jGSHZ/lgAaSivmmKuKq/QOOnvyhKOe3zn5jP9+i//KsvGtd+cO+RhcCTPvhJ/zW9zzq5NBQqnwc/e79r97qk3Zt2j0eqSocCcAHT+Yiv/S4LKfoBBQGX/T9YuiVN0DzWWMvo3H1MTFq6QaAX/N2Zym+fVvC2rz9jfl56KpGl9zTr3XKzOtcpuIzB6ml7bJXPtGyMoXH+jrnndU3lkQAAgDbjRQBpjT5Nz+VmODMzsyeFbwjM8jkKz+dz+dyPPXZkZWXn7bLNQPPyPHZ4KFhYGCwsCDkOgg4jGArkl1WU//3P0uKPS0uOxOtHTQVwOAAsBrRfj97eypNhCvBrTdV3+cvvSC7bBEG8ncQmM3+lU8VXJWFDx4EWNPjNr0kNwEmzD//kmoS/9WPS4wpA1/j53yv3nfPGRIfnnwCwSSLdWebq4nCgqiwSVeYbfxjkyKrSSKCyzB8srQxUlpYFAsFqEQjpgOtYRSJQVeaPRt8UD/lFxbFcv6ozAvjV9c9zHF/AZ1nBQCArM1RQEAoV5BdmR+Vk5+RmZebnZGVn5wUD/mBmpivQg6iZWlhY6O/atWfWytUrPD++9llnr3F63bMy8+Xk5xdt/vqMi0tCwXypaVw4EPRXwx3wLj97SXG7d7cGAOB2WULCWTIUiAyWlYSqBiDaz88vICMYD/qDZaHR41+aBQBKlm5X+Gm0e35heaCsPBIsq6iuGVGqCoZDFbz9TZLZv3z1nOJIVUUEAAJ+f0BEbFuIBS4rEO5F5V8fUX3kv3sFAAAAAElFTkSuQmCC"
+// Place your logo file at: public/logo.png
+const LOGO_SRC = '/logo.png'
 
 function addBusinessDays(startDate: Date, days: number): Date {
   const result = new Date(startDate)
@@ -47,7 +48,7 @@ function addBusinessDays(startDate: Date, days: number): Date {
   while (added < days) {
     result.setDate(result.getDate() + 1)
     const dow = result.getDay()
-    if (dow !== 0 && dow !== 6) added++
+    if (dow !== 0 && dow !== 6) added++   // skip Sat (6) and Sun (0)
   }
   return result
 }
@@ -64,6 +65,7 @@ function bosHTML(bos: BOS): string {
     validTillStr = validTill.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()
   }
   const formattedPhone = bos.buyer_phone ? bos.buyer_phone.replace(/\D/g, '').replace(/^(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3') || bos.buyer_phone : '___________________________'
+  const logoAbs = typeof window !== 'undefined' ? `${window.location.origin}${LOGO_SRC}` : LOGO_SRC
 
   return `<!DOCTYPE html>
 <html>
@@ -109,7 +111,7 @@ function bosHTML(bos: BOS): string {
 <body>
 <div class="page">
   <div class="header">
-    <img src="${LOGO_SRC}" class="header-logo" alt="Logo" />
+    <img src="${logoAbs}" class="header-logo" alt="Logo" />
     <div>
       <div class="header-title">Sales Agreement</div>
       <div class="header-company">Aamir &amp; Sons Trading Ltd.</div>
@@ -149,7 +151,8 @@ function bosHTML(bos: BOS): string {
       <div class="row"><span class="row-lbl">Model</span><span class="row-val">${bos.truck_model || '___________'}</span></div>
       <div class="row"><span class="row-lbl">Color</span><span class="row-val">${bos.truck_colour || '___________'}</span></div>
       <div class="row"><span class="row-lbl">VIN</span><span class="row-val" style="font-family:monospace;font-size:12px;">${bos.truck_vin || '___________________'}</span></div>
-      <div class="row"><span class="row-lbl">Odometer</span><span class="row-val">${(bos as any).is_parts_truck ? 'PARTS' : (bos.truck_km ? bos.truck_km.toLocaleString() + ' km' : '___________')}</span></div>    </div>
+      <div class="row"><span class="row-lbl">Odometer</span><span class="row-val">${(bos as any).is_parts_truck ? 'PARTS' : (bos.truck_km ? bos.truck_km.toLocaleString() + ' km' : '___________')}</span></div>
+    </div>
     <div>
       <div class="section-title">Payment Summary</div>
       <table class="pay-table">
@@ -262,15 +265,15 @@ function BOSForm({ trucks, customers, onSave, onCancel, onCustomerCreated, initi
   const balanceDue = total - deposit
 
   async function handleAddCustomer() {
-  if (!newCust.name) return alert('Name is required.')
-  setSavingCust(true)
-  const { data, error } = await supabase.from('customers').insert([newCust]).select().single()
-  if (error) { alert('Error: ' + error.message); setSavingCust(false); return }
-  await onCustomerCreated()
-  setForm(f => ({ ...f, buyer_name: data.name || '', buyer_phone: data.phone || '', buyer_address: data.address || '', buyer_company: data.company || '', buyer_email: data.email || '' }))
-  setNewCust({ name: '', company: '', phone: '', email: '', address: '' })
-  setShowAddCustomer(false)
-  setSavingCust(false)
+    if (!newCust.name) return alert('Name is required.')
+    setSavingCust(true)
+    const { data, error } = await supabase.from('customers').insert([newCust]).select().single()
+    if (error) { alert('Error: ' + error.message); setSavingCust(false); return }
+    await onCustomerCreated()
+    setForm(f => ({ ...f, buyer_name: data.name || '', buyer_phone: data.phone || '', buyer_address: data.address || '', buyer_company: data.company || '', buyer_email: data.email || '' }))
+    setNewCust({ name: '', company: '', phone: '', email: '', address: '' })
+    setShowAddCustomer(false)
+    setSavingCust(false)
   }
 
   async function handleSave() {
@@ -300,15 +303,15 @@ function BOSForm({ trucks, customers, onSave, onCancel, onCustomerCreated, initi
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       <div style={{ marginBottom: 16 }}>
-      <label style={LS}>Invoice Number <span style={{ color: 'var(--text4)', fontWeight: 400 }}>(auto-generated if blank)</span></label>
-      <input style={{ ...IS, minHeight: 44, fontFamily: 'monospace' }} placeholder="INV-000001" value={form.invoice_number} onChange={e => setForm(f => ({ ...f, invoice_number: e.target.value }))} />
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-      <div>
-        <label style={LS}>Inventory</label>
+        <label style={LS}>Invoice Number <span style={{ color: 'var(--text4)', fontWeight: 400 }}>(auto-generated if blank)</span></label>
+        <input style={{ ...IS, minHeight: 44, fontFamily: 'monospace' }} placeholder="INV-000001" value={form.invoice_number} onChange={e => setForm(f => ({ ...f, invoice_number: e.target.value }))} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div>
+          <label style={LS}>Inventory</label>
           <select style={{ ...IS, minHeight: 44 }} value={form.truck_id} onChange={e => onTruckSelect(e.target.value)}>
             <option value="">— Enter manually —</option>
-          {trucks.map(t => <option key={t.id} value={t.id}>{t.stock_number || t.vin} {'-'} {t.year} {t.make} {t.model}</option>)}
+            {trucks.map(t => <option key={t.id} value={t.id}>{t.stock_number || t.vin} {'-'} {t.year} {t.make} {t.model}</option>)}
           </select>
         </div>
         <div>
@@ -342,98 +345,99 @@ function BOSForm({ trucks, customers, onSave, onCancel, onCustomerCreated, initi
             </select>
           )}
         </div>
-    </div>
-    <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>VEHICLE</div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-      <div><label style={LS}>Year</label><input style={{ ...IS, minHeight: 44 }} placeholder="2019" value={form.truck_year} onChange={e => setForm(f => ({ ...f, truck_year: e.target.value }))} /></div>
-      <div><label style={LS}>Make</label><input style={{ ...IS, minHeight: 44 }} placeholder="Freightliner" value={form.truck_make} onChange={e => setForm(f => ({ ...f, truck_make: e.target.value }))} /></div>
-      <div><label style={LS}>Model</label><input style={{ ...IS, minHeight: 44 }} placeholder="Cascadia" value={form.truck_model} onChange={e => setForm(f => ({ ...f, truck_model: e.target.value }))} /></div>
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
-      <div><label style={LS}>Colour</label><input style={{ ...IS, minHeight: 44 }} placeholder="White" value={form.truck_colour} onChange={e => setForm(f => ({ ...f, truck_colour: e.target.value }))} /></div>
-      <div>
-        <label style={LS}>KM</label>
-        <input style={{ ...IS, minHeight: 44 }} type="number" placeholder="450000" value={form.truck_km} onChange={e => setForm(f => ({ ...f, truck_km: e.target.value }))} />
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, cursor: 'pointer', userSelect: 'none' }}>
-          <input type="checkbox" checked={form.is_parts_truck || false} onChange={e => setForm(f => ({ ...f, is_parts_truck: e.target.checked }))}
-            style={{ width: 14, height: 14, accentColor: '#EAB308', cursor: 'pointer' }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)' }}>Parts Truck</span>
-        </label>
       </div>
-      <div><label style={LS}>VIN</label><input style={{ ...IS, minHeight: 44, fontFamily: 'monospace' }} placeholder="17-char VIN" value={form.truck_vin} onChange={e => setForm(f => ({ ...f, truck_vin: e.target.value }))} /></div>
-    </div>
-    <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>BUYER</div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-      <div><label style={LS}>Full Name *</label><input style={{ ...IS, minHeight: 44 }} placeholder="John Smith" value={form.buyer_name} onChange={e => setForm(f => ({ ...f, buyer_name: e.target.value }))} /></div>
-      <div><label style={LS}>Company Name</label><input style={{ ...IS, minHeight: 44 }} placeholder="ABC Trucking Inc." value={form.buyer_company} onChange={e => setForm(f => ({ ...f, buyer_company: e.target.value }))} /></div>
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-      <div><label style={LS}>Email</label><input style={{ ...IS, minHeight: 44 }} placeholder="john@example.com" type="email" value={form.buyer_email} onChange={e => setForm(f => ({ ...f, buyer_email: e.target.value }))} /></div>
-      <div><label style={LS}>Phone</label><input style={{ ...IS, minHeight: 44 }} placeholder="416-555-0100" value={form.buyer_phone} onChange={e => setForm(f => ({ ...f, buyer_phone: e.target.value }))} /></div>
-    </div>
-    <div style={{ marginBottom: 20 }}>
-      <label style={LS}>Address</label>
-      <input style={{ ...IS, minHeight: 44 }} placeholder="123 Main St, Toronto, ON" value={form.buyer_address} onChange={e => setForm(f => ({ ...f, buyer_address: e.target.value }))} />
-    </div>
-    <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>FINANCIALS</div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
-      <div><label style={LS}>Sale Price ($) *</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="45000" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} /></div>
-      <div><label style={LS}>Tax Rate (%)</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="13" value={form.tax_rate} onChange={e => setForm(f => ({ ...f, tax_rate: e.target.value }))} /></div>
-      <div><label style={LS}>Deposit ($)</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="0" value={form.deposit} onChange={e => setForm(f => ({ ...f, deposit: e.target.value }))} /></div>
-      <div><label style={LS}>Date of Sale</label><input style={{ ...IS, minHeight: 44 }} type="date" value={form.sale_date} onChange={e => setForm(f => ({ ...f, sale_date: e.target.value }))} /></div>
-    </div>
-    {price > 0 && (
-      <div style={{ background: 'var(--hover)', borderRadius: 10, padding: '14px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
-        {[
-          { l: 'PRICE', v: `$${price.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text)' },
-          { l: `HST (${taxRate}%)`, v: `$${taxAmount.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text2)' },
-          { l: 'TOTAL', v: `$${total.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text)' },
-          { l: 'BALANCE DUE', v: `$${balanceDue.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--gold)' },
-        ].map(s => (
-          <div key={s.l} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 9, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 4 }}>{s.l}</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.v}</div>
-          </div>
-        ))}
+      <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>VEHICLE</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div><label style={LS}>Year</label><input style={{ ...IS, minHeight: 44 }} placeholder="2019" value={form.truck_year} onChange={e => setForm(f => ({ ...f, truck_year: e.target.value }))} /></div>
+        <div><label style={LS}>Make</label><input style={{ ...IS, minHeight: 44 }} placeholder="Freightliner" value={form.truck_make} onChange={e => setForm(f => ({ ...f, truck_make: e.target.value }))} /></div>
+        <div><label style={LS}>Model</label><input style={{ ...IS, minHeight: 44 }} placeholder="Cascadia" value={form.truck_model} onChange={e => setForm(f => ({ ...f, truck_model: e.target.value }))} /></div>
       </div>
-    )}
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
-        <input type="checkbox" checked={form.sold_with_safety} onChange={e => setForm(f => ({ ...f, sold_with_safety: e.target.checked }))}
-          style={{ width: 18, height: 18, accentColor: '#EAB308', cursor: 'pointer' }} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Truck sold with safety</span>
-        <span style={{ fontSize: 12, color: 'var(--text4)' }}>(changes warranty disclaimer on invoice)</span>
-      </label>
-    </div>
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
-        <input type="checkbox" checked={form.is_financed || false} onChange={e => setForm(f => ({ ...f, is_financed: e.target.checked }))}
-          style={{ width: 18, height: 18, accentColor: '#EAB308', cursor: 'pointer' }} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Financed</span>
-        <span style={{ fontSize: 12, color: 'var(--text4)' }}>(adds "valid for X business days" notice to invoice)</span>
-      </label>
-      {form.is_financed && (
-        <div style={{ marginTop: 10, marginLeft: 28, maxWidth: 220 }}>
-          <label style={LS}>Deposit Valid For (business days)</label>
-          <input style={{ ...IS, minHeight: 44 }} type="number" min="1" placeholder="5"
-            value={form.deposit_valid_days}
-            onChange={e => setForm(f => ({ ...f, deposit_valid_days: e.target.value }))} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+        <div><label style={LS}>Colour</label><input style={{ ...IS, minHeight: 44 }} placeholder="White" value={form.truck_colour} onChange={e => setForm(f => ({ ...f, truck_colour: e.target.value }))} /></div>
+        <div>
+          <label style={LS}>KM</label>
+          <input style={{ ...IS, minHeight: 44 }} type="number" placeholder="450000" value={form.truck_km} onChange={e => setForm(f => ({ ...f, truck_km: e.target.value }))} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, cursor: 'pointer', userSelect: 'none' }}>
+            <input type="checkbox" checked={form.is_parts_truck || false} onChange={e => setForm(f => ({ ...f, is_parts_truck: e.target.checked }))}
+              style={{ width: 14, height: 14, accentColor: '#EAB308', cursor: 'pointer' }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)' }}>Parts Truck</span>
+          </label>
+        </div>
+        <div><label style={LS}>VIN</label><input style={{ ...IS, minHeight: 44, fontFamily: 'monospace' }} placeholder="17-char VIN" value={form.truck_vin} onChange={e => setForm(f => ({ ...f, truck_vin: e.target.value }))} /></div>
+      </div>
+      <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>BUYER</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div><label style={LS}>Full Name *</label><input style={{ ...IS, minHeight: 44 }} placeholder="John Smith" value={form.buyer_name} onChange={e => setForm(f => ({ ...f, buyer_name: e.target.value }))} /></div>
+        <div><label style={LS}>Company Name</label><input style={{ ...IS, minHeight: 44 }} placeholder="ABC Trucking Inc." value={form.buyer_company} onChange={e => setForm(f => ({ ...f, buyer_company: e.target.value }))} /></div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div><label style={LS}>Email</label><input style={{ ...IS, minHeight: 44 }} placeholder="john@example.com" type="email" value={form.buyer_email} onChange={e => setForm(f => ({ ...f, buyer_email: e.target.value }))} /></div>
+        <div><label style={LS}>Phone</label><input style={{ ...IS, minHeight: 44 }} placeholder="416-555-0100" value={form.buyer_phone} onChange={e => setForm(f => ({ ...f, buyer_phone: e.target.value }))} /></div>
+      </div>
+      <div style={{ marginBottom: 20 }}>
+        <label style={LS}>Address</label>
+        <input style={{ ...IS, minHeight: 44 }} placeholder="123 Main St, Toronto, ON" value={form.buyer_address} onChange={e => setForm(f => ({ ...f, buyer_address: e.target.value }))} />
+      </div>
+      <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', fontWeight: 700, marginBottom: 10 }}>FINANCIALS</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div><label style={LS}>Sale Price ($) *</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="45000" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))} /></div>
+        <div><label style={LS}>Tax Rate (%)</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="13" value={form.tax_rate} onChange={e => setForm(f => ({ ...f, tax_rate: e.target.value }))} /></div>
+        <div><label style={LS}>Deposit ($)</label><input style={{ ...IS, minHeight: 44 }} type="number" placeholder="0" value={form.deposit} onChange={e => setForm(f => ({ ...f, deposit: e.target.value }))} /></div>
+        <div><label style={LS}>Date of Sale</label><input style={{ ...IS, minHeight: 44 }} type="date" value={form.sale_date} onChange={e => setForm(f => ({ ...f, sale_date: e.target.value }))} /></div>
+      </div>
+      {price > 0 && (
+        <div style={{ background: 'var(--hover)', borderRadius: 10, padding: '14px 16px', marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+          {[
+            { l: 'PRICE', v: `$${price.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text)' },
+            { l: `HST (${taxRate}%)`, v: `$${taxAmount.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text2)' },
+            { l: 'TOTAL', v: `$${total.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--text)' },
+            { l: 'BALANCE DUE', v: `$${balanceDue.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`, c: 'var(--gold)' },
+          ].map(s => (
+            <div key={s.l} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 9, color: 'var(--text4)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 4 }}>{s.l}</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.v}</div>
+            </div>
+          ))}
         </div>
       )}
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+          <input type="checkbox" checked={form.sold_with_safety} onChange={e => setForm(f => ({ ...f, sold_with_safety: e.target.checked }))}
+            style={{ width: 18, height: 18, accentColor: '#EAB308', cursor: 'pointer' }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Truck sold with safety</span>
+          <span style={{ fontSize: 12, color: 'var(--text4)' }}>(changes warranty disclaimer on invoice)</span>
+        </label>
+      </div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+          <input type="checkbox" checked={form.is_financed || false} onChange={e => setForm(f => ({ ...f, is_financed: e.target.checked }))}
+            style={{ width: 18, height: 18, accentColor: '#EAB308', cursor: 'pointer' }} />
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Financed</span>
+          <span style={{ fontSize: 12, color: 'var(--text4)' }}>(adds "valid for X business days" notice to invoice)</span>
+        </label>
+        {form.is_financed && (
+          <div style={{ marginTop: 10, marginLeft: 28, maxWidth: 220 }}>
+            <label style={LS}>Deposit Valid For (business days)</label>
+            <input style={{ ...IS, minHeight: 44 }} type="number" min="1" placeholder="5"
+              value={form.deposit_valid_days}
+              onChange={e => setForm(f => ({ ...f, deposit_valid_days: e.target.value }))} />
+          </div>
+        )}
+      </div>
+      <div style={{ marginBottom: 20 }}>
+        <label style={LS}>Notes (optional)</label>
+        <textarea style={{ ...IS, height: 60, resize: 'vertical' }} placeholder="Any additional notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+      </div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button onClick={onCancel} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '14px', fontSize: 14, cursor: 'pointer', fontWeight: 500, minHeight: 50 }}>Cancel</button>
+        <button onClick={handleSave} disabled={saving} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 800, cursor: saving ? 'default' : 'pointer', minHeight: 50, opacity: saving ? 0.7 : 1 }}>
+          {saving ? 'Saving...' : 'Save Sales Agreement'}
+        </button>
+      </div>
     </div>
-    <div style={{ marginBottom: 20 }}>
-      <label style={LS}>Notes (optional)</label>
-      <textarea style={{ ...IS, height: 60, resize: 'vertical' }} placeholder="Any additional notes..." value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-    </div>
-    <div style={{ display: 'flex', gap: 10 }}>
-      <button onClick={onCancel} style={{ flex: 1, background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 12, padding: '14px', fontSize: 14, cursor: 'pointer', fontWeight: 500, minHeight: 50 }}>Cancel</button>
-      <button onClick={handleSave} disabled={saving} style={{ flex: 2, background: 'linear-gradient(135deg,#EAB308,#d97706)', border: 'none', color: '#000', borderRadius: 12, padding: '14px', fontSize: 14, fontWeight: 800, cursor: saving ? 'default' : 'pointer', minHeight: 50, opacity: saving ? 0.7 : 1 }}>
-        {saving ? 'Saving...' : 'Save Sales Agreement'}
-      </button>
-    </div>
-  </div>
-)    
+  )
 }
+
 // ─── Shared document renderer ───────────────────────────────────────────────
 function BOSDocument({ bos }: { bos: BOS }) {
   const saleDateObj = bos.sale_date ? new Date(bos.sale_date + 'T12:00:00') : new Date()
@@ -451,13 +455,13 @@ function BOSDocument({ bos }: { bos: BOS }) {
   const secT: React.CSSProperties = { fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em', borderBottom: '2px solid #000', paddingBottom: 3, marginBottom: 8 }
 
   return (
-      <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: 13, color: '#000', padding: '24px 40px', position: 'relative', boxSizing: 'border-box' }}>
-        {/* Header */}
+    <div style={{ fontFamily: "'Times New Roman', Times, serif", fontSize: 13, color: '#000', padding: '24px 40px', position: 'relative', boxSizing: 'border-box' }}>
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '3px double #000', paddingBottom: 12, marginBottom: 14 }}>
         <img src={LOGO_SRC} style={{ height: 150, width: 'auto', objectFit: 'contain' }} alt="Logo" />
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: '0.06em', textTransform: 'uppercase', lineHeight: 1 }}>Sales Agreement</div>
-          <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>Aamir & Sons Trading Ltd.</div>
+          <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>Aamir &amp; Sons Trading Ltd.</div>
           <div style={{ fontSize: 11, color: '#444', marginTop: 2 }}>2 Blair Dr, Brampton, ON L6T 2H5 &bull; HST # 704391101RT0001</div>
           <div style={{ fontSize: 11, color: '#444' }}>Tel: 647-563-5783 &bull; aamirandsons@hotmail.com</div>
         </div>
@@ -502,7 +506,7 @@ function BOSDocument({ bos }: { bos: BOS }) {
             ["Model", bos.truck_model || '___________'],
             ["Color", bos.truck_colour || '___________'],
             ["VIN", bos.truck_vin || '___________________'],
-            ["Odometer", (bos as any).is_parts_truck ? 'PARTS' : (bos.truck_km ? bos.truck_km.toLocaleString() + ' km' : '___________')],         
+            ["Odometer", (bos as any).is_parts_truck ? 'PARTS' : (bos.truck_km ? bos.truck_km.toLocaleString() + ' km' : '___________')],
           ] as [string,string][]).map(([l,v]) => (
             <div key={l} style={rowS}><span style={{ color: '#555' }}>{l}</span><span style={{ fontWeight: 600, fontFamily: l === 'VIN' ? 'monospace' : 'inherit', fontSize: l === 'VIN' ? 14 : 15 }}>{v}</span></div>
           ))}
@@ -553,8 +557,9 @@ function BOSDocument({ bos }: { bos: BOS }) {
         </div>
       )}
 
-      {/* Signatures - pinned to bottom */}
-          <div style={{ paddingTop: 8, borderTop: '1px solid #ccc', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, marginTop: 10 }}>          {([
+      {/* Signatures */}
+      <div style={{ paddingTop: 8, borderTop: '1px solid #ccc', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, marginTop: 10 }}>
+        {([
           ["Signature of Seller", "Aamir & Sons Trading Ltd.", null],
           ["Signature of Buyer", (bos as any).buyer_company || bos.buyer_name || '', null],
         ] as [string,string,string|null][]).map(([label, name]) => (
@@ -575,14 +580,15 @@ function BOSPreviewModal({ bos, onClose }: { bos: BOS; onClose: () => void }) {
 
   return (
     <>
-    <style>{`
-      @keyframes spin { to { transform:rotate(360deg) } }
-      .bos-row { border-bottom:1px solid var(--border2); transition:background 0.15s; }
-      .bos-row:hover { background:var(--hover); }
-    `}</style>
+      <style>{`
+        @keyframes spin { to { transform:rotate(360deg) } }
+        .bos-row { border-bottom:1px solid var(--border2); transition:background 0.15s; }
+        .bos-row:hover { background:var(--hover); }
+      `}</style>
 
-{/* On-screen modal */}
-          <div className="no-print" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>        <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 720, maxHeight: '94vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.6)', color: '#000', overflow: 'hidden' }}>
+      {/* On-screen modal */}
+      <div className="no-print" onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 720, maxHeight: '94vh', display: 'flex', flexDirection: 'column', boxShadow: '0 32px 80px rgba(0,0,0,0.6)', color: '#000', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderBottom: '1px solid #e5e7eb', background: '#f9f9f6', flexShrink: 0 }}>
             <span style={{ fontWeight: 700, fontSize: 14, color: '#0f0f0f' }}>Sales Agreement Preview</span>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -590,7 +596,7 @@ function BOSPreviewModal({ bos, onClose }: { bos: BOS; onClose: () => void }) {
               <button onClick={onClose} style={{ background: '#eee', border: 'none', color: '#333', borderRadius: '50%', width: 32, height: 32, fontSize: 18, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
           </div>
-            <div style={{ overflowY: 'auto', flex: 1 }}>
+          <div style={{ overflowY: 'auto', flex: 1 }}>
             <BOSDocument bos={bos} />
           </div>
         </div>
@@ -607,7 +613,7 @@ export default function OfSalePagBille() {
   const [showAdd, setShowAdd]       = useState(false)
   const [editBOS, setEditBOS]       = useState<BOS | null>(null)
   const [previewBOS, setPreviewBOS] = useState<BOS | null>(null)
-  const [printBOS, setPrintBOS]   = useState<BOS | null>(null)  
+  const [printBOS, setPrintBOS]     = useState<BOS | null>(null)
   const [isMobile, setIsMobile]     = useState(false)
   const [search, setSearch]         = useState('')
 
@@ -631,8 +637,6 @@ export default function OfSalePagBille() {
       }
     `
     document.head.appendChild(style)
-
-    document.head.appendChild(style)
     return () => document.getElementById('bos-print-style')?.remove()
   }, [])
 
@@ -640,14 +644,14 @@ export default function OfSalePagBille() {
     setLoading(true)
     const [{ data: bosData }, { data: truckData }, { data: customerData }] = await Promise.all([
       supabase.from('bills_of_sale').select('*').order('created_at', { ascending: false }),
-      supabase.from('Inventory Data').select('id, year, make, model, vin, colour, kilometers, sold_price, customer, date_sold, stock_number').order('bought_on', { ascending: false }),      supabase.from('customers').select('*').order('name'),
+      supabase.from('Inventory Data').select('id, year, make, model, vin, colour, kilometers, sold_price, customer, date_sold, stock_number').order('bought_on', { ascending: false }),
+      supabase.from('customers').select('*').order('name'),
     ])
     setBosList(bosData || [])
     setTrucks(truckData || [])
     setCustomers(customerData || [])
     setLoading(false)
   }
-
 
   async function generateInvoiceNumber(): Promise<string> {
     const { data } = await supabase
@@ -664,7 +668,7 @@ export default function OfSalePagBille() {
     return 'INV-000001'
   }
 
-async function saveBOS(data: any) {
+  async function saveBOS(data: any) {
     const invoice_number = data.invoice_number || await generateInvoiceNumber()
     const { error } = await supabase.from('bills_of_sale').insert([{ ...data, invoice_number }])
     if (error) { alert('Error: ' + error.message); return }
@@ -751,24 +755,24 @@ async function saveBOS(data: any) {
                         <td style={{ ...TD, color: dep > 0 ? 'var(--text2)' : 'var(--text4)' }}>{dep > 0 ? `$${dep.toLocaleString('en-CA', { minimumFractionDigits: 2 })}` : '—'}</td>
                         <td style={{ ...TD, color: 'var(--gold)', fontWeight: 700 }}>${bal.toLocaleString('en-CA', { minimumFractionDigits: 2 })}</td>
                         <td style={{ padding: '12px 14px' }}>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          {bos.truck_id && <button onClick={() => window.location.href = `/inventory/${bos.truck_id}`} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🚛 View Truck</button>}
-                          <button onClick={() => setPreviewBOS(bos)} style={{ background: 'var(--blue-dim)', border: '1px solid var(--blue)', color: 'var(--blue)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Preview</button>
-                          {bos.buyer_email && (() => {
-                            const emailSubject = encodeURIComponent(`Sales Agreement - ${bos.invoice_number || 'Invoice'} - ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}`)
-                            const emailBody = encodeURIComponent(`Dear ${bos.buyer_name},\n\nPlease find attached your Sales Agreement for the following vehicle:\n\nVehicle: ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}\nVIN: ${bos.truck_vin}\nInvoice #: ${bos.invoice_number || '—'}\nTotal: $${bos.total.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD\n\nPlease don't hesitate to reach out if you have any questions.\n\nBest regards,\nAamir & Sons Trading Ltd.\n647-563-5783\naamirandsons@hotmail.com`)
-                            const emailHref = `https://outlook.live.com/owa/?path=/mail/action/compose&to=${encodeURIComponent(bos.buyer_email!)}&subject=${emailSubject}&body=${emailBody}`
-                            return (
-                              <a href={emailHref} target="_blank" rel="noopener noreferrer"
-                                style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none', display: 'inline-block' }}>
-                                ✉️ Email
-                              </a>
-                            )
-                          })()}
-                          <button onClick={() => openBOS(bos)} style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🖨 Print</button>
-                          <button onClick={() => setEditBOS(bos)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13, padding: 4 }}>✏️</button>
-                          <button onClick={() => deleteBOS(bos.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, padding: 4 }}>🗑</button>
-                        </div>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            {bos.truck_id && <button onClick={() => window.location.href = `/inventory/${bos.truck_id}`} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🚛 View Truck</button>}
+                            <button onClick={() => setPreviewBOS(bos)} style={{ background: 'var(--blue-dim)', border: '1px solid var(--blue)', color: 'var(--blue)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Preview</button>
+                            {bos.buyer_email && (() => {
+                              const emailSubject = encodeURIComponent(`Sales Agreement - ${bos.invoice_number || 'Invoice'} - ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}`)
+                              const emailBody = encodeURIComponent(`Dear ${bos.buyer_name},\n\nPlease find attached your Sales Agreement for the following vehicle:\n\nVehicle: ${bos.truck_year} ${bos.truck_make} ${bos.truck_model}\nVIN: ${bos.truck_vin}\nInvoice #: ${bos.invoice_number || '—'}\nTotal: $${bos.total.toLocaleString('en-CA', { minimumFractionDigits: 2 })} CAD\n\nPlease don't hesitate to reach out if you have any questions.\n\nBest regards,\nAamir & Sons Trading Ltd.\n647-563-5783\naamirandsons@hotmail.com`)
+                              const emailHref = `https://outlook.live.com/owa/?path=/mail/action/compose&to=${encodeURIComponent(bos.buyer_email!)}&subject=${emailSubject}&body=${emailBody}`
+                              return (
+                                <a href={emailHref} target="_blank" rel="noopener noreferrer"
+                                  style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none', display: 'inline-block' }}>
+                                  ✉️ Email
+                                </a>
+                              )
+                            })()}
+                            <button onClick={() => openBOS(bos)} style={{ background: 'var(--gold-dim)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 6, padding: '5px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>🖨 Print</button>
+                            <button onClick={() => setEditBOS(bos)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 13, padding: 4 }}>✏️</button>
+                            <button onClick={() => deleteBOS(bos.id)} style={{ background: 'none', border: 'none', color: 'var(--text4)', cursor: 'pointer', fontSize: 14, padding: 4 }}>🗑</button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -787,7 +791,8 @@ async function saveBOS(data: any) {
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', margin: 0 }}>New Sales Agreement</h2>
                 <button onClick={() => setShowAdd(false)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
-              <BOSForm trucks={trucks} customers={customers} onSave={saveBOS} onCancel={() => setShowAdd(false)} onCustomerCreated={async () => { const { data } = await supabase.from('customers').select('*').order('name'); setCustomers(data || []) }} />            </div>
+              <BOSForm trucks={trucks} customers={customers} onSave={saveBOS} onCancel={() => setShowAdd(false)} onCustomerCreated={async () => { const { data } = await supabase.from('customers').select('*').order('name'); setCustomers(data || []) }} />
+            </div>
           </div>
         )}
         {editBOS && (
@@ -798,7 +803,8 @@ async function saveBOS(data: any) {
                 <h2 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Edit Sales Agreement</h2>
                 <button onClick={() => setEditBOS(null)} style={{ background: 'var(--hover)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer', fontSize: 18, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
               </div>
-              <BOSForm trucks={trucks} customers={customers} onSave={(data) => updateBOS(editBOS!.id, data)} onCancel={() => setEditBOS(null)} onCustomerCreated={async () => { const { data } = await supabase.from('customers').select('*').order('name'); setCustomers(data || []) }} initial={editBOS} />            </div>
+              <BOSForm trucks={trucks} customers={customers} onSave={(data) => updateBOS(editBOS!.id, data)} onCancel={() => setEditBOS(null)} onCustomerCreated={async () => { const { data } = await supabase.from('customers').select('*').order('name'); setCustomers(data || []) }} initial={editBOS} />
+            </div>
           </div>
         )}
         {previewBOS && !printBOS && (
@@ -806,8 +812,9 @@ async function saveBOS(data: any) {
             <BOSPreviewModal bos={previewBOS} onClose={() => setPreviewBOS(null)} />
           </div>
         )}
-          <div id="bos-print-root" style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 9999, visibility: printBOS ? 'visible' : 'hidden', display: 'block' }}>            {printBOS && <BOSDocument bos={printBOS} />}
-          </div>
+        <div id="bos-print-root" style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 9999, visibility: printBOS ? 'visible' : 'hidden', display: 'block' }}>
+          {printBOS && <BOSDocument bos={printBOS} />}
+        </div>
       </main>
     </>
   )
